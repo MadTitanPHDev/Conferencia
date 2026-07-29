@@ -1,6 +1,7 @@
 # Build
 **/bin/
 **/obj/
+**/obj_*/
 **/publish/
 **/dist/
 _svg2ico/
