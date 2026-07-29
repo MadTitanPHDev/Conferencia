@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ConferenciaNFs · Apresentação técnica</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --border: #e5e5e2;
+      --text: #1a1a1a;
+      --text-secondary: #5c5c5c;
+      --text-tertiary: #8a8a8a;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --success: #15803d;
+      --success-soft: #f0fdf4;
+      --code-bg: #f0f0ed;
+      --radius: 10px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: Consolas, "Courier New", monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121212;
+        --surface: #1c1c1c;
+        --border: #2e2e2e;
+        --text: #f2f2f2;
+        --text-secondary: #a8a8a8;
+        --text-tertiary: #777;
+        --accent: #60a5fa;
+        --accent-soft: #1a2740;
+        --success: #4ade80;
+        --success-soft: #14261a;
+        --code-bg: #262626;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 20px 64px;
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.2rem;
+      font-weight: 650;
+    }
+    h3 {
+      margin: 12px 0 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    p { margin: 0; }
+    .muted { color: var(--text-secondary); }
+    .small { font-size: 0.875rem; }
+    .tiny { font-size: 0.8rem; color: var(--text-tertiary); }
+    strong { font-weight: 600; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--code-bg);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .pill.info {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: transparent;
+    }
+    .pill.success {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: transparent;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .stat .value {
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .stat .label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .callout {
+      background: var(--accent-soft);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .callout .title {
+      font-weight: 650;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 650;
+      font-size: 0.95rem;
+    }
+    .card-body { padding: 14px; }
+    .card-body > * + * { margin-top: 8px; }
+
+    code, .code {
+      font-family: var(--mono);
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .code-block {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--code-bg);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+      background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+      font-weight: 650;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section { display: flex; flex-direction: column; gap: 12px; }
+
+    @media (max-width: 780px) {
+      .stats, .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      body { padding: 20px 14px 48px; }
+    }
+
+    @media print {
+      body { background: white; color: black; padding: 0; }
+      .card, .stat, table, .callout {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="section" style="gap: 8px;">
+      <span class="pill info">ConferenciaNFs · Apresentação técnica</span>
+      <h1>Conferência de Notas Fiscais</h1>
+      <p class="muted">
+        Aplicativo desktop WPF (.NET 8) para conferência diária de NFs por
+        loja, com banco PostgreSQL compartilhado na rede local.
+      </p>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><div class="value">WPF</div><div class="label">Interface</div></div>
+      <div class="stat"><div class="value">.NET 8</div><div class="label">Runtime</div></div>
+      <div class="stat"><div class="value">C#</div><div class="label">Linguagem</div></div>
+      <div class="stat"><div class="value">PostgreSQL</div><div class="label">Banco</div></div>
+    </section>
+
+    <aside class="callout">
+      <div class="title">Em uma frase</div>
+      <p>
+        Cliente MVVM que importa CSV do dia, permite colorir e anotar notas por
+        loja, exporta Excel colorido e compartilha o estado via PostgreSQL na
+        LAN — com migrador SQLite único e zip self-contained para distribuição.
+      </p>
+    </aside>
+
+    <hr />
+
+    <section class="section">
+      <h2>Como foi feito</h2>
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-header">Arquitetura</div>
+          <div class="card-body">
+            <p>
+              Padrão <strong>MVVM</strong> manual (sem framework DI): Views,
+              ViewModels, Models, Data, Infrastructure, Controls e Themes.
+            </p>
+            <p class="muted small">
+              Classes-base: ViewModelBase, RelayCommand, AsyncRelayCommand.
+              Entrada: App → MainWindow → DashboardViewModel +
+              NotaFiscalRepository.
+            </p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">Linguagens e formatos</div>
+          <div class="card-body">
+            <p><strong>C#</strong> — lógica e persistência</p>
+            <p><strong>XAML</strong> — telas WPF e estilos</p>
+            <p><strong>SQL</strong> — PostgreSQL via Dapper</p>
+            <p><strong>JSON</strong> — app-settings.json</p>
+            <p><strong>CSV / XLSX</strong> — import e export</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Pacotes NuGet</h2>
+      <table>
+        <thead>
+          <tr><th>Pacote</th><th>Versão</th><th>Uso</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>ClosedXML</td><td>0.104.2</td><td>Exportação Excel (.xlsx) colorida por status</td></tr>
+          <tr><td>CsvHelper</td><td>33.0.1</td><td>Importação da planilha CSV diária</td></tr>
+          <tr><td>Dapper</td><td>2.1.35</td><td>Acesso SQL leve sobre Npgsql / Sqlite</td></tr>
+          <tr><td>Npgsql</td><td>8.0.6</td><td>Driver PostgreSQL (banco principal)</td></tr>
+          <tr><td>Microsoft.Data.Sqlite</td><td>8.0.11</td><td>Somente migração única SQLite → Postgres</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Telas e funções</h2>
+      <table>
+        <thead>
+          <tr><th>Tela</th><th>Arquivos</th><th>Função</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Dashboard</td>
+            <td>MainWindow + DashboardViewModel</td>
+            <td>Calendário, cards de lojas, import/export, migrar</td>
+          </tr>
+          <tr>
+            <td>Conferência</td>
+            <td>ConferenciaWindow + ConferenciaViewModel</td>
+            <td>Grade de notas, status, observação, atalhos</td>
+          </tr>
+          <tr>
+            <td>Gerenciar lojas</td>
+            <td>GerenciarLojasWindow + ViewModel</td>
+            <td>Ordem e nome de exibição das lojas</td>
+          </tr>
+          <tr>
+            <td>Pesquisar nota</td>
+            <td>PesquisarNotaWindow + ViewModel</td>
+            <td>Busca por número; 1ª conferência da nota</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Fluxo principal</h2>
+      <div class="grid-3">
+        <article class="card">
+          <div class="card-header">Importar <span class="pill">1</span></div>
+          <div class="card-body">
+            <p class="small">
+              CSV diário (pula 7 linhas de metadados). Todas as notas ficam
+              ligadas ao <code>DiaConferencia</code> escolhido no calendário
+              (padrão: ontem).
+            </p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">Conferir <span class="pill info">2</span></div>
+          <div class="card-body">
+            <p class="small">
+              Abre a loja, marca status por cor, grava observações (PBM, uso e
+              consumo, conveniência ou texto livre).
+            </p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">Exportar <span class="pill success">3</span></div>
+          <div class="card-body">
+            <p class="small">
+              Excel por loja ou “Exportar tudo” do dia, com linhas pintadas
+              conforme o status.
+            </p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Status da conferência</h2>
+      <table>
+        <thead>
+          <tr><th>Valor</th><th>Significado</th><th>Atalho</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Pendente</td><td>Não conferido (branco)</td><td>0</td></tr>
+          <tr><td>Verde</td><td>Nota correta</td><td>1 / F1</td></tr>
+          <tr><td>Amarelo</td><td>Com advertência</td><td>2 / F2</td></tr>
+          <tr><td>Vermelho</td><td>Nota devolvida</td><td>3 / F3</td></tr>
+          <tr><td>Laranja</td><td>Nota de outro dia</td><td>4 / F4</td></tr>
+          <tr><td>Azul</td><td>Absorver nota</td><td>5 / F8</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        Pendências no Dashboard = notas Pendente + Amarelo. Azul = absorver.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Regras de domínio</h2>
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-header">Chave única da nota</div>
+          <div class="card-body">
+            <code class="code-block">loja + numNota + cnpj + diaConferencia + dataCompra</code>
+            <p class="muted small">
+              Upsert em PostgreSQL com ON CONFLICT (ChaveUnica). Import
+              repetido atualiza em vez de duplicar.
+            </p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">Lojas e aliases</div>
+          <div class="card-body">
+            <p class="small">
+              Tabela <code>LojaOrdem</code>: número e nome exibido.
+              <code>LojaAliasNormalizer</code> unifica variantes do CSV (ex.:
+              PIRAPOZINHO → PIRAPOZINH). Seed padrão com dezenas de lojas.
+            </p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Banco e rede</h2>
+      <article class="card">
+        <div class="card-header">PostgreSQL compartilhado</div>
+        <div class="card-body">
+          <p>
+            Tabelas principais: <code>NotasFiscais</code> e
+            <code>LojaOrdem</code>. Connection string em
+            <code>app-settings.json</code> ao lado do executável.
+          </p>
+          <div class="pills">
+            <span class="pill">Host local: 127.0.0.1</span>
+            <span class="pill info">Colegas: IP LAN (ex. 192.168.21.49)</span>
+            <span class="pill">Porta 5432</span>
+            <span class="pill">Usuário conferencia</span>
+          </div>
+          <p class="muted small">
+            Não há servidor próprio do app: todos os PCs falam com o mesmo
+            Postgres. Migrar SQLite copia database.db antigo uma vez.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2>UX e atalhos</h2>
+      <table>
+        <thead>
+          <tr><th>Ação</th><th>Comportamento</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0</td><td>Status branco (não conferido)</td></tr>
+          <tr><td>1 / F1 … 5 / F8</td><td>Verde, Amarelo, Vermelho, Laranja, Azul</td></tr>
+          <tr><td>F5 / F6 / F7</td><td>Observação PBM / USO E CONSUMO / CONVENIÊNCIA</td></tr>
+          <tr><td>Ctrl+S</td><td>Salvar texto livre de observação</td></tr>
+          <tr><td>Ctrl+C / duplo clique</td><td>Copia só o número da nota</td></tr>
+          <tr><td>Scroll do mouse</td><td>Troca nota anterior / próxima</td></tr>
+        </tbody>
+      </table>
+      <div class="pills">
+        <span class="pill">Tema claro / escuro</span>
+        <span class="pill">Janela fixada no topo</span>
+        <span class="pill">Logo CONFereNF</span>
+        <span class="pill">UI responsiva</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Camadas do código</h2>
+      <div class="grid-2">
+        <div>
+          <h3>UI</h3>
+          <p class="small muted">Views/, Controls/, Themes/, Assets/</p>
+          <h3>Lógica</h3>
+          <p class="small muted">ViewModels/, Infrastructure/</p>
+        </div>
+        <div>
+          <h3>Dados</h3>
+          <p class="small muted">Data/NotaFiscalRepository, SqliteParaPostgresMigrator</p>
+          <h3>Modelo</h3>
+          <p class="small muted">Models/NotaFiscal, LojaPendencia, NotaPesquisaResultado…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Distribuição</h2>
+      <article class="card">
+        <div class="card-body">
+          <p>
+            Publish <strong>self-contained</strong> win-x64, single-file — o PC
+            do colega não precisa instalar .NET.
+          </p>
+          <p class="muted small">
+            Pasta <code>dist/</code> e zip
+            <code>ConferenciaNFs-Distribuicao.zip</code>. Colegas abrem o exe
+            com ConnectionString apontando para o servidor.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <p class="tiny">
+      Fonte: código do projeto ConferenciaNFs · .NET 8 WPF · PostgreSQL
+    </p>
+  </main>
+</body>
+</html>

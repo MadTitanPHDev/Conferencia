@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="Brush.Background" Color="#F5F7FB"/>
+    <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.SurfaceMuted" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="Brush.Border" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="Brush.TextPrimary" Color="#0F172A"/>
+    <SolidColorBrush x:Key="Brush.TextSecondary" Color="#64748B"/>
+    <SolidColorBrush x:Key="Brush.Accent" Color="#6366F1"/>
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="#4F46E5"/>
+    <SolidColorBrush x:Key="Brush.AccentSoft" Color="#EEF2FF"/>
+    <SolidColorBrush x:Key="Brush.Danger" Color="#EF4444"/>
+    <SolidColorBrush x:Key="Brush.DangerSoft" Color="#FEE2E2"/>
+    <SolidColorBrush x:Key="Brush.InputBackground" Color="#FAFBFC"/>
+    <SolidColorBrush x:Key="Brush.InputFocused" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Hover" Color="#F1F5F9"/>
+    <SolidColorBrush x:Key="Brush.RowDefault" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.RowAlternate" Color="#FAFBFC"/>
+    <SolidColorBrush x:Key="Brush.GridHeader" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="Brush.Overlay" Color="#99F5F7FB"/>
+    <SolidColorBrush x:Key="Brush.Shadow" Color="#1E293B"/>
+    <SolidColorBrush x:Key="Brush.ScrollTrack" Color="#F1F5F9"/>
+    <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#CBD5E1"/>
+
+</ResourceDictionary>

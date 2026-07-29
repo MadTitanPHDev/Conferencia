@@ -1,0 +1,170 @@
+<Window x:Class="ConferenciaNFs.Views.GerenciarLojasWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
+        Title="Gerenciar ordem das lojas"
+        Height="680"
+        Width="980"
+        MinHeight="480"
+        MinWidth="680"
+        Icon="pack://application:,,,/Assets/app.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Background}"
+        FontFamily="{StaticResource Font.Primary}">
+
+    <Window.Resources>
+        <DataTemplate x:Key="EditarLojaTemplate">
+            <StackPanel>
+                <TextBlock Text="EDITAR LOJA"
+                           Style="{StaticResource SectionTitleStyle}"
+                           Margin="0,0,0,14"/>
+                <TextBlock Text="Numero" Style="{StaticResource PageSubtitleStyle}" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding EditarNumeroOrdem, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Margin="0,0,0,12"/>
+                <TextBlock Text="Nome exibido" Style="{StaticResource PageSubtitleStyle}" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding EditarNomeExibicao, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Margin="0,0,0,16"/>
+                <WrapPanel>
+                    <Button Content="Salvar edicao"
+                            Command="{Binding SalvarEdicaoCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Margin="0,0,8,8"/>
+                    <Button Content="Remover"
+                            Command="{Binding RemoverCadastroCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Margin="0,0,0,8"/>
+                </WrapPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="NovaLojaTemplate">
+            <StackPanel>
+                <TextBlock Text="NOVA LOJA"
+                           Style="{StaticResource SectionTitleStyle}"
+                           Margin="0,0,0,14"/>
+                <TextBlock Text="Apelido do CSV" Style="{StaticResource PageSubtitleStyle}" Margin="0,0,0,6"/>
+                <ComboBox ItemsSource="{Binding ApelidosSemOrdem}"
+                          SelectedItem="{Binding ApelidoSemOrdemSelecionado}"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          Margin="0,0,0,12"/>
+                <TextBlock Text="Numero" Style="{StaticResource PageSubtitleStyle}" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding NovoNumeroOrdem, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Margin="0,0,0,12"/>
+                <TextBlock Text="Nome exibido" Style="{StaticResource PageSubtitleStyle}" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding NovoNomeExibicao, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Margin="0,0,0,16"/>
+                <Button Content="Atribuir numero"
+                        Command="{Binding SalvarNovaLojaCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        HorizontalAlignment="Left"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="22,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Left"
+                            Width="36" Height="36"
+                            CornerRadius="8"
+                            Background="#0B0B0B"
+                            Padding="4"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Top">
+                        <Image Source="pack://application:,,,/Assets/logo-mark.png"
+                               Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Ordem das lojas"
+                                   Style="{StaticResource PageTitleStyle}"
+                                   FontSize="24"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Mensagem}"
+                                   Style="{StaticResource PageSubtitleStyle}"
+                                   Margin="0,6,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+
+            <WrapPanel Grid.Row="1" HorizontalAlignment="Left">
+                <controls:ThemeToggle Margin="0,0,8,8"/>
+                <controls:PinWindowToggle Margin="0,0,0,8"/>
+            </WrapPanel>
+        </Grid>
+
+        <Border Grid.Row="1"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="10"
+                Margin="0,0,0,14">
+            <DataGrid ItemsSource="{Binding LojasCadastradas}"
+                      SelectedItem="{Binding LojaSelecionada}"
+                      Style="{StaticResource ModernDataGridStyle}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Nº" Binding="{Binding NumeroOrdem}" Width="70"/>
+                    <DataGridTextColumn Header="Apelido (CSV)" Binding="{Binding ApelidoLoja}" Width="180"/>
+                    <DataGridTextColumn Header="Nome exibido" Binding="{Binding NomeExibicao}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,0,0,14">
+            <Grid Visibility="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource WidthThresholdToVisibilityConverter}, ConverterParameter=900}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="14"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource SurfaceCardStyle}" Padding="18">
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource EditarLojaTemplate}"/>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource SurfaceCardStyle}" Padding="18">
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource NovaLojaTemplate}"/>
+                </Border>
+            </Grid>
+
+            <StackPanel Visibility="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource WidthThresholdToInverseVisibilityConverter}, ConverterParameter=900}">
+                <Border Style="{StaticResource SurfaceCardStyle}" Padding="18" Margin="0,0,0,12">
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource EditarLojaTemplate}"/>
+                </Border>
+                <Border Style="{StaticResource SurfaceCardStyle}" Padding="18">
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource NovaLojaTemplate}"/>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <WrapPanel Grid.Row="3" HorizontalAlignment="Right">
+            <Button Content="Atualizar"
+                    Command="{Binding AtualizarCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Margin="0,0,8,8"/>
+            <Button Content="Fechar"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Click="Fechar_Click"
+                    Margin="0,0,0,8"/>
+        </WrapPanel>
+    </Grid>
+</Window>
