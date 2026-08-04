@@ -17,6 +17,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _isCarregando;
     private string _mensagemStatus = string.Empty;
     private string _observacaoTexto = string.Empty;
+    private bool _modoSomenteSelecionadas;
+    private bool _atualizandoFiltro;
 
     public ConferenciaViewModel(NotaFiscalRepository repository, string apelidoLoja, string dataCompra)
     {
@@ -24,6 +26,13 @@ public sealed class ConferenciaViewModel : ViewModelBase
         ApelidoLoja = apelidoLoja;
         DataCompra = dataCompra;
         Notas = new ObservableCollection<NotaFiscal>();
+        NotasVisiveis = new ObservableCollection<NotaFiscal>();
+        FiltrosStatus = new ObservableCollection<StatusFiltroOpcao>(
+            StatusConferenciaValues.Todos.Select(status =>
+                new StatusFiltroOpcao(
+                    status,
+                    ObterRotuloFiltro(status),
+                    AplicarFiltroNotas)));
 
         DefinirPendenteCommand = new AsyncRelayCommand(_ => AlterarStatusAsync(StatusConferenciaValues.Pendente));
         DefinirVerdeCommand = new AsyncRelayCommand(_ => AlterarStatusAsync(StatusConferenciaValues.Verde));
@@ -32,11 +41,14 @@ public sealed class ConferenciaViewModel : ViewModelBase
         DefinirLaranjaCommand = new AsyncRelayCommand(_ => AlterarStatusAsync(StatusConferenciaValues.Laranja));
         DefinirAzulCommand = new AsyncRelayCommand(_ => AlterarStatusAsync(StatusConferenciaValues.Azul));
 
-        DefinirObservacaoPbmCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoValues.Pbm));
-        DefinirObservacaoUsoConsumoCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoValues.UsoEConsumo));
-        DefinirObservacaoConvenienciaCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoValues.Conveniencia));
+        DefinirObservacaoPbmCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Pbm));
+        DefinirObservacaoUsoConsumoCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.UsoEConsumo));
+        DefinirObservacaoConvenienciaCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Conveniencia));
+        DefinirObservacaoBonificacaoCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Bonificacao));
         SalvarObservacaoCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoTexto));
         ExportarConferenciaCommand = new AsyncRelayCommand(_ => ExportarConferenciaAsync());
+        SelecionarTodosFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(true));
+        LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
 
         _ = CarregarNotasAsync();
     }
@@ -47,6 +59,25 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public string TituloConferencia => $"Conferencia - {ApelidoLoja} - {DataCompra}";
 
     public ObservableCollection<NotaFiscal> Notas { get; }
+    public ObservableCollection<NotaFiscal> NotasVisiveis { get; }
+    public ObservableCollection<StatusFiltroOpcao> FiltrosStatus { get; }
+
+    public bool ModoSomenteSelecionadas
+    {
+        get => _modoSomenteSelecionadas;
+        set
+        {
+            if (!SetProperty(ref _modoSomenteSelecionadas, value))
+                return;
+
+            AplicarFiltroNotas();
+            OnPropertyChanged(nameof(TextoModoFiltro));
+        }
+    }
+
+    public string TextoModoFiltro => ModoSomenteSelecionadas
+        ? "Modo: somente status marcados"
+        : "Modo: priorizar status marcados no topo";
 
     public NotaFiscal? NotaSelecionada
     {
@@ -88,8 +119,11 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand DefinirObservacaoPbmCommand { get; }
     public ICommand DefinirObservacaoUsoConsumoCommand { get; }
     public ICommand DefinirObservacaoConvenienciaCommand { get; }
+    public ICommand DefinirObservacaoBonificacaoCommand { get; }
     public ICommand SalvarObservacaoCommand { get; }
     public ICommand ExportarConferenciaCommand { get; }
+    public ICommand SelecionarTodosFiltrosCommand { get; }
+    public ICommand LimparFiltrosCommand { get; }
 
     public bool CopiarNumeroNotaSelecionada()
     {
@@ -122,7 +156,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
             foreach (var nota in notas)
                 Notas.Add(nota);
 
-            NotaSelecionada = Notas.FirstOrDefault();
+            AplicarFiltroNotas();
             MensagemStatus = $"{Notas.Count} nota(s) carregada(s) em {DataCompra}.";
         }
         catch (Exception ex)
@@ -136,6 +170,68 @@ public sealed class ConferenciaViewModel : ViewModelBase
             IsCarregando = false;
         }
     }
+
+    private void AplicarFiltroNotas()
+    {
+        if (_atualizandoFiltro)
+            return;
+
+        var selecionadaAntes = NotaSelecionada;
+        var statusAtivos = FiltrosStatus
+            .Where(f => f.EstaAtivo)
+            .Select(f => f.Status)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        IEnumerable<NotaFiscal> query = Notas;
+
+        if (ModoSomenteSelecionadas)
+        {
+            query = query.Where(n => statusAtivos.Contains(n.StatusConferencia));
+        }
+        else if (statusAtivos.Count > 0 && statusAtivos.Count < FiltrosStatus.Count)
+        {
+            query = query
+                .OrderBy(n => statusAtivos.Contains(n.StatusConferencia) ? 0 : 1)
+                .ThenBy(n => Notas.IndexOf(n));
+        }
+
+        var lista = query.ToList();
+        NotasVisiveis.Clear();
+        foreach (var nota in lista)
+            NotasVisiveis.Add(nota);
+
+        if (selecionadaAntes is not null && NotasVisiveis.Contains(selecionadaAntes))
+            NotaSelecionada = selecionadaAntes;
+        else
+            NotaSelecionada = NotasVisiveis.FirstOrDefault();
+    }
+
+    private void DefinirTodosFiltros(bool ativo)
+    {
+        _atualizandoFiltro = true;
+        try
+        {
+            foreach (var filtro in FiltrosStatus)
+                filtro.EstaAtivo = ativo;
+        }
+        finally
+        {
+            _atualizandoFiltro = false;
+        }
+
+        AplicarFiltroNotas();
+    }
+
+    private static string ObterRotuloFiltro(string status) => status switch
+    {
+        StatusConferenciaValues.Pendente => "Pendente",
+        StatusConferenciaValues.Verde => "Correta",
+        StatusConferenciaValues.Amarelo => "Advertencia",
+        StatusConferenciaValues.Vermelho => "Devolvida",
+        StatusConferenciaValues.Laranja => "Outro dia",
+        StatusConferenciaValues.Azul => "Absorvida",
+        _ => status
+    };
 
     private async Task AlterarStatusAsync(string novoStatus)
     {
@@ -154,6 +250,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
             await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
             NotaSelecionada.StatusConferencia = novoStatus;
             MensagemStatus = $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.";
+            AplicarFiltroNotas();
         }
         catch (Exception ex)
         {
@@ -188,6 +285,50 @@ public sealed class ConferenciaViewModel : ViewModelBase
         catch (Exception ex)
         {
             MessageBox.Show($"Erro ao salvar observacao:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task AplicarObservacaoRapidaAsync(string observacao)
+    {
+        if (NotaSelecionada is null)
+        {
+            MessageBox.Show("Selecione uma nota para adicionar observacao.", "Aviso",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var texto = observacao.Trim();
+        var jaTemObservacao = NotaSelecionada.Observacao == texto;
+        var jaEstaVerde = NotaSelecionada.StatusConferencia == StatusConferenciaValues.Verde;
+
+        if (jaTemObservacao && jaEstaVerde)
+            return;
+
+        try
+        {
+            if (!jaTemObservacao)
+            {
+                await _repository.AtualizarObservacaoAsync(NotaSelecionada.Id, texto);
+                NotaSelecionada.Observacao = texto;
+                ObservacaoTexto = texto;
+            }
+
+            if (!jaEstaVerde)
+            {
+                await _repository.AtualizarStatusConferenciaAsync(
+                    NotaSelecionada.Id,
+                    StatusConferenciaValues.Verde);
+                NotaSelecionada.StatusConferencia = StatusConferenciaValues.Verde;
+            }
+
+            MensagemStatus =
+                $"Nota {NotaSelecionada.NumNota}: observacao \"{texto}\" e status Verde.";
+            AplicarFiltroNotas();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao aplicar observacao:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using ConferenciaNFs.Data;
 using ConferenciaNFs.Infrastructure;
+using ConferenciaNFs.Models;
 using ConferenciaNFs.ViewModels;
 
 namespace ConferenciaNFs.Views;
@@ -16,9 +17,19 @@ public partial class ConferenciaWindow : Window
         DataContext = new ConferenciaViewModel(repository, apelidoLoja, dataCompra);
         Title = ((ConferenciaViewModel)DataContext).TituloConferencia;
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        PreviewKeyDown += ConferenciaWindow_PreviewKeyDown;
     }
 
     private void Fechar_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void ConferenciaWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape)
+            return;
+
+        Close();
+        e.Handled = true;
+    }
 
     private void GrdNotas_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -53,18 +64,21 @@ public partial class ConferenciaWindow : Window
 
     private void GrdNotas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (DataContext is not ConferenciaViewModel viewModel || viewModel.Notas.Count == 0)
+        if (DataContext is not ConferenciaViewModel viewModel)
             return;
 
-        // Scroll para baixo = próxima nota; para cima = anterior.
+        // Usa a ordem visual da grade (após ordenação por coluna), não a ordem da coleção.
+        var itensVisiveis = GrdNotas.Items;
+        if (itensVisiveis.Count == 0)
+            return;
+
         var direcao = e.Delta < 0 ? 1 : -1;
-        var indiceAtual = viewModel.NotaSelecionada is null
-            ? -1
-            : viewModel.Notas.IndexOf(viewModel.NotaSelecionada);
+        var atual = viewModel.NotaSelecionada ?? GrdNotas.SelectedItem;
+        var indiceAtual = atual is null ? -1 : itensVisiveis.IndexOf(atual);
 
         var novoIndice = indiceAtual < 0
-            ? (direcao > 0 ? 0 : viewModel.Notas.Count - 1)
-            : Math.Clamp(indiceAtual + direcao, 0, viewModel.Notas.Count - 1);
+            ? (direcao > 0 ? 0 : itensVisiveis.Count - 1)
+            : Math.Clamp(indiceAtual + direcao, 0, itensVisiveis.Count - 1);
 
         if (novoIndice == indiceAtual)
         {
@@ -72,7 +86,12 @@ public partial class ConferenciaWindow : Window
             return;
         }
 
-        var nota = viewModel.Notas[novoIndice];
+        if (itensVisiveis[novoIndice] is not NotaFiscal nota)
+        {
+            e.Handled = true;
+            return;
+        }
+
         viewModel.NotaSelecionada = nota;
         GrdNotas.SelectedItem = nota;
         GrdNotas.ScrollIntoView(nota);

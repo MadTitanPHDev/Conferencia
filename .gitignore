@@ -4,6 +4,8 @@
 **/obj_*/
 **/publish/
 **/dist/
+**/Releases/
+artifacts/
 _svg2ico/
 
 # Distribution / local artifacts

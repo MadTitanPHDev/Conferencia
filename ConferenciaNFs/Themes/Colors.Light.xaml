@@ -18,9 +18,18 @@
     <SolidColorBrush x:Key="Brush.RowDefault" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Brush.RowAlternate" Color="#FAFBFC"/>
     <SolidColorBrush x:Key="Brush.GridHeader" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="Brush.SelectionBackground" Color="#DBE4FF"/>
+    <SolidColorBrush x:Key="Brush.SelectionForeground" Color="#0F172A"/>
     <SolidColorBrush x:Key="Brush.Overlay" Color="#99F5F7FB"/>
     <SolidColorBrush x:Key="Brush.Shadow" Color="#1E293B"/>
     <SolidColorBrush x:Key="Brush.ScrollTrack" Color="#F1F5F9"/>
     <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#CBD5E1"/>
+
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="Transparent"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="Transparent"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0F172A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0F172A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#0F172A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.GrayTextBrushKey}" Color="#64748B"/>
 
 </ResourceDictionary>
