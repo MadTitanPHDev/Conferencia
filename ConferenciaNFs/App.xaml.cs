@@ -14,6 +14,9 @@ public partial class App : Application
 
         var mainWindow = new MainWindow();
         mainWindow.Show();
+
+        // Nao bloqueia a abertura; so pergunta se houver release mais nova no GitHub.
+        _ = AppUpdateService.VerificarAsync(mainWindow);
     }
 
     private static void GarantirAppSettingsNaPasta()

@@ -5,7 +5,7 @@ namespace ConferenciaNFs;
 
 /// <summary>
 /// Entry point required by Velopack (hooks de instalacao/update).
-/// A verificacao automatica de novas versoes sera adicionada depois.
+/// Checagem de novas versoes: <see cref="Infrastructure.AppUpdateService"/>.
 /// </summary>
 public static class Program
 {

@@ -109,7 +109,7 @@ Instale com o Setup gerado pelo Velopack (ou use o portable, se disponivel nesta
 2. Execute e conclua a instalacao
 3. Copie/ajuste ``app-settings.json`` a partir de ``app-settings.example.json`` (Host/senha do PostgreSQL)
 
-Atualizacao automatica no app sera habilitada em um passo seguinte.
+Com o Setup/Portable Velopack, o app verifica novas releases no GitHub ao abrir.
 "@
 
     gh release create $tag @assets --title "ConferenciaNFs $Version" --notes $notes
