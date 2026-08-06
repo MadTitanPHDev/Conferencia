@@ -45,6 +45,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         DefinirObservacaoUsoConsumoCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.UsoEConsumo));
         DefinirObservacaoConvenienciaCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Conveniencia));
         DefinirObservacaoBonificacaoCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Bonificacao));
+        DefinirObservacaoEncomendaCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Encomenda));
         SalvarObservacaoCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoTexto));
         ExportarConferenciaCommand = new AsyncRelayCommand(_ => ExportarConferenciaAsync());
         SelecionarTodosFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(true));
@@ -120,6 +121,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand DefinirObservacaoUsoConsumoCommand { get; }
     public ICommand DefinirObservacaoConvenienciaCommand { get; }
     public ICommand DefinirObservacaoBonificacaoCommand { get; }
+    public ICommand DefinirObservacaoEncomendaCommand { get; }
     public ICommand SalvarObservacaoCommand { get; }
     public ICommand ExportarConferenciaCommand { get; }
     public ICommand SelecionarTodosFiltrosCommand { get; }

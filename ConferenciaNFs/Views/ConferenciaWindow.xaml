@@ -15,7 +15,6 @@
 
     <Window.InputBindings>
         <KeyBinding Key="D0" Command="{Binding DefinirPendenteCommand}"/>
-        <KeyBinding Key="NumPad0" Command="{Binding DefinirPendenteCommand}"/>
         <KeyBinding Key="D1" Command="{Binding DefinirVerdeCommand}"/>
         <KeyBinding Key="F1" Command="{Binding DefinirVerdeCommand}"/>
         <KeyBinding Key="D2" Command="{Binding DefinirAmareloCommand}"/>
@@ -25,12 +24,12 @@
         <KeyBinding Key="D4" Command="{Binding DefinirLaranjaCommand}"/>
         <KeyBinding Key="F4" Command="{Binding DefinirLaranjaCommand}"/>
         <KeyBinding Key="D5" Command="{Binding DefinirAzulCommand}"/>
-        <KeyBinding Key="NumPad5" Command="{Binding DefinirAzulCommand}"/>
         <KeyBinding Key="F8" Command="{Binding DefinirAzulCommand}"/>
         <KeyBinding Key="F5" Command="{Binding DefinirObservacaoPbmCommand}"/>
         <KeyBinding Key="F6" Command="{Binding DefinirObservacaoUsoConsumoCommand}"/>
         <KeyBinding Key="F7" Command="{Binding DefinirObservacaoConvenienciaCommand}"/>
         <KeyBinding Key="F9" Command="{Binding DefinirObservacaoBonificacaoCommand}"/>
+        <KeyBinding Key="F11" Command="{Binding DefinirObservacaoEncomendaCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SalvarObservacaoCommand}"/>
     </Window.InputBindings>
 
@@ -336,6 +335,7 @@
                         <MenuItem Header="Observacao: USO E CONSUMO" InputGestureText="F6" Command="{Binding DefinirObservacaoUsoConsumoCommand}"/>
                         <MenuItem Header="Observacao: CONVENIENCIA" InputGestureText="F7" Command="{Binding DefinirObservacaoConvenienciaCommand}"/>
                         <MenuItem Header="Observacao: BONIFICACAO" InputGestureText="F9" Command="{Binding DefinirObservacaoBonificacaoCommand}"/>
+                        <MenuItem Header="Observacao: ENCOMENDA" InputGestureText="F11" Command="{Binding DefinirObservacaoEncomendaCommand}"/>
                     </ContextMenu>
                 </DataGrid.ContextMenu>
             </DataGrid>
@@ -373,7 +373,7 @@
                            Margin="0,0,0,6"/>
 
                 <TextBlock Grid.Row="0" Grid.Column="1"
-                           Text="F5 PBM · F6 USO · F7 CONV · F9 BONIF · Enter / Ctrl+S salvar"
+                           Text="F5 PBM · F6 USO · F7 CONV · F9 BONIF · F11 ENCOM · Enter / Ctrl+S salvar"
                            Style="{StaticResource PageSubtitleStyle}"
                            FontSize="11"
                            VerticalAlignment="Center"
@@ -412,6 +412,12 @@
                             Margin="0,0,6,0"/>
                     <Button Content="BONIFICACAO"
                             Command="{Binding DefinirObservacaoBonificacaoCommand}"
+                            Style="{StaticResource PillTagButtonStyle}"
+                            Padding="10,4"
+                            FontSize="11"
+                            Margin="0,0,6,0"/>
+                    <Button Content="ENCOMENDA"
+                            Command="{Binding DefinirObservacaoEncomendaCommand}"
                             Style="{StaticResource PillTagButtonStyle}"
                             Padding="10,4"
                             FontSize="11"
