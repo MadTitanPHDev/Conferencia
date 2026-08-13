@@ -35,7 +35,11 @@ public sealed class AsyncRelayCommand : ICommand
         _canExecute = canExecute;
     }
 
-    public event EventHandler? CanExecuteChanged;
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
 
     public bool CanExecute(object? parameter)
         => !_isExecuting && (_canExecute?.Invoke(parameter) ?? true);
@@ -59,5 +63,5 @@ public sealed class AsyncRelayCommand : ICommand
     }
 
     public void RaiseCanExecuteChanged()
-        => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        => CommandManager.InvalidateRequerySuggested();
 }

@@ -251,7 +251,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
         {
             await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
             NotaSelecionada.StatusConferencia = novoStatus;
-            MensagemStatus = $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.";
+            MensagemStatus = novoStatus == StatusConferenciaValues.Vermelho
+                ? $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (entrou na fila de devolucoes)."
+                : $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.";
             AplicarFiltroNotas();
         }
         catch (Exception ex)

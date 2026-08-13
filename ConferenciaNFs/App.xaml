@@ -17,6 +17,7 @@
             <infra:WidthThresholdToInverseVisibilityConverter x:Key="WidthThresholdToInverseVisibilityConverter"/>
             <infra:HexToBrushConverter x:Key="HexToBrushConverter"/>
             <infra:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVisibilityConverter"/>
+            <infra:BoolToSimNaoConverter x:Key="BoolToSimNaoConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

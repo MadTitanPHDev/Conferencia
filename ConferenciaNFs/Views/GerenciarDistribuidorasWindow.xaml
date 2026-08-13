@@ -1,0 +1,169 @@
+<Window x:Class="ConferenciaNFs.Views.GerenciarDistribuidorasWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
+        Title="Gerenciar distribuidoras"
+        Height="720"
+        Width="1040"
+        MinHeight="520"
+        MinWidth="760"
+        Icon="pack://application:,,,/Assets/app.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Background}"
+        FontFamily="{StaticResource Font.Primary}">
+
+    <Grid Margin="22,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Left"
+                            Width="36" Height="36"
+                            CornerRadius="8"
+                            Background="#0B0B0B"
+                            Padding="4"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Top">
+                        <Image Source="pack://application:,,,/Assets/logo-mark.png"
+                               Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Distribuidoras"
+                                   Style="{StaticResource PageTitleStyle}"
+                                   FontSize="24"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Mensagem}"
+                                   Style="{StaticResource PageSubtitleStyle}"
+                                   Margin="0,6,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+
+            <WrapPanel Grid.Row="1" HorizontalAlignment="Left">
+                <controls:ThemeToggle Margin="0,0,8,8"/>
+                <controls:PinWindowToggle Margin="0,0,0,8"/>
+            </WrapPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="220"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                     Text="{Binding FiltroTexto, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource ModernTextBoxStyle}"
+                     Padding="10,8"
+                     Tag="Buscar por nome ou CNPJ"/>
+
+            <ComboBox Grid.Column="2"
+                      ItemsSource="{Binding FiltrosModo}"
+                      SelectedItem="{Binding FiltroModo}"
+                      Style="{StaticResource ModernComboBoxStyle}"/>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="10"
+                Margin="0,0,0,14">
+            <DataGrid ItemsSource="{Binding Distribuidoras}"
+                      SelectedItem="{Binding Selecionada}"
+                      Style="{StaticResource ModernDataGridStyle}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Distribuidora" Binding="{Binding NomeForn}" Width="*" MinWidth="180"/>
+                    <DataGridTextColumn Header="CNPJ" Binding="{Binding CnpjForn}" Width="160"/>
+                    <DataGridTextColumn Header="Situacao do prazo" Binding="{Binding SituacaoPrazo}" Width="180"/>
+                    <DataGridTemplateColumn Header="Rastrear" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding RastrearPrazo, Converter={StaticResource BoolToSimNaoConverter}}"
+                                        Command="{Binding DataContext.AlternarRastreioCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Padding="6,2"
+                                        MinWidth="72"
+                                        HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Border Grid.Row="3"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="18"
+                Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Text="EDITAR SELECIONADA"
+                           Style="{StaticResource SectionTitleStyle}"
+                           Margin="0,0,0,12"/>
+
+                <TextBlock Text="{Binding Selecionada.NomeForn}"
+                           FontWeight="SemiBold"
+                           FontSize="14"
+                           Foreground="{DynamicResource Brush.TextPrimary}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Selecionada.CnpjForn}"
+                           Style="{StaticResource PageSubtitleStyle}"
+                           Margin="0,0,0,14"/>
+
+                <TextBlock Text="Prazo de devolucao (dias)"
+                           Style="{StaticResource PageSubtitleStyle}"
+                           Margin="0,0,0,6"/>
+                <TextBox Text="{Binding EditarPrazoTexto, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Width="160"
+                         HorizontalAlignment="Left"
+                         Margin="0,0,0,12"/>
+
+                <CheckBox Content="Rastrear prazo desta distribuidora"
+                          IsChecked="{Binding EditarRastrearPrazo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Margin="0,0,0,16"/>
+
+                <TextBlock Text="Novas distribuidoras entram automaticamente na importacao do CSV, sem rastreio e sem prazo. CNPJs diferentes sao cadastros distintos."
+                           Style="{StaticResource PageSubtitleStyle}"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,14"/>
+
+                <Button Content="Salvar edicao"
+                        Command="{Binding SalvarEdicaoCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        HorizontalAlignment="Left"
+                        Padding="16,8"/>
+            </StackPanel>
+        </Border>
+
+        <WrapPanel Grid.Row="4" HorizontalAlignment="Right">
+            <Button Content="Atualizar"
+                    Command="{Binding AtualizarCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Margin="0,0,8,8"/>
+            <Button Content="Fechar"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Click="Fechar_Click"
+                    Margin="0,0,0,8"/>
+        </WrapPanel>
+    </Grid>
+</Window>

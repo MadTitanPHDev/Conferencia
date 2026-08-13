@@ -29,6 +29,8 @@ public sealed class DashboardViewModel : ViewModelBase
         AtualizarCommand = new AsyncRelayCommand(_ => InicializarAsync());
         AbrirConferenciaCommand = new RelayCommand(AbrirConferencia, param => param is LojaPendencia);
         GerenciarLojasCommand = new RelayCommand(GerenciarLojas);
+        GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
+        DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         ExportarTodasCommand = new AsyncRelayCommand(_ => ExportarTodasAsync(), _ => PodeExportarTodas);
         MigrarSqliteCommand = new AsyncRelayCommand(_ => MigrarSqliteAsync());
@@ -81,6 +83,8 @@ public sealed class DashboardViewModel : ViewModelBase
     public ICommand AtualizarCommand { get; }
     public ICommand AbrirConferenciaCommand { get; }
     public ICommand GerenciarLojasCommand { get; }
+    public ICommand GerenciarDistribuidorasCommand { get; }
+    public ICommand DevolucoesCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand ExportarTodasCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
@@ -288,6 +292,26 @@ public sealed class DashboardViewModel : ViewModelBase
 
         janela.ShowDialog();
         _ = CarregarLojasAsync();
+    }
+
+    private void GerenciarDistribuidoras(object? parameter)
+    {
+        var janela = new GerenciarDistribuidorasWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
+    }
+
+    private void AbrirDevolucoes(object? parameter)
+    {
+        var janela = new DevolucoesWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
     }
 
     private void PesquisarNota(object? parameter)

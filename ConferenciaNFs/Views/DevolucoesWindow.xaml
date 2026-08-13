@@ -1,0 +1,264 @@
+<Window x:Class="ConferenciaNFs.Views.DevolucoesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
+        Title="Devolucoes"
+        Height="760"
+        Width="1180"
+        MinHeight="520"
+        MinWidth="820"
+        Icon="pack://application:,,,/Assets/app.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Background}"
+        FontFamily="{StaticResource Font.Primary}">
+
+    <Grid Margin="16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cabecalho compacto -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <DockPanel Grid.Column="0" LastChildFill="True">
+                <Border DockPanel.Dock="Left"
+                        Width="32" Height="32"
+                        CornerRadius="8"
+                        Background="#0B0B0B"
+                        Padding="4"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Top">
+                    <Image Source="pack://application:,,,/Assets/logo-mark.png"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Border>
+                <StackPanel>
+                    <TextBlock Text="Devolucoes"
+                               Style="{StaticResource PageTitleStyle}"
+                               FontSize="20"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Mensagem}"
+                               Style="{StaticResource PageSubtitleStyle}"
+                               FontSize="12"
+                               Margin="0,2,0,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+
+            <WrapPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
+                <controls:ThemeToggle Margin="0,0,6,4"/>
+                <controls:PinWindowToggle Margin="0,0,6,4"/>
+                <Button Content="Atualizar"
+                        Command="{Binding AtualizarCommand}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,6"
+                        FontSize="12"
+                        Margin="0,0,6,4"/>
+                <Button Content="Fechar"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,6"
+                        FontSize="12"
+                        Click="Fechar_Click"
+                        Margin="0,0,0,4"/>
+            </WrapPanel>
+        </Grid>
+
+        <!-- Periodo de rastreio compacto -->
+        <Border Grid.Row="1"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="10,6"
+                Margin="0,0,0,8">
+            <DockPanel LastChildFill="False">
+                <TextBlock Text="PERIODO"
+                           Style="{StaticResource SectionTitleStyle}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"
+                           DockPanel.Dock="Left"/>
+                <WrapPanel VerticalAlignment="Center">
+                    <TextBlock Text="Emissao a partir de"
+                               Style="{StaticResource PageSubtitleStyle}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="0,2,8,2"/>
+                    <DatePicker SelectedDate="{Binding DataMinimaRastreio, UpdateSourceTrigger=PropertyChanged}"
+                                Width="130"
+                                Height="28"
+                                Margin="0,2,10,2"
+                                VerticalAlignment="Center"/>
+                    <CheckBox Content="Remover pendencias anteriores"
+                              IsChecked="{Binding RemoverPendentesAnteriores, Mode=TwoWay}"
+                              FontSize="12"
+                              VerticalAlignment="Center"
+                              Margin="0,2,10,2"
+                              ToolTip="Pendencias usam a data de emissao. Concluidas permanecem visiveis fora do periodo."/>
+                    <Button Content="Salvar"
+                            Command="{Binding SalvarPeriodoCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"
+                            Margin="0,2,6,2"/>
+                    <Button Content="Limpar"
+                            Command="{Binding LimparPeriodoCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"
+                            Margin="0,2,0,2"/>
+                </WrapPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Filtros compactos -->
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="200"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                     Text="{Binding FiltroTexto, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource ModernTextBoxStyle}"
+                     Padding="10,6"
+                     FontSize="12"/>
+
+            <ComboBox Grid.Column="2"
+                      ItemsSource="{Binding FiltrosModo}"
+                      SelectedItem="{Binding FiltroModo}"
+                      Style="{StaticResource ModernComboBoxStyle}"
+                      FontSize="12"
+                      Padding="8,4"/>
+        </Grid>
+
+        <!-- Grade principal (ocupa o espaco restante) -->
+        <Border Grid.Row="3"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="4"
+                Margin="0,0,0,8">
+            <DataGrid x:Name="GrdDevolucoes"
+                      ItemsSource="{Binding Devolucoes}"
+                      SelectedItem="{Binding Selecionada}"
+                      Style="{StaticResource ModernDataGridStyle}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserResizeRows="False"
+                      RowHeaderWidth="0"
+                      VerticalAlignment="Stretch"
+                      HorizontalAlignment="Stretch"
+                      PreviewKeyDown="GrdDevolucoes_PreviewKeyDown"
+                      MouseDoubleClick="GrdDevolucoes_MouseDoubleClick">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="MinHeight" Value="30"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Urgencia}" Value="Vencida">
+                                <Setter Property="Background" Value="#33FF0000"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Urgencia}" Value="Critica">
+                                <Setter Property="Background" Value="#33FF9800"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Urgencia}" Value="Atencao">
+                                <Setter Property="Background" Value="#33FFEB3B"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusRotulo}" Width="110"/>
+                    <DataGridTextColumn Header="Loja" Binding="{Binding ApelidoLoja}" Width="100"/>
+                    <DataGridTextColumn Header="Nota" Binding="{Binding NumNota}" Width="85">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Distribuidora" Binding="{Binding NomeForn}" Width="*" MinWidth="120"/>
+                    <DataGridTextColumn Header="Emissao" Binding="{Binding DataEmissao}" Width="95"/>
+                    <DataGridTextColumn Header="Limite" Binding="{Binding DataLimiteTexto}" Width="95"/>
+                    <DataGridTextColumn Header="Prazo" Binding="{Binding SituacaoPrazo}" Width="150"/>
+                    <DataGridTextColumn Header="Valor" Binding="{Binding ValorNota, StringFormat=N2}" Width="85"/>
+                    <DataGridTextColumn Header="Marcada" Binding="{Binding DataMarcada}" Width="95"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Border Grid.Row="3"
+                Background="{DynamicResource Brush.Overlay}"
+                CornerRadius="14"
+                Visibility="{Binding IsCarregando, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="Carregando..."
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="16"
+                       Foreground="{DynamicResource Brush.TextPrimary}"/>
+        </Border>
+
+        <!-- Detalhe / acoes compactos -->
+        <Border Grid.Row="4"
+                Style="{StaticResource SurfaceCardStyle}"
+                Padding="10,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Style="{StaticResource PageSubtitleStyle}"
+                           FontSize="12"
+                           Margin="0,0,0,6"
+                           TextWrapping="Wrap">
+                    <Run Text="{Binding Selecionada.NomeForn, Mode=OneWay, TargetNullValue='Selecione uma nota na lista'}"/>
+                    <Run Text=" · "/>
+                    <Run Text="Nota "/>
+                    <Run Text="{Binding Selecionada.NumNota, Mode=OneWay}"/>
+                    <Run Text=" · "/>
+                    <Run Text="{Binding Selecionada.ApelidoLoja, Mode=OneWay}"/>
+                    <Run Text=" · "/>
+                    <Run Text="{Binding Selecionada.SituacaoPrazo, Mode=OneWay}"/>
+                </TextBlock>
+
+                <TextBox Grid.Row="1"
+                         Text="{Binding ObservacaoTexto, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBoxStyle}"
+                         Padding="10,6"
+                         Margin="0,0,0,6"
+                         AcceptsReturn="False"
+                         ToolTip="Observacao da devolucao"/>
+
+                <WrapPanel Grid.Row="2">
+                    <Button Content="Salvar observacao"
+                            Command="{Binding SalvarObservacaoCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"
+                            Margin="0,0,6,0"/>
+                    <Button Content="Marcar devolvida"
+                            Command="{Binding MarcarDevolvidaCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"
+                            Margin="0,0,6,0"/>
+                    <Button Content="Perdeu o prazo"
+                            Command="{Binding MarcarPerdeuPrazoCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

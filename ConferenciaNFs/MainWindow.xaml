@@ -61,6 +61,14 @@
                             Command="{Binding GerenciarLojasCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Distribuidoras"
+                            Command="{Binding GerenciarDistribuidorasCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Devolucoes"
+                            Command="{Binding DevolucoesCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar nota"
                             Command="{Binding PesquisarNotaCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"/>
