@@ -181,8 +181,28 @@
                         <TextBlock Text="Selecione o dia da conferencia e importe o CSV. Todas as notas da planilha ficam neste dia."
                                    Style="{StaticResource PageSubtitleStyle}"
                                    FontSize="12"
-                                   Margin="0,4,0,0"
+                                   Margin="0,4,0,8"
                                    TextWrapping="Wrap"/>
+                        <Button Content="Limpar dia atual"
+                                Command="{Binding LimparDiaAtualCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,6"
+                                FontSize="12"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                ToolTip="Remove todas as notas de hoje. Disponivel apenas com o dia atual selecionado."/>
+                        <CheckBox Content="Herdar status na importacao"
+                                  IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
+                                  FontSize="12"
+                                  Margin="0,0,0,8"
+                                  ToolTip="Novas notas em dia diferente herdam status/observacao do historico (loja + nota + CNPJ)."/>
+                        <Button Content="Recalcular herdados do dia"
+                                Command="{Binding RecalcularHerancaDiaCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,6"
+                                FontSize="12"
+                                HorizontalAlignment="Left"
+                                ToolTip="Aplica as regras de heranca nas notas ja importadas do dia selecionado."/>
                     </StackPanel>
                 </WrapPanel>
             </Border>

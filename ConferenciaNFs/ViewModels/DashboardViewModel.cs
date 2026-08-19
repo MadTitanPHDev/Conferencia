@@ -19,6 +19,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private string _mensagemStatus = "Importe um CSV para comecar.";
     private DateTime? _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
     private string? _dataCompraAtiva;
+    private bool _herancaStatusImportacao;
 
     public DashboardViewModel(NotaFiscalRepository repository)
     {
@@ -33,6 +34,10 @@ public sealed class DashboardViewModel : ViewModelBase
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         ExportarTodasCommand = new AsyncRelayCommand(_ => ExportarTodasAsync(), _ => PodeExportarTodas);
+        LimparDiaAtualCommand = new AsyncRelayCommand(_ => LimparDiaAtualAsync(), _ => PodeLimparDiaAtual);
+        RecalcularHerancaDiaCommand = new AsyncRelayCommand(
+            _ => RecalcularHerancaDiaAsync(),
+            _ => PodeRecalcularHerancaDia);
         MigrarSqliteCommand = new AsyncRelayCommand(_ => MigrarSqliteAsync());
 
         _ = InicializarAsync();
@@ -40,6 +45,12 @@ public sealed class DashboardViewModel : ViewModelBase
 
     private bool PodeExportarTodas =>
         DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
+
+    private bool PodeLimparDiaAtual =>
+        DataSelecionada?.Date == DateTime.Today && !EstaVazio && !IsCarregando;
+
+    private bool PodeRecalcularHerancaDia =>
+        HerancaStatusImportacao && DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
 
     public ObservableCollection<LojaPendencia> Lojas { get; }
 
@@ -52,6 +63,7 @@ public sealed class DashboardViewModel : ViewModelBase
                 return;
 
             OnPropertyChanged(nameof(DataSelecionadaTexto));
+            AtualizarComandosDoDia();
             _ = CarregarLojasAsync();
         }
     }
@@ -64,19 +76,44 @@ public sealed class DashboardViewModel : ViewModelBase
     public bool IsCarregando
     {
         get => _isCarregando;
-        private set => SetProperty(ref _isCarregando, value);
+        private set
+        {
+            if (!SetProperty(ref _isCarregando, value))
+                return;
+
+            AtualizarComandosDoDia();
+        }
     }
 
     public bool EstaVazio
     {
         get => _estaVazio;
-        private set => SetProperty(ref _estaVazio, value);
+        private set
+        {
+            if (!SetProperty(ref _estaVazio, value))
+                return;
+
+            AtualizarComandosDoDia();
+        }
     }
 
     public string MensagemStatus
     {
         get => _mensagemStatus;
         private set => SetProperty(ref _mensagemStatus, value);
+    }
+
+    public bool HerancaStatusImportacao
+    {
+        get => _herancaStatusImportacao;
+        set
+        {
+            if (!SetProperty(ref _herancaStatusImportacao, value))
+                return;
+
+            AtualizarComandosDoDia();
+            _ = SalvarHerancaStatusImportacaoAsync(value);
+        }
     }
 
     public ICommand ImportarCsvCommand { get; }
@@ -87,17 +124,53 @@ public sealed class DashboardViewModel : ViewModelBase
     public ICommand DevolucoesCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand ExportarTodasCommand { get; }
+    public ICommand LimparDiaAtualCommand { get; }
+    public ICommand RecalcularHerancaDiaCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
 
     private async Task InicializarAsync()
     {
         if (!DataSelecionada.HasValue)
         {
-            DataSelecionada = DataCompraParser.DiaPadraoAbertura();
-            return;
+            _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
+            OnPropertyChanged(nameof(DataSelecionada));
+            OnPropertyChanged(nameof(DataSelecionadaTexto));
         }
 
+        await CarregarConfiguracoesAsync();
         await CarregarLojasAsync();
+    }
+
+    private async Task CarregarConfiguracoesAsync()
+    {
+        try
+        {
+            _herancaStatusImportacao = await _repository.ObterHerancaStatusImportacaoAsync();
+            OnPropertyChanged(nameof(HerancaStatusImportacao));
+            AtualizarComandosDoDia();
+        }
+        catch (Exception ex)
+        {
+            MensagemStatus = "Erro ao carregar configuracoes.";
+            MessageBox.Show($"Erro ao carregar configuracoes:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task SalvarHerancaStatusImportacaoAsync(bool ativa)
+    {
+        try
+        {
+            await _repository.SalvarHerancaStatusImportacaoAsync(ativa);
+            MensagemStatus = ativa
+                ? "Heranca de status na importacao ativada."
+                : "Heranca de status na importacao desativada.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao salvar configuracao:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task CarregarLojasAsync()
@@ -130,7 +203,7 @@ public sealed class DashboardViewModel : ViewModelBase
                 ? $"Nenhuma loja com notas em {DataSelecionadaTexto}."
                 : $"{Lojas.Count} loja(s) em {DataSelecionadaTexto} · {comPendencias} com pendencias.";
 
-            ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
+            AtualizarComandosDoDia();
         }
         catch (Exception ex)
         {
@@ -141,7 +214,7 @@ public sealed class DashboardViewModel : ViewModelBase
         finally
         {
             IsCarregando = false;
-            ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
+            AtualizarComandosDoDia();
         }
     }
 
@@ -217,6 +290,135 @@ public sealed class DashboardViewModel : ViewModelBase
         _ = CarregarLojasAsync();
     }
 
+    private async Task LimparDiaAtualAsync()
+    {
+        if (!DataSelecionada.HasValue || DataSelecionada.Value.Date != DateTime.Today)
+        {
+            MessageBox.Show(
+                "So e possivel limpar notas do dia atual.\nSelecione hoje no calendario.",
+                "Aviso",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
+        {
+            MessageBox.Show("Nao ha notas para limpar hoje.", "Aviso",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            IsCarregando = true;
+
+            var notas = await _repository.ObterTodasNotasPorDataAsync(_dataCompraAtiva);
+            if (notas.Count == 0)
+            {
+                MessageBox.Show("Nao ha notas para limpar hoje.", "Aviso",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var confirmar = MessageBox.Show(
+                $"Remover todas as {notas.Count} nota(s) do dia {DataSelecionadaTexto}?\n\n" +
+                "Esta acao nao pode ser desfeita. Devolucoes vinculadas tambem serao removidas.",
+                "Limpar dia atual",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirmar != MessageBoxResult.Yes)
+                return;
+
+            MensagemStatus = "Limpando notas do dia atual...";
+            var removidas = await _repository.LimparNotasDoDiaAtualAsync(_dataCompraAtiva);
+
+            MensagemStatus = $"{removidas} nota(s) removida(s) de {DataSelecionadaTexto}.";
+            MessageBox.Show(
+                $"{removidas} nota(s) removida(s) do dia {DataSelecionadaTexto}.",
+                "Limpeza concluida",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            await CarregarLojasAsync();
+        }
+        catch (Exception ex)
+        {
+            MensagemStatus = "Erro ao limpar notas do dia.";
+            MessageBox.Show($"Erro ao limpar notas:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsCarregando = false;
+        }
+    }
+
+    private async Task RecalcularHerancaDiaAsync()
+    {
+        if (!HerancaStatusImportacao)
+        {
+            MessageBox.Show(
+                "Ative a heranca de status antes de recalcular.",
+                "Aviso",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
+        {
+            MessageBox.Show("Selecione um dia antes de recalcular.", "Aviso",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirmar = MessageBox.Show(
+            $"Recalcular status e observacao herdados das notas de {DataSelecionadaTexto}?\n\n" +
+            "Notas sem historico anterior voltam para Pendente. Devolucoes nao serao alteradas.",
+            "Recalcular heranca do dia",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirmar != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            IsCarregando = true;
+            MensagemStatus = "Recalculando status herdados...";
+
+            var atualizadas = await _repository.RecalcularHerancaImportacaoDiaAsync(_dataCompraAtiva);
+
+            MensagemStatus = $"{atualizadas} nota(s) atualizada(s) em {DataSelecionadaTexto}.";
+            MessageBox.Show(
+                $"{atualizadas} nota(s) atualizada(s) com base no historico anterior.",
+                "Recalculo concluido",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            await CarregarLojasAsync();
+        }
+        catch (Exception ex)
+        {
+            MensagemStatus = "Erro ao recalcular heranca.";
+            MessageBox.Show($"Erro ao recalcular:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsCarregando = false;
+        }
+    }
+
+    private void AtualizarComandosDoDia()
+    {
+        ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
+        ((AsyncRelayCommand)LimparDiaAtualCommand).RaiseCanExecuteChanged();
+        ((AsyncRelayCommand)RecalcularHerancaDiaCommand).RaiseCanExecuteChanged();
+    }
+
     private async Task ExportarTodasAsync()
     {
         if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
@@ -273,7 +475,7 @@ public sealed class DashboardViewModel : ViewModelBase
         finally
         {
             IsCarregando = false;
-            ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
+            AtualizarComandosDoDia();
         }
     }
 

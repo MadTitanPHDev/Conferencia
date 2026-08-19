@@ -80,6 +80,7 @@ public sealed class NotaFiscalRepository
     }
 
     private const string ConfigDevolucoesDataMinima = "DevolucoesDataMinima";
+    private const string ConfigHerancaStatusImportacao = "HerancaStatusImportacao";
 
     private const string SqlJoinDistribuidoraPorCnpj = """
         LEFT JOIN Distribuidoras dist ON regexp_replace(COALESCE(dist.CnpjForn, ''), '[^0-9]', '', 'g')
@@ -272,14 +273,17 @@ public sealed class NotaFiscalRepository
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         var inseridos = 0;
+        var herancaAtiva = await ObterHerancaStatusImportacaoInternalAsync(connection, transaction);
 
         const string sql = """
             INSERT INTO NotasFiscais (
                 ApelidoLoja, NumNota, NomeForn, CnpjForn,
-                ValorNota, DataCompra, DataEmissao, DiaConferencia, ChaveUnica, StatusConferencia
+                ValorNota, DataCompra, DataEmissao, DiaConferencia, ChaveUnica,
+                StatusConferencia, Observacao
             ) VALUES (
                 @ApelidoLoja, @NumNota, @NomeForn, @CnpjForn,
-                @ValorNota, @DataCompra, @DataEmissao, @DiaConferencia, @ChaveUnica, @StatusConferencia
+                @ValorNota, @DataCompra, @DataEmissao, @DiaConferencia, @ChaveUnica,
+                @StatusConferencia, @Observacao
             )
             ON CONFLICT (ChaveUnica) DO UPDATE SET
                 ApelidoLoja = EXCLUDED.ApelidoLoja,
@@ -309,6 +313,21 @@ public sealed class NotaFiscalRepository
                 new { nota.ChaveUnica },
                 transaction) is not null;
 
+            if (herancaAtiva && !jaExistia)
+            {
+                var (status, observacao) = await ResolverHerancaImportacaoAsync(
+                    connection,
+                    transaction,
+                    nota.ApelidoLoja,
+                    nota.NumNota,
+                    nota.CnpjForn,
+                    dia,
+                    cancellationToken);
+
+                nota.StatusConferencia = status;
+                nota.Observacao = observacao;
+            }
+
             await connection.ExecuteAsync(sql, nota, transaction);
 
             if (!jaExistia)
@@ -319,6 +338,172 @@ public sealed class NotaFiscalRepository
 
         await transaction.CommitAsync(cancellationToken);
         return inseridos;
+    }
+
+    public async Task<bool> ObterHerancaStatusImportacaoAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        return await ObterHerancaStatusImportacaoInternalAsync(connection, transaction: null);
+    }
+
+    public async Task SalvarHerancaStatusImportacaoAsync(
+        bool ativa,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        await connection.ExecuteAsync("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, @Valor)
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor;
+            """, new
+        {
+            Chave = ConfigHerancaStatusImportacao,
+            Valor = ativa ? "true" : "false"
+        });
+    }
+
+    public async Task<int> RecalcularHerancaImportacaoDiaAsync(
+        string diaConferencia,
+        CancellationToken cancellationToken = default)
+    {
+        var dia = diaConferencia.Trim();
+        if (string.IsNullOrWhiteSpace(dia))
+            throw new ArgumentException("Informe o dia da conferencia.", nameof(diaConferencia));
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        if (!await ObterHerancaStatusImportacaoInternalAsync(connection, transaction: null))
+            throw new InvalidOperationException("Ative a heranca de status antes de recalcular.");
+
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var notasDia = (await connection.QueryAsync<NotaFiscal>("""
+            SELECT *
+            FROM NotasFiscais
+            WHERE DiaConferencia = @DiaConferencia
+            """, new { DiaConferencia = dia }, transaction)).ToList();
+
+        var atualizadas = 0;
+
+        foreach (var nota in notasDia)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var (status, observacao) = await ResolverHerancaImportacaoAsync(
+                connection,
+                transaction,
+                nota.ApelidoLoja,
+                nota.NumNota,
+                nota.CnpjForn,
+                dia,
+                cancellationToken);
+
+            if (nota.StatusConferencia == status && nota.Observacao == observacao)
+                continue;
+
+            await connection.ExecuteAsync("""
+                UPDATE NotasFiscais
+                SET StatusConferencia = @StatusConferencia,
+                    Observacao = @Observacao
+                WHERE Id = @Id
+                """, new
+            {
+                nota.Id,
+                StatusConferencia = status,
+                Observacao = observacao
+            }, transaction);
+
+            atualizadas++;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return atualizadas;
+    }
+
+    private sealed class HistoricoNotaNegocio
+    {
+        public string StatusConferencia { get; set; } = string.Empty;
+        public string Observacao { get; set; } = string.Empty;
+        public string DiaConferencia { get; set; } = string.Empty;
+    }
+
+    private static async Task<bool> ObterHerancaStatusImportacaoInternalAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction)
+    {
+        var valor = await connection.QuerySingleOrDefaultAsync<string?>("""
+            SELECT Valor
+            FROM AppConfig
+            WHERE Chave = @Chave
+            """, new { Chave = ConfigHerancaStatusImportacao }, transaction);
+
+        return string.Equals(valor?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<(string Status, string Observacao)> ResolverHerancaImportacaoAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string apelidoLoja,
+        string numNota,
+        string cnpjForn,
+        string diaConferenciaAtual,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var cnpjNormalizado = CnpjNormalizer.Normalizar(cnpjForn);
+        var historico = (await connection.QueryAsync<HistoricoNotaNegocio>("""
+            SELECT StatusConferencia, Observacao, DiaConferencia
+            FROM NotasFiscais
+            WHERE ApelidoLoja = @ApelidoLoja
+              AND NumNota = @NumNota
+              AND regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') = @CnpjForn
+              AND TRIM(COALESCE(DiaConferencia, '')) <> ''
+              AND DiaConferencia <> @DiaConferenciaAtual
+            """, new
+        {
+            ApelidoLoja = apelidoLoja.Trim(),
+            NumNota = numNota.Trim(),
+            CnpjForn = cnpjNormalizado,
+            DiaConferenciaAtual = diaConferenciaAtual.Trim()
+        }, transaction)).ToList();
+
+        if (historico.Count == 0)
+            return (StatusConferenciaValues.Pendente, string.Empty);
+
+        var ultima = historico
+            .OrderBy(h => h, Comparer<HistoricoNotaNegocio>.Create((a, b) =>
+                DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia)))
+            .Last();
+
+        var devolucaoConcluida = await connection.ExecuteScalarAsync<bool>("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM Devolucoes d
+                INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
+                WHERE n.ApelidoLoja = @ApelidoLoja
+                  AND n.NumNota = @NumNota
+                  AND regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g') = @CnpjForn
+                  AND d.StatusDevolucao IN (@Devolvida, @PerdeuPrazo)
+            )
+            """, new
+        {
+            ApelidoLoja = apelidoLoja.Trim(),
+            NumNota = numNota.Trim(),
+            CnpjForn = cnpjNormalizado,
+            Devolvida = StatusDevolucaoValues.Devolvida,
+            PerdeuPrazo = StatusDevolucaoValues.PerdeuPrazo
+        }, transaction);
+
+        return StatusHerancaImportacao.Calcular(
+            ultima.StatusConferencia,
+            ultima.Observacao,
+            devolucaoConcluida);
     }
 
     private static async Task SincronizarDistribuidorasAsync(
@@ -562,6 +747,37 @@ public sealed class NotaFiscalRepository
             .OrderBy(n => ordemPorLoja.TryGetValue(n.ApelidoLoja, out var ordem) ? ordem : 9999)
             .ThenBy(n => n, Comparer<NotaFiscal>.Create(CompararNotasConferencia))
             .ToList();
+    }
+
+    public async Task<int> LimparNotasDoDiaAtualAsync(
+        string diaConferencia,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(diaConferencia))
+            throw new ArgumentException("Dia de conferencia invalido.", nameof(diaConferencia));
+
+        var data = DataCompraParser.TentarConverter(diaConferencia);
+        if (!data.HasValue || data.Value.Date != DateTime.Today)
+            throw new InvalidOperationException("So e permitido limpar notas do dia atual.");
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await connection.ExecuteAsync("""
+            DELETE FROM Devolucoes d
+            USING NotasFiscais n
+            WHERE d.NotaFiscalId = n.Id
+              AND n.DiaConferencia = @DiaConferencia
+            """, new { DiaConferencia = diaConferencia }, transaction);
+
+        var removidas = await connection.ExecuteAsync("""
+            DELETE FROM NotasFiscais
+            WHERE DiaConferencia = @DiaConferencia
+            """, new { DiaConferencia = diaConferencia }, transaction);
+
+        await transaction.CommitAsync(cancellationToken);
+        return removidas;
     }
 
     public async Task AtualizarStatusConferenciaAsync(
