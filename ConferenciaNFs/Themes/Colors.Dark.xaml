@@ -26,6 +26,9 @@
     <SolidColorBrush x:Key="Brush.ScrollTrack" Color="#12171F"/>
     <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#5A657A"/>
 
+    <SolidColorBrush x:Key="Brush.StatusAmareloForeground" Color="#353935"/>
+    <SolidColorBrush x:Key="Brush.StatusAmareloSelectedForeground" Color="#353935"/>
+
     <!-- Neutraliza seleção padrão do Windows (fundo claro) no tema escuro. -->
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="Transparent"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="Transparent"/>

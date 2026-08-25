@@ -253,7 +253,7 @@
                             </DataTrigger>
                             <DataTrigger Binding="{Binding StatusConferencia}" Value="Amarelo">
                                 <Setter Property="Background" Value="#FFFF00"/>
-                                <Setter Property="Foreground" Value="#5C5C00"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloForeground}"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding StatusConferencia}" Value="Vermelho">
                                 <Setter Property="Background" Value="#FF0000"/>
@@ -291,7 +291,7 @@
                                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
                                 </MultiDataTrigger.Conditions>
                                 <Setter Property="Background" Value="#E6E600"/>
-                                <Setter Property="Foreground" Value="#3D3D00"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloSelectedForeground}"/>
                             </MultiDataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>

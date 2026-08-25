@@ -25,6 +25,9 @@
     <SolidColorBrush x:Key="Brush.ScrollTrack" Color="#F1F5F9"/>
     <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#CBD5E1"/>
 
+    <SolidColorBrush x:Key="Brush.StatusAmareloForeground" Color="#5C5C00"/>
+    <SolidColorBrush x:Key="Brush.StatusAmareloSelectedForeground" Color="#3D3D00"/>
+
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="Transparent"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="Transparent"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0F172A"/>
