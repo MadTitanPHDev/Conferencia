@@ -315,7 +315,7 @@ public sealed class NotaFiscalRepository
 
             if (herancaAtiva && !jaExistia)
             {
-                var (status, observacao) = await ResolverHerancaImportacaoAsync(
+                var heranca = await TentarResolverHerancaImportacaoAsync(
                     connection,
                     transaction,
                     nota.ApelidoLoja,
@@ -324,8 +324,11 @@ public sealed class NotaFiscalRepository
                     dia,
                     cancellationToken);
 
-                nota.StatusConferencia = status;
-                nota.Observacao = observacao;
+                if (heranca.HasValue)
+                {
+                    nota.StatusConferencia = heranca.Value.Status;
+                    nota.Observacao = heranca.Value.Observacao;
+                }
             }
 
             await connection.ExecuteAsync(sql, nota, transaction);
@@ -394,7 +397,7 @@ public sealed class NotaFiscalRepository
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var (status, observacao) = await ResolverHerancaImportacaoAsync(
+            var heranca = await TentarResolverHerancaImportacaoAsync(
                 connection,
                 transaction,
                 nota.ApelidoLoja,
@@ -403,7 +406,12 @@ public sealed class NotaFiscalRepository
                 dia,
                 cancellationToken);
 
-            if (nota.StatusConferencia == status && nota.Observacao == observacao)
+            // Sem historico em dias anteriores: mantem o status/obs definidos hoje.
+            if (!heranca.HasValue)
+                continue;
+
+            if (nota.StatusConferencia == heranca.Value.Status
+                && nota.Observacao == heranca.Value.Observacao)
                 continue;
 
             await connection.ExecuteAsync("""
@@ -414,8 +422,8 @@ public sealed class NotaFiscalRepository
                 """, new
             {
                 nota.Id,
-                StatusConferencia = status,
-                Observacao = observacao
+                StatusConferencia = heranca.Value.Status,
+                Observacao = heranca.Value.Observacao
             }, transaction);
 
             atualizadas++;
@@ -445,7 +453,7 @@ public sealed class NotaFiscalRepository
         return string.Equals(valor?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<(string Status, string Observacao)> ResolverHerancaImportacaoAsync(
+    private static async Task<(string Status, string Observacao)?> TentarResolverHerancaImportacaoAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         string apelidoLoja,
@@ -474,7 +482,7 @@ public sealed class NotaFiscalRepository
         }, transaction)).ToList();
 
         if (historico.Count == 0)
-            return (StatusConferenciaValues.Pendente, string.Empty);
+            return null;
 
         var ultima = historico
             .OrderBy(h => h, Comparer<HistoricoNotaNegocio>.Create((a, b) =>

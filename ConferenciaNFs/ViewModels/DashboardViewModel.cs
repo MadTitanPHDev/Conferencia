@@ -376,7 +376,9 @@ public sealed class DashboardViewModel : ViewModelBase
 
         var confirmar = MessageBox.Show(
             $"Recalcular status e observacao herdados das notas de {DataSelecionadaTexto}?\n\n" +
-            "Notas sem historico anterior voltam para Pendente. Devolucoes nao serao alteradas.",
+            "Somente notas com historico em dias anteriores serao alteradas.\n" +
+            "Notas conferidas hoje pela primeira vez permanecem como estao.\n" +
+            "Devolucoes nao serao alteradas.",
             "Recalcular heranca do dia",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);

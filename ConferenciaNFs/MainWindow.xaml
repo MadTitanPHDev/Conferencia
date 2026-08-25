@@ -202,7 +202,7 @@
                                 Padding="12,6"
                                 FontSize="12"
                                 HorizontalAlignment="Left"
-                                ToolTip="Aplica as regras de heranca nas notas ja importadas do dia selecionado."/>
+                                ToolTip="Aplica heranca apenas em notas com historico em dias anteriores. Notas novas de hoje nao sao alteradas."/>
                     </StackPanel>
                 </WrapPanel>
             </Border>
