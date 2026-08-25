@@ -1,5 +1,5 @@
 {
   "JanelaFixadaNoTopo": false,
   "TemaEscuro": false,
-  "ConnectionString": "Host=SEU_IP_OU_127.0.0.1;Port=5432;Database=conferencia_nfs;Username=conferencia;Password=SUA_SENHA"
+  "ConnectionString": "Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=1234"
 }

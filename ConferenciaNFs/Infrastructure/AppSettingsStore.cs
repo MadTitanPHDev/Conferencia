@@ -58,7 +58,7 @@ public sealed class AppSettings
     public bool TemaEscuro { get; set; }
 
     /// <summary>
-    /// Connection string Npgsql. Ex.: Host=192.168.21.49;Port=5432;Database=conferencia_nfs;Username=conferencia;Password=...
+    /// Connection string Npgsql. Ex.: Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=...
     /// </summary>
     public string ConnectionString { get; set; } = string.Empty;
 }

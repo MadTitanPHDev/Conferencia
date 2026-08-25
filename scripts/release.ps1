@@ -4,7 +4,7 @@
   Gera publish self-contained + pacote Velopack (portable/instalador) para GitHub Releases.
 
 .DESCRIPTION
-  - Nao inclui app-settings.json com senha (apenas o .example).
+  - Inclui app-settings.json padrao (Database=conferencia_nfs_1) a partir do .example.
   - Ainda NAO ativa checagem automatica de update no app (proximo bloco).
   - Opcional: -CreateGitHubRelease sobe a release com gh.
 
@@ -56,12 +56,22 @@ dotnet publish $proj `
     -o $publishDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou." }
 
-# Nao distribuir settings locais com senha.
-$localSettings = Join-Path $publishDir "app-settings.json"
-if (Test-Path $localSettings) {
-    Remove-Item $localSettings -Force
-    Write-Host "Removido app-settings.json do pacote (usar app-settings.example.json)."
+# Nao distribuir settings locais de dev; incluir app-settings padrao da equipe no pacote.
+$exampleSettings = Join-Path $root "ConferenciaNFs\app-settings.example.json"
+$publishSettings = Join-Path $publishDir "app-settings.json"
+$publishExample = Join-Path $publishDir "app-settings.example.json"
+
+if (Test-Path $publishSettings) {
+    Remove-Item $publishSettings -Force
 }
+
+if (-not (Test-Path $exampleSettings)) {
+    throw "app-settings.example.json nao encontrado."
+}
+
+Copy-Item $exampleSettings $publishSettings -Force
+Copy-Item $exampleSettings $publishExample -Force
+Write-Host "Incluido app-settings.json no pacote (Database=conferencia_nfs_1)."
 
 $vpk = Get-Command vpk -ErrorAction SilentlyContinue
 if (-not $vpk) {
@@ -107,7 +117,7 @@ Instale com o Setup gerado pelo Velopack (ou use o portable, se disponivel nesta
 
 1. Baixe o instalador desta release
 2. Execute e conclua a instalacao
-3. Copie/ajuste ``app-settings.json`` a partir de ``app-settings.example.json`` (Host/senha do PostgreSQL)
+3. O ``app-settings.json`` ja vem configurado para ``conferencia_nfs_1`` (ajuste Host/senha se necessario)
 
 Com o Setup/Portable Velopack, o app verifica novas releases no GitHub ao abrir.
 "@
