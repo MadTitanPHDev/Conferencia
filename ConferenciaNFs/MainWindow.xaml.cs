@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using ConferenciaNFs.Data;
 using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.ViewModels;
@@ -46,6 +47,40 @@ public partial class MainWindow : Window
         }
 
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
+    }
+
+    private void ToggleMenuAvancado_Click(object sender, RoutedEventArgs e)
+    {
+        var abrir = MenuAvancadoDrawer.Visibility != Visibility.Visible;
+        MenuAvancadoDrawer.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
+        MenuAvancadoOverlay.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void FecharMenuAvancado_Click(object sender, MouseButtonEventArgs e)
+    {
+        FecharMenuAvancado();
+        e.Handled = true;
+    }
+
+    private void FecharMenuAvancado_Click(object sender, RoutedEventArgs e)
+    {
+        FecharMenuAvancado();
+    }
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || MenuAvancadoDrawer.Visibility != Visibility.Visible)
+            return;
+
+        FecharMenuAvancado();
+        e.Handled = true;
+    }
+
+    private void FecharMenuAvancado()
+    {
+        MenuAvancadoDrawer.Visibility = Visibility.Collapsed;
+        MenuAvancadoOverlay.Visibility = Visibility.Collapsed;
     }
 
     private static void GarantirArquivoExemploSettings()

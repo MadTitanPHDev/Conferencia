@@ -95,7 +95,8 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" Margin="24,22,24,20">
+        <Grid Grid.Column="1">
+            <Grid Margin="24,22,24,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -131,11 +132,6 @@
                             Command="{Binding ExportarTodasCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Margin="0,0,8,8"/>
-                    <Button Content="Migrar SQLite"
-                            Command="{Binding MigrarSqliteCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,8"
-                            ToolTip="Copia database.db antigo para o PostgreSQL (uso unico)"/>
                     <Button Content="Atualizar"
                             Command="{Binding AtualizarCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
@@ -189,20 +185,7 @@
                                 Padding="12,6"
                                 FontSize="12"
                                 HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
                                 ToolTip="Remove todas as notas de hoje. Disponivel apenas com o dia atual selecionado."/>
-                        <CheckBox Content="Herdar status na importacao"
-                                  IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
-                                  FontSize="12"
-                                  Margin="0,0,0,8"
-                                  ToolTip="Novas notas em dia diferente herdam status/observacao do historico (loja + nota + CNPJ)."/>
-                        <Button Content="Recalcular herdados do dia"
-                                Command="{Binding RecalcularHerancaDiaCommand}"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Padding="12,6"
-                                FontSize="12"
-                                HorizontalAlignment="Left"
-                                ToolTip="Aplica heranca apenas em notas com historico em dias anteriores. Notas novas de hoje nao sao alteradas."/>
                     </StackPanel>
                 </WrapPanel>
             </Border>
@@ -332,6 +315,84 @@
                        Foreground="{DynamicResource Brush.TextSecondary}"
                        TextWrapping="Wrap"
                        Text="Todas as lojas do dia ficam disponiveis. O numero vermelho indica notas em branco ou amarelo."/>
+            </Grid>
+
+            <Border x:Name="MenuAvancadoOverlay"
+                    Background="#66000000"
+                    Visibility="Collapsed"
+                    Panel.ZIndex="20"
+                    MouseDown="FecharMenuAvancado_Click"/>
+
+            <Border x:Name="MenuAvancadoDrawer"
+                    HorizontalAlignment="Right"
+                    Width="300"
+                    Visibility="Collapsed"
+                    Panel.ZIndex="30"
+                    Background="{DynamicResource Brush.Surface}"
+                    BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,18">
+                        <Grid Margin="0,0,0,16">
+                            <TextBlock Text="FERRAMENTAS"
+                                       Style="{StaticResource SectionTitleStyle}"
+                                       VerticalAlignment="Center"/>
+                            <Button Content="✕"
+                                    HorizontalAlignment="Right"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Padding="8,4"
+                                    FontSize="12"
+                                    Click="FecharMenuAvancado_Click"/>
+                        </Grid>
+
+                        <TextBlock Text="Heranca de status"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   Margin="0,0,0,8"/>
+                        <CheckBox Content="Herdar status na importacao"
+                                  IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
+                                  FontSize="12"
+                                  Margin="0,0,0,12"
+                                  ToolTip="Novas notas em dia diferente herdam status/observacao do historico (loja + nota + CNPJ)."/>
+                        <Button Content="Recalcular herdados do dia"
+                                Command="{Binding RecalcularHerancaDiaCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,8"
+                                FontSize="12"
+                                HorizontalAlignment="Stretch"
+                                Margin="0,0,0,20"
+                                ToolTip="Aplica heranca apenas em notas com historico em dias anteriores. Notas novas de hoje nao sao alteradas."/>
+
+                        <TextBlock Text="Migracao"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   Margin="0,0,0,8"/>
+                        <Button Content="Migrar SQLite"
+                                Command="{Binding MigrarSqliteCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,8"
+                                FontSize="12"
+                                HorizontalAlignment="Stretch"
+                                ToolTip="Copia database.db antigo para o PostgreSQL (uso unico)"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Button x:Name="BtnMenuAvancado"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,18,18,0"
+                    Panel.ZIndex="40"
+                    Content="☰"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Width="42"
+                    Height="42"
+                    FontSize="18"
+                    Padding="0"
+                    Click="ToggleMenuAvancado_Click"
+                    ToolTip="Ferramentas avancadas"/>
         </Grid>
     </Grid>
 </Window>
