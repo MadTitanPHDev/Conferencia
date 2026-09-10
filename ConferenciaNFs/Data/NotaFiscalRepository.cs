@@ -72,15 +72,36 @@ public sealed class NotaFiscalRepository
                 ON NotasFiscais (NumNota);
             """);
 
+        connection.Execute("""
+            ALTER TABLE NotasFiscais ADD COLUMN IF NOT EXISTS CodCompra INTEGER;
+            ALTER TABLE NotasFiscais ADD COLUMN IF NOT EXISTS NfeChaveAcesso TEXT;
+            CREATE INDEX IF NOT EXISTS IX_NotasFiscais_CodCompra
+                ON NotasFiscais (CodCompra);
+            """);
+
         NormalizarApelidosExistentes(connection);
         InicializarTabelaLojaOrdem(connection);
+        InicializarTabelaLojaVsmMap(connection);
         InicializarTabelaDistribuidoras(connection);
         InicializarTabelaAppConfig(connection);
         InicializarTabelaDevolucoes(connection);
+        CorrigirNotasLojasVsm2a5(connection);
     }
 
     private const string ConfigDevolucoesDataMinima = "DevolucoesDataMinima";
     private const string ConfigHerancaStatusImportacao = "HerancaStatusImportacao";
+    private const string ConfigCorrecaoLojasVsm2a5 = "CorrecaoLojasVsm2a5";
+    private const string ValorCorrecaoLojasVsm2a5 = "1";
+    private const string PrefixoCorrecaoLojasVsm2a5 = "__FIX2A5__";
+
+    private static readonly IReadOnlyDictionary<string, string> RemapeamentoVsm2a5 =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["VELASQUES"] = "RANCHARIA",
+            ["COHAB"] = "VELASQUES",
+            ["REGENTE"] = "COHAB",
+            ["RANCHARIA"] = "REGENTE"
+        };
 
     private const string SqlJoinDistribuidoraPorCnpj = """
         LEFT JOIN Distribuidoras dist ON regexp_replace(COALESCE(dist.CnpjForn, ''), '[^0-9]', '', 'g')
@@ -252,6 +273,336 @@ public sealed class NotaFiscalRepository
             """);
     }
 
+    private static void InicializarTabelaLojaVsmMap(NpgsqlConnection connection)
+    {
+        connection.Execute("""
+            CREATE TABLE IF NOT EXISTS LojaVsmMap (
+                CodLoja INTEGER PRIMARY KEY,
+                ApelidoLoja TEXT NOT NULL,
+                NomeExibicao TEXT NOT NULL DEFAULT '',
+                CnpjLoja TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_LojaVsmMap_ApelidoLoja
+                ON LojaVsmMap (ApelidoLoja);
+            """);
+
+        // ApelidoLoja e unico: o ciclo 2-5 precisa de nomes temporarios antes do valor final.
+        foreach (var loja in LojaVsmMapSeed.Lojas)
+        {
+            connection.Execute("""
+                INSERT INTO LojaVsmMap (CodLoja, ApelidoLoja, NomeExibicao, CnpjLoja)
+                VALUES (@CodLoja, @ApelidoTemp, @NomeExibicao, @CnpjLoja)
+                ON CONFLICT (CodLoja) DO UPDATE SET
+                    ApelidoLoja = EXCLUDED.ApelidoLoja,
+                    NomeExibicao = EXCLUDED.NomeExibicao,
+                    CnpjLoja = EXCLUDED.CnpjLoja;
+                """, new
+            {
+                loja.CodLoja,
+                ApelidoTemp = $"__TMP_VSM_{loja.CodLoja}__",
+                loja.NomeExibicao,
+                loja.CnpjLoja
+            });
+        }
+
+        foreach (var loja in LojaVsmMapSeed.Lojas)
+        {
+            connection.Execute("""
+                UPDATE LojaVsmMap
+                SET ApelidoLoja = @ApelidoLoja,
+                    NomeExibicao = @NomeExibicao,
+                    CnpjLoja = @CnpjLoja
+                WHERE CodLoja = @CodLoja
+                """, loja);
+        }
+    }
+
+    private sealed class NotaVsmDeslocada
+    {
+        public long Id { get; set; }
+        public string ApelidoLoja { get; set; } = string.Empty;
+        public string NumNota { get; set; } = string.Empty;
+        public string CnpjForn { get; set; } = string.Empty;
+        public string DiaConferencia { get; set; } = string.Empty;
+        public string DataCompra { get; set; } = string.Empty;
+        public int? CodCompra { get; set; }
+        public string NfeChaveAcesso { get; set; } = string.Empty;
+    }
+
+    private static void CorrigirNotasLojasVsm2a5(NpgsqlConnection connection)
+    {
+        var jaCorrigiu = connection.ExecuteScalar<string?>("""
+            SELECT Valor
+            FROM AppConfig
+            WHERE Chave = @Chave
+            """, new { Chave = ConfigCorrecaoLojasVsm2a5 });
+
+        if (string.Equals(jaCorrigiu?.Trim(), ValorCorrecaoLojasVsm2a5, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        using var transaction = connection.BeginTransaction();
+
+        connection.Execute("""
+            UPDATE NotasFiscais
+            SET ApelidoLoja = @Prefixo || ApelidoLoja,
+                ChaveUnica = @Prefixo || ChaveUnica
+            WHERE CodCompra IS NOT NULL
+              AND ApelidoLoja IN ('VELASQUES', 'COHAB', 'REGENTE', 'RANCHARIA')
+            """, new { Prefixo = PrefixoCorrecaoLojasVsm2a5 }, transaction);
+
+        var deslocadas = connection.Query<NotaVsmDeslocada>("""
+            SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia, DataCompra,
+                   CodCompra, COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
+            FROM NotasFiscais
+            WHERE ApelidoLoja LIKE @Prefixo
+            """, new { Prefixo = PrefixoCorrecaoLojasVsm2a5 + "%" }, transaction).ToList();
+
+        var idsParaRecalcular = new List<long>();
+
+        foreach (var nota in deslocadas)
+        {
+            var origem = nota.ApelidoLoja.StartsWith(PrefixoCorrecaoLojasVsm2a5, StringComparison.Ordinal)
+                ? nota.ApelidoLoja[PrefixoCorrecaoLojasVsm2a5.Length..]
+                : nota.ApelidoLoja;
+
+            if (!RemapeamentoVsm2a5.TryGetValue(origem, out var destApelido))
+                destApelido = origem;
+
+            var destChave = NotaFiscal.GerarChaveUnica(
+                destApelido,
+                nota.NumNota,
+                CnpjNormalizer.Normalizar(nota.CnpjForn),
+                nota.DiaConferencia,
+                nota.DataCompra);
+
+            var idRecalcular = RelocarOuMesclarNotaVsm(
+                connection,
+                transaction,
+                nota.Id,
+                destApelido,
+                destChave,
+                nota.CodCompra,
+                nota.NfeChaveAcesso);
+
+            if (idRecalcular.HasValue)
+                idsParaRecalcular.Add(idRecalcular.Value);
+        }
+
+        var herancaAtiva = ObterHerancaStatusImportacao(connection, transaction);
+        foreach (var id in idsParaRecalcular)
+            RecalcularHerancaAposRealocacao(connection, transaction, id, herancaAtiva);
+
+        ReconciliarFilaDevolucoes(connection, transaction);
+
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, @Valor)
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new
+        {
+            Chave = ConfigCorrecaoLojasVsm2a5,
+            Valor = ValorCorrecaoLojasVsm2a5
+        }, transaction);
+
+        transaction.Commit();
+    }
+
+    private static long? RelocarOuMesclarNotaVsm(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long origemId,
+        string destApelido,
+        string destChave,
+        int? codCompra,
+        string? nfeChaveAcesso)
+    {
+        var destId = connection.ExecuteScalar<long?>("""
+            SELECT Id
+            FROM NotasFiscais
+            WHERE ChaveUnica = @ChaveUnica
+            LIMIT 1
+            """, new { ChaveUnica = destChave }, transaction);
+
+        if (destId is long idDestino && idDestino != origemId)
+        {
+            connection.Execute("""
+                UPDATE NotasFiscais
+                SET CodCompra = COALESCE(CodCompra, @CodCompra),
+                    NfeChaveAcesso = CASE
+                        WHEN TRIM(COALESCE(NfeChaveAcesso, '')) = '' THEN @NfeChaveAcesso
+                        ELSE NfeChaveAcesso
+                    END
+                WHERE Id = @Id
+                """, new
+            {
+                Id = idDestino,
+                CodCompra = codCompra,
+                NfeChaveAcesso = nfeChaveAcesso ?? string.Empty
+            }, transaction);
+
+            connection.Execute("""
+                UPDATE Devolucoes
+                SET NotaFiscalId = @DestId
+                WHERE NotaFiscalId = @OrigemId
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM Devolucoes d2
+                      WHERE d2.NotaFiscalId = @DestId
+                  )
+                """, new { DestId = idDestino, OrigemId = origemId }, transaction);
+
+            connection.Execute("""
+                DELETE FROM Devolucoes
+                WHERE NotaFiscalId = @Id
+                """, new { Id = origemId }, transaction);
+
+            connection.Execute("""
+                DELETE FROM NotasFiscais
+                WHERE Id = @Id
+                """, new { Id = origemId }, transaction);
+
+            return null;
+        }
+
+        connection.Execute("""
+            UPDATE NotasFiscais
+            SET ApelidoLoja = @ApelidoLoja,
+                ChaveUnica = @ChaveUnica
+            WHERE Id = @Id
+            """, new
+        {
+            Id = origemId,
+            ApelidoLoja = destApelido,
+            ChaveUnica = destChave
+        }, transaction);
+
+        return origemId;
+    }
+
+    private static void RecalcularHerancaAposRealocacao(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long notaId,
+        bool herancaAtiva)
+    {
+        var nota = connection.QuerySingleOrDefault<NotaFiscal>("""
+            SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia,
+                   StatusConferencia, Observacao
+            FROM NotasFiscais
+            WHERE Id = @Id
+            """, new { Id = notaId }, transaction);
+
+        if (nota is null)
+            return;
+
+        var status = StatusConferenciaValues.Pendente;
+        var observacao = string.Empty;
+
+        if (herancaAtiva)
+        {
+            var heranca = TentarResolverHerancaImportacao(
+                connection,
+                transaction,
+                nota.ApelidoLoja,
+                nota.NumNota,
+                nota.CnpjForn,
+                nota.DiaConferencia);
+
+            if (heranca.HasValue)
+            {
+                status = heranca.Value.Status;
+                observacao = heranca.Value.Observacao;
+            }
+        }
+
+        connection.Execute("""
+            UPDATE NotasFiscais
+            SET StatusConferencia = @StatusConferencia,
+                Observacao = @Observacao
+            WHERE Id = @Id
+            """, new
+        {
+            Id = notaId,
+            StatusConferencia = status,
+            Observacao = observacao
+        }, transaction);
+    }
+
+    private static void ReconciliarFilaDevolucoes(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction)
+    {
+        connection.Execute("""
+            DELETE FROM Devolucoes d
+            USING NotasFiscais n
+            WHERE d.NotaFiscalId = n.Id
+              AND d.StatusDevolucao = @StatusPendente
+              AND n.StatusConferencia <> @StatusVermelho
+            """, new
+        {
+            StatusPendente = StatusDevolucaoValues.Pendente,
+            StatusVermelho = StatusConferenciaValues.Vermelho
+        }, transaction);
+
+        connection.Execute($"""
+            INSERT INTO Devolucoes (NotaFiscalId, StatusDevolucao, DataMarcada, Observacao)
+            SELECT
+                n.Id,
+                'Pendente',
+                COALESCE(NULLIF(TRIM(n.DiaConferencia), ''), to_char(CURRENT_DATE, 'DD/MM/YYYY')),
+                ''
+            FROM NotasFiscais n
+            LEFT JOIN Devolucoes d ON d.NotaFiscalId = n.Id
+            LEFT JOIN AppConfig cfg ON cfg.Chave = '{ConfigDevolucoesDataMinima}'
+            WHERE n.StatusConferencia = 'Vermelho'
+              AND d.Id IS NULL
+              AND (
+                cfg.Valor IS NULL OR TRIM(cfg.Valor) = ''
+                OR (
+                    NULLIF(TRIM(n.DataEmissao), '') IS NOT NULL
+                    AND to_date(NULLIF(TRIM(n.DataEmissao), ''), 'DD/MM/YYYY')
+                        >= to_date(NULLIF(TRIM(cfg.Valor), ''), 'DD/MM/YYYY')
+                )
+              )
+            """, transaction: transaction);
+    }
+
+    public async Task<IReadOnlyDictionary<int, LojaVsmMap>> ObterMapaLojasVsmAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var lojas = await connection.QueryAsync<LojaVsmMap>(new CommandDefinition("""
+            SELECT CodLoja, ApelidoLoja, NomeExibicao, CnpjLoja
+            FROM LojaVsmMap
+            """, cancellationToken: cancellationToken));
+
+        return lojas.ToDictionary(l => l.CodLoja);
+    }
+
+    public async Task<string> ObterApelidoPorCodLojaAsync(
+        int codLoja,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var apelido = await connection.ExecuteScalarAsync<string?>(new CommandDefinition("""
+            SELECT ApelidoLoja
+            FROM LojaVsmMap
+            WHERE CodLoja = @CodLoja
+            LIMIT 1
+            """, new { CodLoja = codLoja }, cancellationToken: cancellationToken));
+
+        if (string.IsNullOrWhiteSpace(apelido))
+            throw new InvalidOperationException(
+                $"CODLOJA {codLoja} nao encontrado no mapa de lojas (LojaVsmMap).");
+
+        return apelido;
+    }
+
     public async Task<int> ImportarCsvAsync(
         string caminhoArquivo,
         string diaConferencia,
@@ -273,7 +624,7 @@ public sealed class NotaFiscalRepository
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         var inseridos = 0;
-        var herancaAtiva = await ObterHerancaStatusImportacaoInternalAsync(connection, transaction);
+        var herancaAtiva = ObterHerancaStatusImportacao(connection, transaction);
 
         const string sql = """
             INSERT INTO NotasFiscais (
@@ -315,14 +666,13 @@ public sealed class NotaFiscalRepository
 
             if (herancaAtiva && !jaExistia)
             {
-                var heranca = await TentarResolverHerancaImportacaoAsync(
+                var heranca = TentarResolverHerancaImportacao(
                     connection,
                     transaction,
                     nota.ApelidoLoja,
                     nota.NumNota,
                     nota.CnpjForn,
-                    dia,
-                    cancellationToken);
+                    dia);
 
                 if (heranca.HasValue)
                 {
@@ -343,12 +693,257 @@ public sealed class NotaFiscalRepository
         return inseridos;
     }
 
+    public async Task<VsmSyncResult> SincronizarComprasVsmAsync(
+        IReadOnlyList<CompraVsm> compras,
+        string diaConferencia,
+        CancellationToken cancellationToken = default)
+    {
+        var dia = diaConferencia.Trim();
+        if (string.IsNullOrWhiteSpace(dia))
+            throw new ArgumentException("Informe o dia da conferencia.", nameof(diaConferencia));
+
+        var resultado = new VsmSyncResult { Lidas = compras.Count };
+        if (compras.Count == 0)
+            return resultado;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var mapaLojas = (await connection.QueryAsync<LojaVsmMap>("""
+            SELECT CodLoja, ApelidoLoja, NomeExibicao, CnpjLoja
+            FROM LojaVsmMap
+            """)).ToDictionary(l => l.CodLoja);
+
+        var nomesPorCnpj = await CarregarNomesFornecedorPorCnpjAsync(connection, cancellationToken);
+        var herancaAtiva = ObterHerancaStatusImportacao(connection, transaction: null);
+
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        const string sql = """
+            INSERT INTO NotasFiscais (
+                ApelidoLoja, NumNota, NomeForn, CnpjForn,
+                ValorNota, DataCompra, DataEmissao, DiaConferencia, ChaveUnica,
+                StatusConferencia, Observacao, CodCompra, NfeChaveAcesso
+            ) VALUES (
+                @ApelidoLoja, @NumNota, @NomeForn, @CnpjForn,
+                @ValorNota, @DataCompra, @DataEmissao, @DiaConferencia, @ChaveUnica,
+                @StatusConferencia, @Observacao, @CodCompra, @NfeChaveAcesso
+            )
+            ON CONFLICT (ChaveUnica) DO UPDATE SET
+                ApelidoLoja = EXCLUDED.ApelidoLoja,
+                NomeForn = CASE
+                    WHEN EXCLUDED.NomeForn <> '' THEN EXCLUDED.NomeForn
+                    ELSE NotasFiscais.NomeForn
+                END,
+                ValorNota = EXCLUDED.ValorNota,
+                DataCompra = EXCLUDED.DataCompra,
+                DiaConferencia = EXCLUDED.DiaConferencia,
+                CodCompra = EXCLUDED.CodCompra,
+                NfeChaveAcesso = EXCLUDED.NfeChaveAcesso,
+                DataEmissao = CASE
+                    WHEN EXCLUDED.DataEmissao <> '' THEN EXCLUDED.DataEmissao
+                    ELSE NotasFiscais.DataEmissao
+                END;
+            """;
+
+        const string sqlContarExistente = """
+            SELECT 1
+            FROM NotasFiscais
+            WHERE ChaveUnica = @ChaveUnica
+            LIMIT 1
+            """;
+
+        foreach (var compra in compras)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!mapaLojas.TryGetValue(compra.CodLoja, out var loja))
+            {
+                resultado.Ignoradas++;
+                continue;
+            }
+
+            var numNota = compra.NumNota?.Trim() ?? string.Empty;
+            var cnpjForn = CnpjNormalizer.Normalizar(compra.CnpjForn);
+            if (string.IsNullOrWhiteSpace(numNota) || string.IsNullOrWhiteSpace(cnpjForn))
+            {
+                resultado.Ignoradas++;
+                continue;
+            }
+
+            var dataCompra = compra.DataCompra.HasValue
+                ? DataCompraParser.Formatar(compra.DataCompra.Value)
+                : dia;
+            var dataEmissao = compra.DataEmissao.HasValue
+                ? DataCompraParser.Formatar(compra.DataEmissao.Value)
+                : string.Empty;
+
+            nomesPorCnpj.TryGetValue(cnpjForn, out var nomeForn);
+            if (string.IsNullOrWhiteSpace(nomeForn) || CnpjNormalizer.SaoEquivalentes(nomeForn, cnpjForn))
+                nomeForn = cnpjForn;
+
+            var nota = new NotaFiscal
+            {
+                ApelidoLoja = loja.ApelidoLoja,
+                NumNota = numNota,
+                NomeForn = nomeForn,
+                CnpjForn = cnpjForn,
+                ValorNota = compra.ValorNota,
+                DataCompra = dataCompra,
+                DataEmissao = dataEmissao,
+                DiaConferencia = dia,
+                ChaveUnica = NotaFiscal.GerarChaveUnica(loja.ApelidoLoja, numNota, cnpjForn, dia, dataCompra),
+                StatusConferencia = StatusConferenciaValues.Pendente,
+                Observacao = string.Empty,
+                CodCompra = compra.CodCompra,
+                NfeChaveAcesso = compra.NfeChaveAcesso?.Trim() ?? string.Empty
+            };
+
+            var relocacao = RelocarNotaVsmPorCodCompra(
+                connection,
+                transaction,
+                compra.CodCompra,
+                nota);
+
+            if (relocacao.Relocou)
+            {
+                resultado.Relocadas++;
+                if (relocacao.IdRecalcular.HasValue)
+                {
+                    RecalcularHerancaAposRealocacao(
+                        connection,
+                        transaction,
+                        relocacao.IdRecalcular.Value,
+                        herancaAtiva);
+                }
+            }
+
+            var jaExistia = await connection.ExecuteScalarAsync<int?>(
+                sqlContarExistente,
+                new { nota.ChaveUnica },
+                transaction) is not null;
+
+            if (herancaAtiva && !jaExistia && !relocacao.Relocou)
+            {
+                var heranca = TentarResolverHerancaImportacao(
+                    connection,
+                    transaction,
+                    nota.ApelidoLoja,
+                    nota.NumNota,
+                    nota.CnpjForn,
+                    dia);
+
+                if (heranca.HasValue)
+                {
+                    nota.StatusConferencia = heranca.Value.Status;
+                    nota.Observacao = heranca.Value.Observacao;
+                }
+            }
+
+            await connection.ExecuteAsync(sql, nota, transaction);
+
+            if (jaExistia)
+                resultado.Atualizadas++;
+            else
+                resultado.Inseridas++;
+        }
+
+        if (resultado.Relocadas > 0)
+            ReconciliarFilaDevolucoes(connection, transaction);
+
+        await transaction.CommitAsync(cancellationToken);
+        return resultado;
+    }
+
+    private static (bool Relocou, long? IdRecalcular) RelocarNotaVsmPorCodCompra(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int codCompra,
+        NotaFiscal destino)
+    {
+        var deslocadas = connection.Query<NotaVsmDeslocada>("""
+            SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia, DataCompra,
+                   CodCompra, COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
+            FROM NotasFiscais
+            WHERE CodCompra = @CodCompra
+              AND ChaveUnica <> @ChaveUnica
+            """, new
+        {
+            CodCompra = codCompra,
+            destino.ChaveUnica
+        }, transaction).ToList();
+
+        if (deslocadas.Count == 0)
+            return (false, null);
+
+        long? idRecalcular = null;
+
+        foreach (var deslocada in deslocadas)
+        {
+            var id = RelocarOuMesclarNotaVsm(
+                connection,
+                transaction,
+                deslocada.Id,
+                destino.ApelidoLoja,
+                destino.ChaveUnica,
+                destino.CodCompra,
+                destino.NfeChaveAcesso);
+
+            if (id.HasValue)
+                idRecalcular = id;
+        }
+
+        return (true, idRecalcular);
+    }
+
+    private static async Task<Dictionary<string, string>> CarregarNomesFornecedorPorCnpjAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var nomes = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var daDistribuidora = await connection.QueryAsync<(string Cnpj, string? Nome)>(new CommandDefinition("""
+            SELECT regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
+                   MAX(NULLIF(TRIM(NomeForn), '')) AS Nome
+            FROM Distribuidoras
+            GROUP BY regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g')
+            """, cancellationToken: cancellationToken));
+
+        foreach (var item in daDistribuidora)
+        {
+            if (string.IsNullOrWhiteSpace(item.Cnpj) || string.IsNullOrWhiteSpace(item.Nome))
+                continue;
+            if (CnpjNormalizer.SaoEquivalentes(item.Nome, item.Cnpj))
+                continue;
+            nomes[item.Cnpj] = item.Nome;
+        }
+
+        var dasNotas = await connection.QueryAsync<(string Cnpj, string? Nome)>(new CommandDefinition("""
+            SELECT regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
+                   MAX(NULLIF(TRIM(NomeForn), '')) AS Nome
+            FROM NotasFiscais
+            GROUP BY regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g')
+            """, cancellationToken: cancellationToken));
+
+        foreach (var item in dasNotas)
+        {
+            if (string.IsNullOrWhiteSpace(item.Cnpj) || string.IsNullOrWhiteSpace(item.Nome))
+                continue;
+            if (CnpjNormalizer.SaoEquivalentes(item.Nome, item.Cnpj))
+                continue;
+            if (!nomes.ContainsKey(item.Cnpj))
+                nomes[item.Cnpj] = item.Nome;
+        }
+
+        return nomes;
+    }
+
     public async Task<bool> ObterHerancaStatusImportacaoAsync(
         CancellationToken cancellationToken = default)
     {
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
-        return await ObterHerancaStatusImportacaoInternalAsync(connection, transaction: null);
+        return ObterHerancaStatusImportacao(connection, transaction: null);
     }
 
     public async Task SalvarHerancaStatusImportacaoAsync(
@@ -380,7 +975,7 @@ public sealed class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        if (!await ObterHerancaStatusImportacaoInternalAsync(connection, transaction: null))
+        if (!ObterHerancaStatusImportacao(connection, transaction: null))
             throw new InvalidOperationException("Ative a heranca de status antes de recalcular.");
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -397,14 +992,13 @@ public sealed class NotaFiscalRepository
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var heranca = await TentarResolverHerancaImportacaoAsync(
+            var heranca = TentarResolverHerancaImportacao(
                 connection,
                 transaction,
                 nota.ApelidoLoja,
                 nota.NumNota,
                 nota.CnpjForn,
-                dia,
-                cancellationToken);
+                dia);
 
             // Sem historico em dias anteriores: mantem o status/obs definidos hoje.
             if (!heranca.HasValue)
@@ -440,11 +1034,11 @@ public sealed class NotaFiscalRepository
         public string DiaConferencia { get; set; } = string.Empty;
     }
 
-    private static async Task<bool> ObterHerancaStatusImportacaoInternalAsync(
+    private static bool ObterHerancaStatusImportacao(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction)
     {
-        var valor = await connection.QuerySingleOrDefaultAsync<string?>("""
+        var valor = connection.QuerySingleOrDefault<string?>("""
             SELECT Valor
             FROM AppConfig
             WHERE Chave = @Chave
@@ -453,19 +1047,16 @@ public sealed class NotaFiscalRepository
         return string.Equals(valor?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<(string Status, string Observacao)?> TentarResolverHerancaImportacaoAsync(
+    private static (string Status, string Observacao)? TentarResolverHerancaImportacao(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         string apelidoLoja,
         string numNota,
         string cnpjForn,
-        string diaConferenciaAtual,
-        CancellationToken cancellationToken)
+        string diaConferenciaAtual)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var cnpjNormalizado = CnpjNormalizer.Normalizar(cnpjForn);
-        var historico = (await connection.QueryAsync<HistoricoNotaNegocio>("""
+        var historico = connection.Query<HistoricoNotaNegocio>("""
             SELECT StatusConferencia, Observacao, DiaConferencia
             FROM NotasFiscais
             WHERE ApelidoLoja = @ApelidoLoja
@@ -479,7 +1070,7 @@ public sealed class NotaFiscalRepository
             NumNota = numNota.Trim(),
             CnpjForn = cnpjNormalizado,
             DiaConferenciaAtual = diaConferenciaAtual.Trim()
-        }, transaction)).ToList();
+        }, transaction).ToList();
 
         if (historico.Count == 0)
             return null;
@@ -489,7 +1080,7 @@ public sealed class NotaFiscalRepository
                 DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia)))
             .Last();
 
-        var devolucaoConcluida = await connection.ExecuteScalarAsync<bool>("""
+        var devolucaoConcluida = connection.ExecuteScalar<bool>("""
             SELECT EXISTS (
                 SELECT 1
                 FROM Devolucoes d
@@ -653,6 +1244,80 @@ public sealed class NotaFiscalRepository
         });
 
         return resultado.ToList();
+    }
+
+    public async Task<ResumoDiaConferencia> ObterResumoDiaAsync(
+        string diaConferencia,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var resumo = await connection.QuerySingleAsync<ResumoDiaConferencia>("""
+            SELECT
+                COALESCE(SUM(CASE
+                    WHEN n.StatusConferencia IN (@StatusPendente, @StatusAmarelo) THEN 1
+                    ELSE 0
+                END), 0)::int AS Pendencias,
+                COALESCE(SUM(CASE
+                    WHEN NOT EXISTS (
+                        SELECT 1
+                        FROM NotasFiscais h
+                        WHERE h.ApelidoLoja = n.ApelidoLoja
+                          AND h.NumNota = n.NumNota
+                          AND regexp_replace(COALESCE(h.CnpjForn, ''), '[^0-9]', '', 'g')
+                            = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+                          AND TRIM(COALESCE(h.DiaConferencia, '')) <> ''
+                          AND h.DiaConferencia <> n.DiaConferencia
+                    ) THEN 1
+                    ELSE 0
+                END), 0)::int AS NotasNovas,
+                COUNT(*)::int AS TotalNotas
+            FROM NotasFiscais n
+            WHERE n.DiaConferencia = @DiaConferencia
+            """, new
+        {
+            StatusPendente = StatusConferenciaValues.Pendente,
+            StatusAmarelo = StatusConferenciaValues.Amarelo,
+            DiaConferencia = diaConferencia
+        });
+
+        return resumo;
+    }
+
+    private sealed class NotaCodCompraResumoLinha
+    {
+        public int CodCompra { get; set; }
+        public string ApelidoLoja { get; set; } = string.Empty;
+        public string NomeForn { get; set; } = string.Empty;
+        public string StatusConferencia { get; set; } = string.Empty;
+    }
+
+    public async Task<IReadOnlyDictionary<int, (string ApelidoLoja, string NomeForn, string StatusConferencia)>> ObterResumoPorCodCompraAsync(
+        IReadOnlyCollection<int> codCompras,
+        CancellationToken cancellationToken = default)
+    {
+        if (codCompras.Count == 0)
+            return new Dictionary<int, (string, string, string)>();
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.QueryAsync<NotaCodCompraResumoLinha>(new CommandDefinition("""
+            SELECT DISTINCT ON (CodCompra)
+                CodCompra,
+                ApelidoLoja,
+                COALESCE(NomeForn, '') AS NomeForn,
+                StatusConferencia
+            FROM NotasFiscais
+            WHERE CodCompra = ANY(@CodCompras)
+            ORDER BY CodCompra, DiaConferencia DESC
+            """, new { CodCompras = codCompras.Distinct().ToArray() },
+            cancellationToken: cancellationToken));
+
+        return linhas.ToDictionary(
+            l => l.CodCompra,
+            l => (l.ApelidoLoja, l.NomeForn, l.StatusConferencia));
     }
 
     public async Task<IReadOnlyList<NotaFiscal>> ObterNotasPorLojaAsync(

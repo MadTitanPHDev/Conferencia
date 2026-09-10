@@ -26,7 +26,13 @@ public partial class MainWindow : Window
 
             var repository = new NotaFiscalRepository(connectionString);
             repository.TestarConexao();
-            DataContext = new DashboardViewModel(repository);
+
+            VsmSyncService? syncVsm = null;
+            var mysql = AppSettingsStore.Instance.Data.MysqlConnectionString?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(mysql))
+                syncVsm = new VsmSyncService(repository, new VsmComprasReader(mysql));
+
+            DataContext = new DashboardViewModel(repository, syncVsm);
         }
         catch (Exception ex)
         {
@@ -47,6 +53,7 @@ public partial class MainWindow : Window
         }
 
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        Closed += (_, _) => (DataContext as IDisposable)?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
     }
 

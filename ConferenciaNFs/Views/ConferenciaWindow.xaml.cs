@@ -11,10 +11,14 @@ namespace ConferenciaNFs.Views;
 
 public partial class ConferenciaWindow : Window
 {
-    public ConferenciaWindow(NotaFiscalRepository repository, string apelidoLoja, string dataCompra)
+    public ConferenciaWindow(
+        NotaFiscalRepository repository,
+        string apelidoLoja,
+        string dataCompra,
+        VsmComprasReader? vsmReader = null)
     {
         InitializeComponent();
-        DataContext = new ConferenciaViewModel(repository, apelidoLoja, dataCompra);
+        DataContext = new ConferenciaViewModel(repository, apelidoLoja, dataCompra, vsmReader);
         Title = ((ConferenciaViewModel)DataContext).TituloConferencia;
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
         PreviewKeyDown += ConferenciaWindow_PreviewKeyDown;
@@ -59,7 +63,7 @@ public partial class ConferenciaWindow : Window
             return;
 
         if (DataContext is ConferenciaViewModel viewModel)
-            viewModel.CopiarNumeroNotaSelecionada();
+            viewModel.AbrirItensNotaSelecionada();
     }
 
     private void GrdNotas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

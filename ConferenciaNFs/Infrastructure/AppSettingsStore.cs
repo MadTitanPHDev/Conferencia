@@ -61,4 +61,10 @@ public sealed class AppSettings
     /// Connection string Npgsql. Ex.: Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=...
     /// </summary>
     public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Connection string MySqlConnector (VSM, somente leitura).
+    /// Ex.: Server=192.168.21.2;Port=33021;Database=myouro;User ID=compras;Password=...
+    /// </summary>
+    public string MysqlConnectionString { get; set; } = string.Empty;
 }

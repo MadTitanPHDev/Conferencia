@@ -18,6 +18,8 @@ public class NotaFiscal : INotifyPropertyChanged
     public string DataEmissao { get; set; } = string.Empty;
     public string DiaConferencia { get; set; } = string.Empty;
     public string ChaveUnica { get; set; } = string.Empty;
+    public int? CodCompra { get; set; }
+    public string NfeChaveAcesso { get; set; } = string.Empty;
 
     public string StatusConferencia
     {

@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using ConferenciaNFs.Data;
 using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
@@ -11,30 +12,40 @@ using Microsoft.Win32;
 
 namespace ConferenciaNFs.ViewModels;
 
-public sealed class DashboardViewModel : ViewModelBase
+public sealed class DashboardViewModel : ViewModelBase, IDisposable
 {
+    private static readonly TimeSpan IntervaloSyncVsm = TimeSpan.FromMinutes(30);
+
     private readonly NotaFiscalRepository _repository;
+    private readonly VsmSyncService? _syncVsm;
+    private DispatcherTimer? _timerSyncVsm;
     private bool _isCarregando;
+    private bool _estaSincronizando;
     private bool _estaVazio = true;
-    private string _mensagemStatus = "Importe um CSV para comecar.";
+    private string _mensagemStatus = "Importe um CSV ou sincronize o VSM para comecar.";
     private DateTime? _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
     private string? _dataCompraAtiva;
     private bool _herancaStatusImportacao;
+    private int _totalPendencias;
+    private int _totalNotasNovas;
+    private int _totalNotas;
 
-    public DashboardViewModel(NotaFiscalRepository repository)
+    public DashboardViewModel(NotaFiscalRepository repository, VsmSyncService? syncVsm = null)
     {
         _repository = repository;
+        _syncVsm = syncVsm;
         Lojas = new ObservableCollection<LojaPendencia>();
 
         ImportarCsvCommand = new AsyncRelayCommand(_ => ImportarCsvAsync());
+        SincronizarVsmCommand = new AsyncRelayCommand(_ => SincronizarVsmManualAsync(), _ => PodeSincronizarVsm);
         AtualizarCommand = new AsyncRelayCommand(_ => InicializarAsync());
         AbrirConferenciaCommand = new RelayCommand(AbrirConferencia, param => param is LojaPendencia);
         GerenciarLojasCommand = new RelayCommand(GerenciarLojas);
         GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
+        PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
         ExportarTodasCommand = new AsyncRelayCommand(_ => ExportarTodasAsync(), _ => PodeExportarTodas);
-        LimparDiaAtualCommand = new AsyncRelayCommand(_ => LimparDiaAtualAsync(), _ => PodeLimparDiaAtual);
         RecalcularHerancaDiaCommand = new AsyncRelayCommand(
             _ => RecalcularHerancaDiaAsync(),
             _ => PodeRecalcularHerancaDia);
@@ -45,9 +56,6 @@ public sealed class DashboardViewModel : ViewModelBase
 
     private bool PodeExportarTodas =>
         DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
-
-    private bool PodeLimparDiaAtual =>
-        DataSelecionada?.Date == DateTime.Today && !EstaVazio && !IsCarregando;
 
     private bool PodeRecalcularHerancaDia =>
         HerancaStatusImportacao && DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
@@ -63,8 +71,9 @@ public sealed class DashboardViewModel : ViewModelBase
                 return;
 
             OnPropertyChanged(nameof(DataSelecionadaTexto));
+            OnPropertyChanged(nameof(TituloPagina));
             AtualizarComandosDoDia();
-            _ = CarregarLojasAsync();
+            _ = AbrirDiaAsync();
         }
     }
 
@@ -72,6 +81,11 @@ public sealed class DashboardViewModel : ViewModelBase
         _dataSelecionada.HasValue
             ? DataCompraParser.Formatar(_dataSelecionada.Value)
             : "Nenhum dia selecionado";
+
+    public string TituloPagina =>
+        _dataSelecionada.HasValue
+            ? $"Conferencia {DataSelecionadaTexto} - {_totalPendencias} com pendencias. Total de notas do dia {_totalNotasNovas} - Total de notas {_totalNotas}"
+            : "Conferencia";
 
     public bool IsCarregando
     {
@@ -116,15 +130,18 @@ public sealed class DashboardViewModel : ViewModelBase
         }
     }
 
+    public bool SyncVsmDisponivel => _syncVsm is not null;
+
     public ICommand ImportarCsvCommand { get; }
+    public ICommand SincronizarVsmCommand { get; }
     public ICommand AtualizarCommand { get; }
     public ICommand AbrirConferenciaCommand { get; }
     public ICommand GerenciarLojasCommand { get; }
     public ICommand GerenciarDistribuidorasCommand { get; }
     public ICommand DevolucoesCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
+    public ICommand PesquisarProdutoCommand { get; }
     public ICommand ExportarTodasCommand { get; }
-    public ICommand LimparDiaAtualCommand { get; }
     public ICommand RecalcularHerancaDiaCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
 
@@ -135,10 +152,93 @@ public sealed class DashboardViewModel : ViewModelBase
             _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
             OnPropertyChanged(nameof(DataSelecionada));
             OnPropertyChanged(nameof(DataSelecionadaTexto));
+            OnPropertyChanged(nameof(TituloPagina));
         }
 
         await CarregarConfiguracoesAsync();
+        await AbrirDiaAsync();
+        IniciarTimerSyncVsm();
+    }
+
+    private bool PodeSincronizarVsm =>
+        SyncVsmDisponivel && DataSelecionada.HasValue && !IsCarregando && !_estaSincronizando;
+
+    private void IniciarTimerSyncVsm()
+    {
+        if (_syncVsm is null || _timerSyncVsm is not null)
+            return;
+
+        _timerSyncVsm = new DispatcherTimer { Interval = IntervaloSyncVsm };
+        _timerSyncVsm.Tick += OnTimerSyncVsm;
+        _timerSyncVsm.Start();
+    }
+
+    private void OnTimerSyncVsm(object? sender, EventArgs e)
+        => _ = AbrirDiaAsync();
+
+    private async Task AbrirDiaAsync()
+    {
+        await SincronizarVsmCoreAsync(exibirErro: false);
         await CarregarLojasAsync();
+    }
+
+    private async Task SincronizarVsmManualAsync()
+    {
+        await SincronizarVsmCoreAsync(exibirErro: true);
+        await CarregarLojasAsync();
+    }
+
+    private async Task SincronizarVsmCoreAsync(bool exibirErro)
+    {
+        if (_syncVsm is null || !DataSelecionada.HasValue || _estaSincronizando)
+            return;
+
+        try
+        {
+            _estaSincronizando = true;
+            AtualizarComandosDoDia();
+            MensagemStatus = $"Sincronizando notas do VSM em {DataSelecionadaTexto}...";
+
+            var resultado = await _syncVsm.SincronizarDiaAsync(DataSelecionada.Value);
+            var detalheIgnoradas = resultado.Ignoradas > 0
+                ? $" · {resultado.Ignoradas} ignorada(s)"
+                : string.Empty;
+            var detalheRelocadas = resultado.Relocadas > 0
+                ? $" · {resultado.Relocadas} realocada(s)"
+                : string.Empty;
+            MensagemStatus =
+                $"VSM {DataSelecionadaTexto}: {resultado.Inseridas} nova(s), " +
+                $"{resultado.Atualizadas} atualizada(s), {resultado.Lidas} lida(s)" +
+                $"{detalheIgnoradas}{detalheRelocadas}.";
+        }
+        catch (Exception ex)
+        {
+            MensagemStatus = "Nao foi possivel sincronizar com o VSM.";
+            if (exibirErro)
+            {
+                MessageBox.Show(
+                    $"Erro ao sincronizar com o VSM:\n{ex.Message}\n\n" +
+                    "O CSV continua disponivel como alternativa.",
+                    "Sincronizacao VSM",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            _estaSincronizando = false;
+            AtualizarComandosDoDia();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_timerSyncVsm is null)
+            return;
+
+        _timerSyncVsm.Stop();
+        _timerSyncVsm.Tick -= OnTimerSyncVsm;
+        _timerSyncVsm = null;
     }
 
     private async Task CarregarConfiguracoesAsync()
@@ -184,6 +284,7 @@ public sealed class DashboardViewModel : ViewModelBase
                 Lojas.Clear();
                 EstaVazio = true;
                 _dataCompraAtiva = null;
+                AplicarResumoDia(new ResumoDiaConferencia());
                 MensagemStatus = "Selecione um dia no calendario para conferir.";
                 return;
             }
@@ -192,16 +293,17 @@ public sealed class DashboardViewModel : ViewModelBase
             MensagemStatus = $"Carregando lojas de {DataSelecionadaTexto}...";
 
             var lojas = await _repository.ObterPendenciasPorLojaAsync(_dataCompraAtiva);
+            var resumo = await _repository.ObterResumoDiaAsync(_dataCompraAtiva);
 
             Lojas.Clear();
             foreach (var loja in lojas)
                 Lojas.Add(loja);
 
             EstaVazio = Lojas.Count == 0;
-            var comPendencias = Lojas.Count(l => l.TemPendencias);
+            AplicarResumoDia(resumo);
             MensagemStatus = EstaVazio
                 ? $"Nenhuma loja com notas em {DataSelecionadaTexto}."
-                : $"{Lojas.Count} loja(s) em {DataSelecionadaTexto} · {comPendencias} com pendencias.";
+                : $"{Lojas.Count} loja(s) em {DataSelecionadaTexto}.";
 
             AtualizarComandosDoDia();
         }
@@ -281,78 +383,13 @@ public sealed class DashboardViewModel : ViewModelBase
             return;
         }
 
-        var janela = new ConferenciaWindow(_repository, loja.ApelidoLoja, _dataCompraAtiva)
+        var janela = new ConferenciaWindow(_repository, loja.ApelidoLoja, _dataCompraAtiva, _syncVsm?.Reader)
         {
             Owner = Application.Current.MainWindow
         };
 
         janela.ShowDialog();
         _ = CarregarLojasAsync();
-    }
-
-    private async Task LimparDiaAtualAsync()
-    {
-        if (!DataSelecionada.HasValue || DataSelecionada.Value.Date != DateTime.Today)
-        {
-            MessageBox.Show(
-                "So e possivel limpar notas do dia atual.\nSelecione hoje no calendario.",
-                "Aviso",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
-        {
-            MessageBox.Show("Nao ha notas para limpar hoje.", "Aviso",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        try
-        {
-            IsCarregando = true;
-
-            var notas = await _repository.ObterTodasNotasPorDataAsync(_dataCompraAtiva);
-            if (notas.Count == 0)
-            {
-                MessageBox.Show("Nao ha notas para limpar hoje.", "Aviso",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var confirmar = MessageBox.Show(
-                $"Remover todas as {notas.Count} nota(s) do dia {DataSelecionadaTexto}?\n\n" +
-                "Esta acao nao pode ser desfeita. Devolucoes vinculadas tambem serao removidas.",
-                "Limpar dia atual",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (confirmar != MessageBoxResult.Yes)
-                return;
-
-            MensagemStatus = "Limpando notas do dia atual...";
-            var removidas = await _repository.LimparNotasDoDiaAtualAsync(_dataCompraAtiva);
-
-            MensagemStatus = $"{removidas} nota(s) removida(s) de {DataSelecionadaTexto}.";
-            MessageBox.Show(
-                $"{removidas} nota(s) removida(s) do dia {DataSelecionadaTexto}.",
-                "Limpeza concluida",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            await CarregarLojasAsync();
-        }
-        catch (Exception ex)
-        {
-            MensagemStatus = "Erro ao limpar notas do dia.";
-            MessageBox.Show($"Erro ao limpar notas:\n{ex.Message}", "Erro",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsCarregando = false;
-        }
     }
 
     private async Task RecalcularHerancaDiaAsync()
@@ -414,11 +451,19 @@ public sealed class DashboardViewModel : ViewModelBase
         }
     }
 
+    private void AplicarResumoDia(ResumoDiaConferencia resumo)
+    {
+        _totalPendencias = resumo.Pendencias;
+        _totalNotasNovas = resumo.NotasNovas;
+        _totalNotas = resumo.TotalNotas;
+        OnPropertyChanged(nameof(TituloPagina));
+    }
+
     private void AtualizarComandosDoDia()
     {
         ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
-        ((AsyncRelayCommand)LimparDiaAtualCommand).RaiseCanExecuteChanged();
         ((AsyncRelayCommand)RecalcularHerancaDiaCommand).RaiseCanExecuteChanged();
+        ((AsyncRelayCommand)SincronizarVsmCommand).RaiseCanExecuteChanged();
     }
 
     private async Task ExportarTodasAsync()
@@ -521,6 +566,26 @@ public sealed class DashboardViewModel : ViewModelBase
     private void PesquisarNota(object? parameter)
     {
         var janela = new PesquisarNotaWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
+    }
+
+    private void PesquisarProduto(object? parameter)
+    {
+        if (_syncVsm is null)
+        {
+            MessageBox.Show(
+                "A conexao com o VSM nao esta configurada.\nNao e possivel pesquisar produto por EAN.",
+                "Pesquisar produto",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var janela = new PesquisarProdutoWindow(_repository, _syncVsm.Reader)
         {
             Owner = Application.Current.MainWindow
         };

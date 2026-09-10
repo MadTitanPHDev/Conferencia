@@ -47,15 +47,27 @@ public partial class App : Application
                 // ignora
             }
 
-            if (!string.IsNullOrWhiteSpace(atuais?.ConnectionString))
-                return;
-
             var exemploSettings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(exemploPath));
-            if (string.IsNullOrWhiteSpace(exemploSettings?.ConnectionString))
+            atuais ??= new AppSettings();
+            var alterou = false;
+
+            if (string.IsNullOrWhiteSpace(atuais.ConnectionString)
+                && !string.IsNullOrWhiteSpace(exemploSettings?.ConnectionString))
+            {
+                atuais.ConnectionString = exemploSettings.ConnectionString;
+                alterou = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(atuais.MysqlConnectionString)
+                && !string.IsNullOrWhiteSpace(exemploSettings?.MysqlConnectionString))
+            {
+                atuais.MysqlConnectionString = exemploSettings.MysqlConnectionString;
+                alterou = true;
+            }
+
+            if (!alterou)
                 return;
 
-            atuais ??= new AppSettings();
-            atuais.ConnectionString = exemploSettings.ConnectionString;
             File.WriteAllText(
                 settingsPath,
                 System.Text.Json.JsonSerializer.Serialize(atuais, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));

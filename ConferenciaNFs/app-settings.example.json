@@ -1,5 +1,6 @@
 {
   "JanelaFixadaNoTopo": false,
   "TemaEscuro": false,
-  "ConnectionString": "Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=1234"
+  "ConnectionString": "Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=1234",
+  "MysqlConnectionString": "Server=192.168.21.2;Port=33021;Database=myouro;User ID=compras;Password="
 }

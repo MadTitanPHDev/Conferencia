@@ -53,7 +53,7 @@
                     <TextBlock Text="MENU"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="6,0,0,8"/>
-                    <Button Content="  Dashboard"
+                    <Button Content="  Conferencia"
                             Style="{StaticResource SidebarNavButtonActiveStyle}"
                             IsEnabled="False"
                             Margin="0,0,0,4"/>
@@ -71,6 +71,10 @@
                             Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar nota"
                             Command="{Binding PesquisarNotaCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Pesquisar produto"
+                            Command="{Binding PesquisarProdutoCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"/>
                 </StackPanel>
 
@@ -85,7 +89,7 @@
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextPrimary}"/>
-                        <TextBlock Text="Importe a planilha do dia, escolha a data no calendario e abra a loja para conferir."
+                        <TextBlock Text="Escolha o dia no calendario. As notas entram pelo VSM; o CSV continua como reserva."
                                    TextWrapping="Wrap"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextSecondary}"
@@ -99,98 +103,80 @@
             <Grid Margin="24,22,24,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0" Margin="0,0,0,16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                    <TextBlock Text="Dashboard"
+                <StackPanel Grid.Column="0"
+                            Margin="0,0,16,0"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TituloPagina}"
                                Style="{StaticResource PageTitleStyle}"
+                               FontSize="22"
                                TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding MensagemStatus}"
                                Style="{StaticResource PageSubtitleStyle}"
-                               Margin="0,6,0,0"
+                               Margin="0,6,0,12"
                                TextWrapping="Wrap"/>
+                    <WrapPanel HorizontalAlignment="Left">
+                        <controls:ThemeToggle Margin="0,0,8,0"/>
+                        <controls:PinWindowToggle Margin="0,0,8,0"/>
+                        <Button Content="Sincronizar VSM"
+                                Command="{Binding SincronizarVsmCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="0,0,8,0"
+                                Visibility="{Binding SyncVsmDisponivel, Converter={StaticResource BoolToVisibilityConverter}}"
+                                ToolTip="Busca as notas do dia no VSM e grava no banco da conferencia."/>
+                        <Button Content="Importar CSV"
+                                Command="{Binding ImportarCsvCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,8,0"
+                                ToolTip="Alternativa se o VSM nao estiver disponivel."/>
+                        <Button Content="Exportar tudo"
+                                Command="{Binding ExportarTodasCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Atualizar"
+                                Command="{Binding AtualizarCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"/>
+                    </WrapPanel>
                 </StackPanel>
 
-                <WrapPanel Grid.Row="1"
-                           HorizontalAlignment="Left">
-                    <controls:ThemeToggle Margin="0,0,8,8"/>
-                    <controls:PinWindowToggle Margin="0,0,8,8"/>
-                    <Button Content="Importar CSV"
-                            Command="{Binding ImportarCsvCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            Margin="0,0,8,8"/>
-                    <Button Content="Exportar tudo"
-                            Command="{Binding ExportarTodasCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,8"/>
-                    <Button Content="Atualizar"
-                            Command="{Binding AtualizarCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,0,8"/>
-                </WrapPanel>
-            </Grid>
-
-            <Border Grid.Row="1"
-                    Style="{StaticResource SurfaceCardStyle}"
-                    Padding="10,8"
-                    Margin="0,0,0,12">
-                <WrapPanel VerticalAlignment="Center">
-                    <Border Background="{DynamicResource Brush.AccentSoft}"
-                            CornerRadius="8"
-                            Padding="8,6"
-                            Margin="0,4,12,4"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="Dia"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource Brush.Accent}"/>
-                    </Border>
-
-                    <Viewbox MaxHeight="132"
-                             MaxWidth="196"
-                             Stretch="Uniform"
-                             Margin="0,4,16,4"
-                             VerticalAlignment="Center">
+                <Border Grid.Column="1"
+                        Style="{StaticResource SurfaceCardStyle}"
+                        Padding="8"
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Top">
+                    <Viewbox MaxHeight="118"
+                             MaxWidth="176"
+                             Stretch="Uniform">
                         <Calendar SelectedDate="{Binding DataSelecionada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   Language="pt-BR"
                                   Style="{StaticResource ModernCalendarCompactStyle}"/>
                     </Viewbox>
+                </Border>
 
-                    <StackPanel MinWidth="180"
-                                MaxWidth="420"
-                                Margin="0,4,0,4"
-                                VerticalAlignment="Center">
-                        <TextBlock Text="{Binding DataSelecionadaTexto}"
-                                   FontSize="16"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Brush.TextPrimary}"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="Selecione o dia da conferencia e importe o CSV. Todas as notas da planilha ficam neste dia."
-                                   Style="{StaticResource PageSubtitleStyle}"
-                                   FontSize="12"
-                                   Margin="0,4,0,8"
-                                   TextWrapping="Wrap"/>
-                        <Button Content="Limpar dia atual"
-                                Command="{Binding LimparDiaAtualCommand}"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Padding="12,6"
-                                FontSize="12"
-                                HorizontalAlignment="Left"
-                                ToolTip="Remove todas as notas de hoje. Disponivel apenas com o dia atual selecionado."/>
-                    </StackPanel>
-                </WrapPanel>
-            </Border>
+                <Button x:Name="BtnMenuAvancado"
+                        Grid.Column="2"
+                        VerticalAlignment="Top"
+                        Content="☰"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Width="42"
+                        Height="42"
+                        FontSize="18"
+                        Padding="0"
+                        Click="ToggleMenuAvancado_Click"
+                        ToolTip="Ferramentas avancadas"/>
+            </Grid>
 
-            <Border Grid.Row="2"
+            <Border Grid.Row="1"
                     Style="{StaticResource EmptyStateBorderStyle}"
                     Visibility="{Binding EstaVazio, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -208,14 +194,14 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Brush.TextPrimary}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="Importe a planilha do dia ou selecione outra data."
+                    <TextBlock Text="Sincronize o VSM, importe um CSV ou selecione outra data."
                                Style="{StaticResource PageSubtitleStyle}"
                                Margin="0,8,0,0"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Row="2"
+            <ScrollViewer Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
                           Visibility="{Binding EstaVazio, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <ItemsControl ItemsSource="{Binding Lojas}">
@@ -298,7 +284,7 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <Border Grid.Row="2"
+            <Border Grid.Row="1"
                     Background="{DynamicResource Brush.Overlay}"
                     CornerRadius="14"
                     Visibility="{Binding IsCarregando, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -309,7 +295,7 @@
                            VerticalAlignment="Center"/>
             </Border>
 
-            <TextBlock Grid.Row="3"
+            <TextBlock Grid.Row="2"
                        Margin="0,14,0,0"
                        FontSize="12"
                        Foreground="{DynamicResource Brush.TextSecondary}"
@@ -380,19 +366,6 @@
                 </ScrollViewer>
             </Border>
 
-            <Button x:Name="BtnMenuAvancado"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="0,18,18,0"
-                    Panel.ZIndex="40"
-                    Content="☰"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Width="42"
-                    Height="42"
-                    FontSize="18"
-                    Padding="0"
-                    Click="ToggleMenuAvancado_Click"
-                    ToolTip="Ferramentas avancadas"/>
         </Grid>
     </Grid>
 </Window>

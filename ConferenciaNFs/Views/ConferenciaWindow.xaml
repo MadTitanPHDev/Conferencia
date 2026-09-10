@@ -323,6 +323,12 @@
 
                 <DataGrid.ContextMenu>
                     <ContextMenu>
+                        <MenuItem Header="Abrir itens da nota"
+                                  Command="{Binding AbrirItensCommand}"/>
+                        <MenuItem Header="Copiar numero da nota"
+                                  InputGestureText="Ctrl+C"
+                                  Command="{Binding CopiarNumeroNotaCommand}"/>
+                        <Separator/>
                         <MenuItem Header="Nao conferido (Branco)" InputGestureText="0" Command="{Binding DefinirPendenteCommand}"/>
                         <Separator/>
                         <MenuItem Header="Nota correta (Verde)" InputGestureText="1 / F1" Command="{Binding DefinirVerdeCommand}"/>
@@ -437,6 +443,6 @@
                    FontSize="11"
                    Foreground="{DynamicResource Brush.TextSecondary}"
                    TextWrapping="Wrap"
-                   Text="Esc: fechar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver · clique direito"/>
+                   Text="Esc: fechar · Duplo clique: itens · Ctrl+C / botao direito: copiar numero · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"/>
     </Grid>
 </Window>

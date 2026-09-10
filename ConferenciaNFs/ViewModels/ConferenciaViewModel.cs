@@ -6,6 +6,7 @@ using System.Windows.Input;
 using ConferenciaNFs.Data;
 using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
+using ConferenciaNFs.Views;
 using Microsoft.Win32;
 
 namespace ConferenciaNFs.ViewModels;
@@ -13,6 +14,7 @@ namespace ConferenciaNFs.ViewModels;
 public sealed class ConferenciaViewModel : ViewModelBase
 {
     private readonly NotaFiscalRepository _repository;
+    private readonly VsmComprasReader? _vsmReader;
     private NotaFiscal? _notaSelecionada;
     private bool _isCarregando;
     private string _mensagemStatus = string.Empty;
@@ -20,9 +22,14 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _modoSomenteSelecionadas;
     private bool _atualizandoFiltro;
 
-    public ConferenciaViewModel(NotaFiscalRepository repository, string apelidoLoja, string dataCompra)
+    public ConferenciaViewModel(
+        NotaFiscalRepository repository,
+        string apelidoLoja,
+        string dataCompra,
+        VsmComprasReader? vsmReader = null)
     {
         _repository = repository;
+        _vsmReader = vsmReader;
         ApelidoLoja = apelidoLoja;
         DataCompra = dataCompra;
         Notas = new ObservableCollection<NotaFiscal>();
@@ -50,6 +57,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
         ExportarConferenciaCommand = new AsyncRelayCommand(_ => ExportarConferenciaAsync());
         SelecionarTodosFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(true));
         LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
+        CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => NotaSelecionada is not null);
+        AbrirItensCommand = new RelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
 
         _ = CarregarNotasAsync();
     }
@@ -89,6 +98,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 return;
 
             ObservacaoTexto = value?.Observacao ?? string.Empty;
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 
@@ -126,6 +136,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand ExportarConferenciaCommand { get; }
     public ICommand SelecionarTodosFiltrosCommand { get; }
     public ICommand LimparFiltrosCommand { get; }
+    public ICommand CopiarNumeroNotaCommand { get; }
+    public ICommand AbrirItensCommand { get; }
 
     public bool CopiarNumeroNotaSelecionada()
     {
@@ -143,6 +155,44 @@ public sealed class ConferenciaViewModel : ViewModelBase
         {
             return false;
         }
+    }
+
+    public void AbrirItensNotaSelecionada()
+    {
+        if (NotaSelecionada is null)
+        {
+            MessageBox.Show("Selecione uma nota para ver os itens.", "Aviso",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (_vsmReader is null)
+        {
+            MessageBox.Show(
+                "A conexao com o VSM nao esta configurada.\nNao e possivel carregar os itens da nota.",
+                "Itens da nota",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (NotaSelecionada.CodCompra is not int codCompra || codCompra <= 0)
+        {
+            MessageBox.Show(
+                "Esta nota nao tem codigo do VSM.\nSincronize o dia para carregar os itens.",
+                "Itens da nota",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var janela = new DetalheNotaWindow(_vsmReader, NotaSelecionada)
+        {
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
+                ?? Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
     }
 
     private async Task CarregarNotasAsync()
