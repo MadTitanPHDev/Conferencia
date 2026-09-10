@@ -31,6 +31,7 @@
         <KeyBinding Key="F9" Command="{Binding DefinirObservacaoBonificacaoCommand}"/>
         <KeyBinding Key="F11" Command="{Binding DefinirObservacaoEncomendaCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SalvarObservacaoCommand}"/>
+        <KeyBinding Key="F12" Command="{Binding AlternarDuploCliqueCommand}"/>
     </Window.InputBindings>
 
     <Grid Margin="16,12">
@@ -79,6 +80,13 @@
             <WrapPanel Grid.Row="1" HorizontalAlignment="Left">
                 <controls:ThemeToggle Margin="0,0,6,4"/>
                 <controls:PinWindowToggle Margin="0,0,6,4"/>
+                <Button Content="{Binding TextoDuploClique}"
+                        Command="{Binding AlternarDuploCliqueCommand}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,6"
+                        FontSize="12"
+                        Margin="0,0,6,4"
+                        ToolTip="{Binding DicaDuploClique}"/>
                 <Button Content="Exportar"
                         Command="{Binding ExportarConferenciaCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
@@ -443,6 +451,6 @@
                    FontSize="11"
                    Foreground="{DynamicResource Brush.TextSecondary}"
                    TextWrapping="Wrap"
-                   Text="Esc: fechar · Duplo clique: itens · Ctrl+C / botao direito: copiar numero · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"/>
+                   Text="{Binding TextoAtalhos}"/>
     </Grid>
 </Window>

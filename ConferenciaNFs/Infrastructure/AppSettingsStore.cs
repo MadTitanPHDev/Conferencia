@@ -67,4 +67,9 @@ public sealed class AppSettings
     /// Ex.: Server=192.168.21.2;Port=33021;Database=myouro;User ID=compras;Password=...
     /// </summary>
     public string MysqlConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Duplo clique na conferencia: true copia o numero da NF; false abre os itens.
+    /// </summary>
+    public bool DuploCliqueCopiaNumero { get; set; }
 }

@@ -42,4 +42,34 @@ public class StatusHerancaImportacaoTests
         Assert.Equal(StatusConferenciaValues.Laranja, status);
         Assert.Equal("ENCOMENDA", obs);
     }
+
+    [Theory]
+    [InlineData("08/09/2026", "09/09/2026", true)]
+    [InlineData("04/09/2026", "08/09/2026", true)]
+    [InlineData("09/09/2026", "09/09/2026", false)]
+    [InlineData("04/09/2026", "04/09/2026", false)]
+    [InlineData("05/09/2026", "04/09/2026", false)]
+    [InlineData("", "09/09/2026", false)]
+    [InlineData("08/09/2026", "", false)]
+    public void DeveMarcarLaranjaPorEmissao_UsaDiaConferenciaAnterior(
+        string emissao,
+        string diaAnterior,
+        bool esperado)
+    {
+        Assert.Equal(esperado, StatusHerancaImportacao.DeveMarcarLaranjaPorEmissao(emissao, diaAnterior));
+    }
+}
+
+public class NumNotaNormalizerTests
+{
+    [Theory]
+    [InlineData("0123", "123")]
+    [InlineData("123", "123")]
+    [InlineData("000", "0")]
+    [InlineData("  45 ", "45")]
+    [InlineData("", "")]
+    public void Normalizar_RemoveZerosAEsquerda(string entrada, string esperado)
+    {
+        Assert.Equal(esperado, NumNotaNormalizer.Normalizar(entrada));
+    }
 }

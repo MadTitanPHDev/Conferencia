@@ -413,7 +413,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
         var confirmar = MessageBox.Show(
             $"Recalcular status e observacao herdados das notas de {DataSelecionadaTexto}?\n\n" +
-            "Somente notas com historico em dias anteriores serao alteradas.\n" +
+            "Verde/Azul no historico (loja + nota + CNPJ, ou chave NFe) viram Laranja.\n" +
+            "Notas em branco com emissao anterior ao ultimo dia ja conferido tambem viram Laranja.\n" +
             "Notas conferidas hoje pela primeira vez permanecem como estao.\n" +
             "Devolucoes nao serao alteradas.",
             "Recalcular heranca do dia",

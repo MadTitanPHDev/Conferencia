@@ -33,4 +33,20 @@ public static class StatusHerancaImportacao
 
         return (herdado, observacao);
     }
+
+    /// <summary>
+    /// Sem o mesmo numero no historico: NF emitida antes do ultimo dia ja conferido
+    /// e "de outro dia" (lote que a equipe ja fechou).
+    /// </summary>
+    public static bool DeveMarcarLaranjaPorEmissao(
+        string? dataEmissao,
+        string? diaConferenciaAnterior)
+    {
+        var emissao = DataCompraParser.TentarConverter(dataEmissao);
+        var anterior = DataCompraParser.TentarConverter(diaConferenciaAnterior);
+        if (!emissao.HasValue || !anterior.HasValue)
+            return false;
+
+        return emissao.Value.Date < anterior.Value.Date;
+    }
 }

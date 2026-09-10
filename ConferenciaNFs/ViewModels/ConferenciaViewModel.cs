@@ -21,6 +21,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private string _observacaoTexto = string.Empty;
     private bool _modoSomenteSelecionadas;
     private bool _atualizandoFiltro;
+    private bool _duploCliqueCopiaNumero;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
@@ -59,6 +60,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
         LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
         CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => NotaSelecionada is not null);
         AbrirItensCommand = new RelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
+        AlternarDuploCliqueCommand = new RelayCommand(_ => DuploCliqueCopiaNumero = !DuploCliqueCopiaNumero);
+
+        _duploCliqueCopiaNumero = AppSettingsStore.Instance.Data.DuploCliqueCopiaNumero;
 
         _ = CarregarNotasAsync();
     }
@@ -88,6 +92,37 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public string TextoModoFiltro => ModoSomenteSelecionadas
         ? "Modo: somente status marcados"
         : "Modo: priorizar status marcados no topo";
+
+    public bool DuploCliqueCopiaNumero
+    {
+        get => _duploCliqueCopiaNumero;
+        set
+        {
+            if (!SetProperty(ref _duploCliqueCopiaNumero, value))
+                return;
+
+            AppSettingsStore.Instance.Data.DuploCliqueCopiaNumero = value;
+            AppSettingsStore.Instance.Salvar();
+            OnPropertyChanged(nameof(TextoDuploClique));
+            OnPropertyChanged(nameof(DicaDuploClique));
+            OnPropertyChanged(nameof(TextoAtalhos));
+            MensagemStatus = value
+                ? "Duplo clique copia o numero da nota. F12 alterna para itens."
+                : "Duplo clique abre os itens da nota. F12 alterna para copiar.";
+        }
+    }
+
+    public string TextoDuploClique => DuploCliqueCopiaNumero
+        ? "Duplo clique: copiar"
+        : "Duplo clique: itens";
+
+    public string DicaDuploClique => DuploCliqueCopiaNumero
+        ? "F12: duplo clique passa a abrir os itens"
+        : "F12: duplo clique passa a copiar o numero";
+
+    public string TextoAtalhos => DuploCliqueCopiaNumero
+        ? "Esc: fechar · Duplo clique: copiar numero · F12: abre itens · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"
+        : "Esc: fechar · Duplo clique: itens · F12: copia numero · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver";
 
     public NotaFiscal? NotaSelecionada
     {
@@ -138,6 +173,15 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand LimparFiltrosCommand { get; }
     public ICommand CopiarNumeroNotaCommand { get; }
     public ICommand AbrirItensCommand { get; }
+    public ICommand AlternarDuploCliqueCommand { get; }
+
+    public void ExecutarAcaoDuploClique()
+    {
+        if (DuploCliqueCopiaNumero)
+            CopiarNumeroNotaSelecionada();
+        else
+            AbrirItensNotaSelecionada();
+    }
 
     public bool CopiarNumeroNotaSelecionada()
     {

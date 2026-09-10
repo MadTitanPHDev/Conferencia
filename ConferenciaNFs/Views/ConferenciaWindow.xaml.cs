@@ -63,7 +63,7 @@ public partial class ConferenciaWindow : Window
             return;
 
         if (DataContext is ConferenciaViewModel viewModel)
-            viewModel.AbrirItensNotaSelecionada();
+            viewModel.ExecutarAcaoDuploClique();
     }
 
     private void GrdNotas_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
