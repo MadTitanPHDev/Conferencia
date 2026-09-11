@@ -89,7 +89,7 @@
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextPrimary}"/>
-                        <TextBlock Text="Escolha o dia no calendario. As notas entram pelo VSM; o CSV continua como reserva."
+                        <TextBlock Text="Escolha o intervalo (de / ate). As notas entram pelo VSM; o CSV continua como reserva na data final."
                                    TextWrapping="Wrap"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextSecondary}"
@@ -133,12 +133,12 @@
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Margin="0,0,8,0"
                                 Visibility="{Binding SyncVsmDisponivel, Converter={StaticResource BoolToVisibilityConverter}}"
-                                ToolTip="Busca as notas do dia no VSM e grava no banco da conferencia."/>
+                                ToolTip="Busca as notas de cada dia do intervalo no VSM e grava no banco da conferencia."/>
                         <Button Content="Importar CSV"
                                 Command="{Binding ImportarCsvCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Margin="0,0,8,0"
-                                ToolTip="Alternativa se o VSM nao estiver disponivel."/>
+                                ToolTip="Alternativa se o VSM nao estiver disponivel. As linhas vao para a data final do intervalo."/>
                         <Button Content="Exportar tudo"
                                 Command="{Binding ExportarTodasCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
@@ -151,16 +151,25 @@
 
                 <Border Grid.Column="1"
                         Style="{StaticResource SurfaceCardStyle}"
-                        Padding="8"
+                        Padding="12,10"
                         Margin="0,0,10,0"
-                        VerticalAlignment="Top">
-                    <Viewbox MaxHeight="118"
-                             MaxWidth="176"
-                             Stretch="Uniform">
-                        <Calendar SelectedDate="{Binding DataSelecionada, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  Language="pt-BR"
-                                  Style="{StaticResource ModernCalendarCompactStyle}"/>
-                    </Viewbox>
+                        VerticalAlignment="Top"
+                        MinWidth="168">
+                    <StackPanel>
+                        <TextBlock Text="De"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,0,0,4"/>
+                        <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Language="pt-BR"
+                                    Width="148"
+                                    Margin="0,0,0,8"/>
+                        <TextBlock Text="Ate"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,0,0,4"/>
+                        <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Language="pt-BR"
+                                    Width="148"/>
+                    </StackPanel>
                 </Border>
 
                 <Button x:Name="BtnMenuAvancado"
@@ -189,12 +198,12 @@
                                Stretch="Uniform"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border>
-                    <TextBlock Text="Nenhuma loja para este dia"
+                    <TextBlock Text="Nenhuma loja neste intervalo"
                                FontSize="20"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Brush.TextPrimary}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="Sincronize o VSM, importe um CSV ou selecione outra data."
+                    <TextBlock Text="Sincronize o VSM, importe um CSV ou ajuste as datas."
                                Style="{StaticResource PageSubtitleStyle}"
                                Margin="0,8,0,0"
                                HorizontalAlignment="Center"/>

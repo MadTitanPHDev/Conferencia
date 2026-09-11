@@ -957,6 +957,23 @@ public sealed class NotaFiscalRepository
         return string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    private static string[] NormalizarDiasConferencia(IReadOnlyList<string> dias)
+    {
+        if (dias is null || dias.Count == 0)
+            throw new ArgumentException("Informe ao menos um dia de conferencia.", nameof(dias));
+
+        var limpos = dias
+            .Select(d => d?.Trim() ?? string.Empty)
+            .Where(d => d.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (limpos.Length == 0)
+            throw new ArgumentException("Informe ao menos um dia de conferencia.", nameof(dias));
+
+        return limpos;
+    }
+
     private static async Task<Dictionary<string, string>> CarregarNomesFornecedorPorCnpjAsync(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
@@ -1092,6 +1109,17 @@ public sealed class NotaFiscalRepository
 
         await transaction.CommitAsync(cancellationToken);
         return atualizadas;
+    }
+
+    public async Task<int> RecalcularHerancaImportacaoIntervaloAsync(
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
+    {
+        var total = 0;
+        foreach (var dia in NormalizarDiasConferencia(dias))
+            total += await RecalcularHerancaImportacaoDiaAsync(dia, cancellationToken);
+
+        return total;
     }
 
     private sealed class HistoricoNotaNegocio
@@ -1369,10 +1397,35 @@ public sealed class NotaFiscalRepository
         return existente ?? DataCompraParser.Formatar(alvo);
     }
 
-    public async Task<IReadOnlyList<LojaPendencia>> ObterPendenciasPorLojaAsync(
-        string dataCompra,
+    public async Task<IReadOnlyList<string>> ResolverChavesIntervaloAsync(
+        DateTime inicio,
+        DateTime fim,
         CancellationToken cancellationToken = default)
     {
+        var datas = DataCompraParser.EnumerarDias(inicio, fim);
+        var existentes = await ObterDatasDisponiveisAsync(cancellationToken);
+        var chaves = new List<string>(datas.Count);
+
+        foreach (var data in datas)
+        {
+            var existente = existentes.FirstOrDefault(d =>
+                DataCompraParser.TentarConverter(d)?.Date == data.Date);
+            chaves.Add(existente ?? DataCompraParser.Formatar(data));
+        }
+
+        return chaves;
+    }
+
+    public Task<IReadOnlyList<LojaPendencia>> ObterPendenciasPorLojaAsync(
+        string dataCompra,
+        CancellationToken cancellationToken = default)
+        => ObterPendenciasPorLojaAsync([dataCompra], cancellationToken);
+
+    public async Task<IReadOnlyList<LojaPendencia>> ObterPendenciasPorLojaAsync(
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
+    {
+        var diasNormais = NormalizarDiasConferencia(dias);
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
@@ -1387,23 +1440,29 @@ public sealed class NotaFiscalRepository
                 COALESCE(NULLIF(MAX(l.NomeExibicao), ''), n.ApelidoLoja) AS NomeExibicao
             FROM NotasFiscais n
             LEFT JOIN LojaOrdem l ON l.ApelidoLoja = n.ApelidoLoja
-            WHERE n.DiaConferencia = @DiaConferencia
+            WHERE n.DiaConferencia = ANY(@Dias)
             GROUP BY n.ApelidoLoja
             ORDER BY NumeroOrdem, n.ApelidoLoja
             """, new
         {
             StatusPendente = StatusConferenciaValues.Pendente,
             StatusAmarelo = StatusConferenciaValues.Amarelo,
-            DiaConferencia = dataCompra
+            Dias = diasNormais
         });
 
         return resultado.ToList();
     }
 
-    public async Task<ResumoDiaConferencia> ObterResumoDiaAsync(
+    public Task<ResumoDiaConferencia> ObterResumoDiaAsync(
         string diaConferencia,
         CancellationToken cancellationToken = default)
+        => ObterResumoDiaAsync([diaConferencia], cancellationToken);
+
+    public async Task<ResumoDiaConferencia> ObterResumoDiaAsync(
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
     {
+        var diasNormais = NormalizarDiasConferencia(dias);
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
@@ -1428,12 +1487,12 @@ public sealed class NotaFiscalRepository
                 END), 0)::int AS NotasNovas,
                 COUNT(*)::int AS TotalNotas
             FROM NotasFiscais n
-            WHERE n.DiaConferencia = @DiaConferencia
+            WHERE n.DiaConferencia = ANY(@Dias)
             """, new
         {
             StatusPendente = StatusConferenciaValues.Pendente,
             StatusAmarelo = StatusConferenciaValues.Amarelo,
-            DiaConferencia = diaConferencia
+            Dias = diasNormais
         });
 
         return resumo;
@@ -1474,11 +1533,18 @@ public sealed class NotaFiscalRepository
             l => (l.ApelidoLoja, l.NomeForn, l.StatusConferencia));
     }
 
-    public async Task<IReadOnlyList<NotaFiscal>> ObterNotasPorLojaAsync(
+    public Task<IReadOnlyList<NotaFiscal>> ObterNotasPorLojaAsync(
         string apelidoLoja,
         string dataCompra,
         CancellationToken cancellationToken = default)
+        => ObterNotasPorLojaAsync(apelidoLoja, [dataCompra], cancellationToken);
+
+    public async Task<IReadOnlyList<NotaFiscal>> ObterNotasPorLojaAsync(
+        string apelidoLoja,
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
     {
+        var diasNormais = NormalizarDiasConferencia(dias);
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
@@ -1486,11 +1552,12 @@ public sealed class NotaFiscalRepository
             SELECT *
             FROM NotasFiscais
             WHERE ApelidoLoja = @Loja
-              AND DiaConferencia = @DiaConferencia
-            """, new { Loja = apelidoLoja, DiaConferencia = dataCompra });
+              AND DiaConferencia = ANY(@Dias)
+            """, new { Loja = apelidoLoja, Dias = diasNormais });
 
         return resultado
-            .OrderBy(n => n, Comparer<NotaFiscal>.Create(CompararNotasConferencia))
+            .OrderBy(n => n.DiaConferencia, Comparer<string>.Create(DataCompraParser.CompararAscendente))
+            .ThenBy(n => n, Comparer<NotaFiscal>.Create(CompararNotasConferencia))
             .ToList();
     }
 
@@ -1550,18 +1617,24 @@ public sealed class NotaFiscalRepository
             .ToList();
     }
 
-    public async Task<IReadOnlyList<NotaFiscal>> ObterTodasNotasPorDataAsync(
+    public Task<IReadOnlyList<NotaFiscal>> ObterTodasNotasPorDataAsync(
         string dataCompra,
         CancellationToken cancellationToken = default)
+        => ObterTodasNotasPorDataAsync([dataCompra], cancellationToken);
+
+    public async Task<IReadOnlyList<NotaFiscal>> ObterTodasNotasPorDataAsync(
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
     {
+        var diasNormais = NormalizarDiasConferencia(dias);
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
         var notas = (await connection.QueryAsync<NotaFiscal>("""
             SELECT *
             FROM NotasFiscais
-            WHERE DiaConferencia = @DiaConferencia
-            """, new { DiaConferencia = dataCompra })).ToList();
+            WHERE DiaConferencia = ANY(@Dias)
+            """, new { Dias = diasNormais })).ToList();
 
         var ordens = await connection.QueryAsync<(string ApelidoLoja, int NumeroOrdem)>("""
             SELECT ApelidoLoja, NumeroOrdem
@@ -1572,6 +1645,7 @@ public sealed class NotaFiscalRepository
 
         return notas
             .OrderBy(n => ordemPorLoja.TryGetValue(n.ApelidoLoja, out var ordem) ? ordem : 9999)
+            .ThenBy(n => n.DiaConferencia, Comparer<string>.Create(DataCompraParser.CompararAscendente))
             .ThenBy(n => n, Comparer<NotaFiscal>.Create(CompararNotasConferencia))
             .ToList();
     }

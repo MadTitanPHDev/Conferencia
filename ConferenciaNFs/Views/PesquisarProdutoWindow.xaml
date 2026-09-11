@@ -165,7 +165,18 @@
                       CanUserReorderColumns="False"
                       HeadersVisibility="Column"
                       RowHeaderWidth="0"
+                      PreviewMouseRightButtonDown="GrdResultados_PreviewMouseRightButtonDown"
+                      PreviewKeyDown="GrdResultados_PreviewKeyDown"
                       MouseDoubleClick="GrdResultados_MouseDoubleClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Copiar numero da nota"
+                                  InputGestureText="Ctrl+C"
+                                  Command="{Binding CopiarNumeroNotaCommand}"/>
+                        <MenuItem Header="Abrir itens da nota"
+                                  Command="{Binding AbrirItensCommand}"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Data"
                                         Binding="{Binding DataCompra}"
@@ -224,6 +235,6 @@
                    FontSize="12"
                    Foreground="{DynamicResource Brush.TextSecondary}"
                    TextWrapping="Wrap"
-                   Text="Duplo clique abre os itens da nota. O custo minimo e opcional."/>
+                   Text="Duplo clique ou Ctrl+C copia o numero da nota. Botao direito: copiar ou abrir itens. O custo minimo e opcional."/>
     </Grid>
 </Window>

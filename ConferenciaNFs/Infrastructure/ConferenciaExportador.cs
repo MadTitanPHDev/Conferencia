@@ -6,11 +6,12 @@ namespace ConferenciaNFs.Infrastructure;
 public static class ConferenciaExportador
 {
     private const int ColLoja = 1;
-    private const int ColNumNota = 2;
-    private const int ColDistribuidora = 3;
-    private const int ColValorNota = 4;
-    private const int ColObservacao = 5;
-    private const int TotalColunas = 5;
+    private const int ColDia = 2;
+    private const int ColNumNota = 3;
+    private const int ColDistribuidora = 4;
+    private const int ColValorNota = 5;
+    private const int ColObservacao = 6;
+    private const int TotalColunas = 6;
 
     public static void Exportar(string caminhoArquivo, string apelidoLoja, IEnumerable<NotaFiscal> notas)
     {
@@ -46,6 +47,7 @@ public static class ConferenciaExportador
         foreach (var nota in notas)
         {
             planilha.Cell(linha, ColLoja).Value = nota.ApelidoLoja;
+            planilha.Cell(linha, ColDia).Value = nota.DiaConferencia;
             planilha.Cell(linha, ColNumNota).Value = nota.NumNota;
             planilha.Cell(linha, ColDistribuidora).Value = nota.NomeForn;
             planilha.Cell(linha, ColValorNota).Value = (double)nota.ValorNota;
@@ -61,6 +63,7 @@ public static class ConferenciaExportador
     private static void EscreverCabecalho(IXLWorksheet planilha)
     {
         planilha.Cell(1, ColLoja).Value = "Loja";
+        planilha.Cell(1, ColDia).Value = "Dia";
         planilha.Cell(1, ColNumNota).Value = "Num Nota";
         planilha.Cell(1, ColDistribuidora).Value = "Distribuidora";
         planilha.Cell(1, ColValorNota).Value = "Valor Nota";

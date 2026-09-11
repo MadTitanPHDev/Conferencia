@@ -14,11 +14,11 @@ public partial class ConferenciaWindow : Window
     public ConferenciaWindow(
         NotaFiscalRepository repository,
         string apelidoLoja,
-        string dataCompra,
+        IReadOnlyList<string> diasConferencia,
         VsmComprasReader? vsmReader = null)
     {
         InitializeComponent();
-        DataContext = new ConferenciaViewModel(repository, apelidoLoja, dataCompra, vsmReader);
+        DataContext = new ConferenciaViewModel(repository, apelidoLoja, diasConferencia, vsmReader);
         Title = ((ConferenciaViewModel)DataContext).TituloConferencia;
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
         PreviewKeyDown += ConferenciaWindow_PreviewKeyDown;

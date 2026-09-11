@@ -29,13 +29,35 @@ public partial class PesquisarProdutoWindow : Window
         e.Handled = true;
     }
 
+    private void GrdResultados_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.C || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+            return;
+
+        if (DataContext is PesquisarProdutoViewModel viewModel && viewModel.CopiarNumeroNotaSelecionada())
+            e.Handled = true;
+    }
+
+    private void GrdResultados_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        var row = FindParent<DataGridRow>((DependencyObject)e.OriginalSource);
+        if (row is null)
+            return;
+
+        row.IsSelected = true;
+        grid.SelectedItem = row.Item;
+    }
+
     private void GrdResultados_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (FindParent<DataGridRow>((DependencyObject)e.OriginalSource) is null)
             return;
 
         if (DataContext is PesquisarProdutoViewModel viewModel)
-            viewModel.AbrirItensSelecionado();
+            viewModel.CopiarNumeroNotaSelecionada();
     }
 
     private static T? FindParent<T>(DependencyObject? child) where T : DependencyObject

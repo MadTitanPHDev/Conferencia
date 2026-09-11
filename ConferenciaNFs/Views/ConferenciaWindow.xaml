@@ -231,6 +231,7 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Loja" Binding="{Binding ApelidoLoja}" Width="100"/>
+                    <DataGridTextColumn Header="Dia" Binding="{Binding DiaConferencia}" Width="95"/>
                     <DataGridTextColumn Header="Nota" Binding="{Binding NumNota}" Width="90">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">

@@ -23,8 +23,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private bool _estaSincronizando;
     private bool _estaVazio = true;
     private string _mensagemStatus = "Importe um CSV ou sincronize o VSM para comecar.";
-    private DateTime? _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
-    private string? _dataCompraAtiva;
+    private DateTime? _dataInicio = DataCompraParser.DiaPadraoAbertura();
+    private DateTime? _dataFim = DataCompraParser.DiaPadraoAbertura();
+    private IReadOnlyList<string> _diasAtivos = [];
+    private bool _suspenderCarregamento;
     private bool _herancaStatusImportacao;
     private int _totalPendencias;
     private int _totalNotasNovas;
@@ -54,37 +56,36 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _ = InicializarAsync();
     }
 
+    private bool IntervaloPronto => DataCompraParser.IntervaloValido(DataInicio, DataFim);
+
     private bool PodeExportarTodas =>
-        DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
+        IntervaloPronto && !EstaVazio && !IsCarregando;
 
     private bool PodeRecalcularHerancaDia =>
-        HerancaStatusImportacao && DataSelecionada.HasValue && !EstaVazio && !IsCarregando;
+        HerancaStatusImportacao && IntervaloPronto && !EstaVazio && !IsCarregando;
 
     public ObservableCollection<LojaPendencia> Lojas { get; }
 
-    public DateTime? DataSelecionada
+    public DateTime? DataInicio
     {
-        get => _dataSelecionada;
-        set
-        {
-            if (!SetProperty(ref _dataSelecionada, value))
-                return;
+        get => _dataInicio;
+        set => AlterarIntervalo(value, _dataFim, inicioMudou: true);
+    }
 
-            OnPropertyChanged(nameof(DataSelecionadaTexto));
-            OnPropertyChanged(nameof(TituloPagina));
-            AtualizarComandosDoDia();
-            _ = AbrirDiaAsync();
-        }
+    public DateTime? DataFim
+    {
+        get => _dataFim;
+        set => AlterarIntervalo(_dataInicio, value, inicioMudou: false);
     }
 
     public string DataSelecionadaTexto =>
-        _dataSelecionada.HasValue
-            ? DataCompraParser.Formatar(_dataSelecionada.Value)
-            : "Nenhum dia selecionado";
+        IntervaloPronto
+            ? DataCompraParser.FormatarIntervalo(DataInicio!.Value, DataFim!.Value)
+            : "Intervalo invalido";
 
     public string TituloPagina =>
-        _dataSelecionada.HasValue
-            ? $"Conferencia {DataSelecionadaTexto} - {_totalPendencias} com pendencias. Total de notas do dia {_totalNotasNovas} - Total de notas {_totalNotas}"
+        IntervaloPronto
+            ? $"Conferencia {DataSelecionadaTexto} - {_totalPendencias} com pendencias. Total de notas novas {_totalNotasNovas} - Total de notas {_totalNotas}"
             : "Conferencia";
 
     public bool IsCarregando
@@ -145,14 +146,46 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand RecalcularHerancaDiaCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
 
+    private void AlterarIntervalo(DateTime? inicio, DateTime? fim, bool inicioMudou)
+    {
+        var a = inicio?.Date;
+        var b = fim?.Date;
+        if (a.HasValue && b.HasValue && b < a)
+        {
+            if (inicioMudou)
+                b = a;
+            else
+                a = b;
+        }
+
+        var mudou = _dataInicio != a || _dataFim != b;
+        _dataInicio = a;
+        _dataFim = b;
+        OnPropertyChanged(nameof(DataInicio));
+        OnPropertyChanged(nameof(DataFim));
+        OnPropertyChanged(nameof(DataSelecionadaTexto));
+        OnPropertyChanged(nameof(TituloPagina));
+        AtualizarComandosDoDia();
+
+        if (!mudou || _suspenderCarregamento)
+            return;
+
+        _ = AbrirDiaAsync();
+    }
+
     private async Task InicializarAsync()
     {
-        if (!DataSelecionada.HasValue)
+        if (!DataInicio.HasValue || !DataFim.HasValue)
         {
-            _dataSelecionada = DataCompraParser.DiaPadraoAbertura();
-            OnPropertyChanged(nameof(DataSelecionada));
+            _suspenderCarregamento = true;
+            var padrao = DataCompraParser.DiaPadraoAbertura();
+            _dataInicio = padrao;
+            _dataFim = padrao;
+            OnPropertyChanged(nameof(DataInicio));
+            OnPropertyChanged(nameof(DataFim));
             OnPropertyChanged(nameof(DataSelecionadaTexto));
             OnPropertyChanged(nameof(TituloPagina));
+            _suspenderCarregamento = false;
         }
 
         await CarregarConfiguracoesAsync();
@@ -161,7 +194,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     }
 
     private bool PodeSincronizarVsm =>
-        SyncVsmDisponivel && DataSelecionada.HasValue && !IsCarregando && !_estaSincronizando;
+        SyncVsmDisponivel && IntervaloPronto && !IsCarregando && !_estaSincronizando;
 
     private void IniciarTimerSyncVsm()
     {
@@ -190,7 +223,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private async Task SincronizarVsmCoreAsync(bool exibirErro)
     {
-        if (_syncVsm is null || !DataSelecionada.HasValue || _estaSincronizando)
+        if (_syncVsm is null || !IntervaloPronto || _estaSincronizando)
             return;
 
         try
@@ -199,7 +232,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             AtualizarComandosDoDia();
             MensagemStatus = $"Sincronizando notas do VSM em {DataSelecionadaTexto}...";
 
-            var resultado = await _syncVsm.SincronizarDiaAsync(DataSelecionada.Value);
+            var resultado = await _syncVsm.SincronizarIntervaloAsync(DataInicio!.Value, DataFim!.Value);
             var detalheIgnoradas = resultado.Ignoradas > 0
                 ? $" · {resultado.Ignoradas} ignorada(s)"
                 : string.Empty;
@@ -279,21 +312,23 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         {
             IsCarregando = true;
 
-            if (!DataSelecionada.HasValue)
+            if (!IntervaloPronto)
             {
                 Lojas.Clear();
                 EstaVazio = true;
-                _dataCompraAtiva = null;
+                _diasAtivos = [];
                 AplicarResumoDia(new ResumoDiaConferencia());
-                MensagemStatus = "Selecione um dia no calendario para conferir.";
+                MensagemStatus = DataInicio.HasValue && DataFim.HasValue
+                    ? $"Intervalo invalido. Maximo de {DataCompraParser.MaxDiasIntervaloPadrao} dia(s)."
+                    : "Selecione a data inicial e a data final para conferir.";
                 return;
             }
 
-            _dataCompraAtiva = await _repository.ResolverChaveDataCompraAsync(DataSelecionada.Value);
+            _diasAtivos = await _repository.ResolverChavesIntervaloAsync(DataInicio!.Value, DataFim!.Value);
             MensagemStatus = $"Carregando lojas de {DataSelecionadaTexto}...";
 
-            var lojas = await _repository.ObterPendenciasPorLojaAsync(_dataCompraAtiva);
-            var resumo = await _repository.ObterResumoDiaAsync(_dataCompraAtiva);
+            var lojas = await _repository.ObterPendenciasPorLojaAsync(_diasAtivos);
+            var resumo = await _repository.ObterResumoDiaAsync(_diasAtivos);
 
             Lojas.Clear();
             foreach (var loja in lojas)
@@ -322,10 +357,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private async Task ImportarCsvAsync()
     {
-        if (!DataSelecionada.HasValue)
+        if (!IntervaloPronto)
         {
             MessageBox.Show(
-                "Selecione o dia da conferencia no calendario antes de importar o CSV.",
+                "Selecione um intervalo valido (data inicial ate data final, no maximo " +
+                $"{DataCompraParser.MaxDiasIntervaloPadrao} dias) antes de importar o CSV.",
                 "Aviso",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -347,12 +383,13 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             IsCarregando = true;
             MensagemStatus = "Importando CSV...";
 
-            var diaConferencia = DataCompraParser.Formatar(DataSelecionada.Value);
+            var diaConferencia = DataCompraParser.Formatar(DataFim!.Value);
             var inseridos = await _repository.ImportarCsvAsync(dialog.FileName, diaConferencia);
             MensagemStatus = $"{inseridos} nota(s) nova(s) importada(s) para {diaConferencia}.";
 
             MessageBox.Show(
-                $"{inseridos} nota(s) nova(s) importada(s) para o dia {diaConferencia}.\nTodas as linhas do CSV ficam neste dia, independente da data de compra de cada nota.",
+                $"{inseridos} nota(s) nova(s) importada(s) para o dia {diaConferencia}.\n" +
+                "Todas as linhas do CSV ficam na data final do intervalo, independente da data de compra de cada nota.",
                 "Importacao concluida",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -376,14 +413,14 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         if (parameter is not LojaPendencia loja)
             return;
 
-        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
+        if (_diasAtivos.Count == 0)
         {
-            MessageBox.Show("Selecione um dia antes de abrir a conferencia.", "Aviso",
+            MessageBox.Show("Selecione um intervalo antes de abrir a conferencia.", "Aviso",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var janela = new ConferenciaWindow(_repository, loja.ApelidoLoja, _dataCompraAtiva, _syncVsm?.Reader)
+        var janela = new ConferenciaWindow(_repository, loja.ApelidoLoja, _diasAtivos, _syncVsm?.Reader)
         {
             Owner = Application.Current.MainWindow
         };
@@ -404,9 +441,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
+        if (_diasAtivos.Count == 0)
         {
-            MessageBox.Show("Selecione um dia antes de recalcular.", "Aviso",
+            MessageBox.Show("Selecione um intervalo antes de recalcular.", "Aviso",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -429,7 +466,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             IsCarregando = true;
             MensagemStatus = "Recalculando status herdados...";
 
-            var atualizadas = await _repository.RecalcularHerancaImportacaoDiaAsync(_dataCompraAtiva);
+            var atualizadas = await _repository.RecalcularHerancaImportacaoIntervaloAsync(_diasAtivos);
 
             MensagemStatus = $"{atualizadas} nota(s) atualizada(s) em {DataSelecionadaTexto}.";
             MessageBox.Show(
@@ -469,9 +506,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private async Task ExportarTodasAsync()
     {
-        if (string.IsNullOrWhiteSpace(_dataCompraAtiva))
+        if (_diasAtivos.Count == 0)
         {
-            MessageBox.Show("Selecione um dia antes de exportar.", "Aviso",
+            MessageBox.Show("Selecione um intervalo antes de exportar.", "Aviso",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -482,15 +519,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             MensagemStatus = "Preparando exportacao total...";
             ((AsyncRelayCommand)ExportarTodasCommand).RaiseCanExecuteChanged();
 
-            var notas = await _repository.ObterTodasNotasPorDataAsync(_dataCompraAtiva);
+            var notas = await _repository.ObterTodasNotasPorDataAsync(_diasAtivos);
             if (notas.Count == 0)
             {
-                MessageBox.Show("Nao ha notas para exportar neste dia.", "Aviso",
+                MessageBox.Show("Nao ha notas para exportar neste intervalo.", "Aviso",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var nomeArquivo = $"{SanitizarNomeArquivo(_dataCompraAtiva)}_conferencia_todas_lojas.xlsx";
+            var nomeArquivo = $"{SanitizarNomeArquivo(DataSelecionadaTexto)}_conferencia_todas_lojas.xlsx";
             var dialog = new SaveFileDialog
             {
                 Title = "Exportar conferencia de todas as lojas",
@@ -505,7 +542,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             MensagemStatus = "Exportando todas as lojas...";
             var caminho = dialog.FileName;
 
-            await Task.Run(() => ConferenciaExportador.ExportarTodas(caminho, _dataCompraAtiva, notas));
+            await Task.Run(() => ConferenciaExportador.ExportarTodas(caminho, DataSelecionadaTexto, notas));
 
             MensagemStatus = $"Exportacao total concluida: {Path.GetFileName(caminho)}";
             MessageBox.Show(

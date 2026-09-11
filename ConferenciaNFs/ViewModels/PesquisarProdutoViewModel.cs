@@ -29,6 +29,7 @@ public sealed class PesquisarProdutoViewModel : ViewModelBase
         PesquisarCommand = new AsyncRelayCommand(_ => PesquisarAsync(), _ => PodePesquisar);
         LimparCommand = new RelayCommand(Limpar);
         AbrirItensCommand = new RelayCommand(_ => AbrirItensSelecionado(), _ => ItemSelecionado is not null);
+        CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => ItemSelecionado is not null);
     }
 
     private bool PodePesquisar =>
@@ -115,6 +116,25 @@ public sealed class PesquisarProdutoViewModel : ViewModelBase
     public ICommand PesquisarCommand { get; }
     public ICommand LimparCommand { get; }
     public ICommand AbrirItensCommand { get; }
+    public ICommand CopiarNumeroNotaCommand { get; }
+
+    public bool CopiarNumeroNotaSelecionada()
+    {
+        if (ItemSelecionado is null || string.IsNullOrWhiteSpace(ItemSelecionado.NumNota))
+            return false;
+
+        try
+        {
+            var numero = ItemSelecionado.NumNota.Trim();
+            Clipboard.SetText(numero);
+            MensagemPesquisa = $"Numero da nota {numero} copiado.";
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public void AbrirItensSelecionado()
     {

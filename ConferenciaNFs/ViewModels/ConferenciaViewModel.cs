@@ -26,13 +26,14 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
         string apelidoLoja,
-        string dataCompra,
+        IReadOnlyList<string> diasConferencia,
         VsmComprasReader? vsmReader = null)
     {
         _repository = repository;
         _vsmReader = vsmReader;
         ApelidoLoja = apelidoLoja;
-        DataCompra = dataCompra;
+        DiasConferencia = NormalizarDias(diasConferencia);
+        DataCompra = FormatarPeriodo(DiasConferencia);
         Notas = new ObservableCollection<NotaFiscal>();
         NotasVisiveis = new ObservableCollection<NotaFiscal>();
         FiltrosStatus = new ObservableCollection<StatusFiltroOpcao>(
@@ -68,6 +69,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     }
 
     public string ApelidoLoja { get; }
+    public IReadOnlyList<string> DiasConferencia { get; }
     public string DataCompra { get; }
 
     public string TituloConferencia => $"Conferencia - {ApelidoLoja} - {DataCompra}";
@@ -246,7 +248,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
             IsCarregando = true;
             MensagemStatus = "Carregando notas...";
 
-            var notas = await _repository.ObterNotasPorLojaAsync(ApelidoLoja, DataCompra);
+            var notas = await _repository.ObterNotasPorLojaAsync(ApelidoLoja, DiasConferencia);
 
             Notas.Clear();
             foreach (var nota in notas)
@@ -477,6 +479,36 @@ public sealed class ConferenciaViewModel : ViewModelBase
         {
             IsCarregando = false;
         }
+    }
+
+    private static IReadOnlyList<string> NormalizarDias(IReadOnlyList<string> dias)
+    {
+        var limpos = (dias ?? [])
+            .Select(d => d?.Trim() ?? string.Empty)
+            .Where(d => d.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (limpos.Count == 0)
+            throw new ArgumentException("Informe ao menos um dia de conferencia.", nameof(dias));
+
+        return limpos;
+    }
+
+    private static string FormatarPeriodo(IReadOnlyList<string> dias)
+    {
+        if (dias.Count == 1)
+            return dias[0];
+
+        var ordenados = dias
+            .OrderBy(d => d, Comparer<string>.Create(DataCompraParser.CompararAscendente))
+            .ToList();
+        var inicio = DataCompraParser.TentarConverter(ordenados[0]);
+        var fim = DataCompraParser.TentarConverter(ordenados[^1]);
+        if (inicio.HasValue && fim.HasValue)
+            return DataCompraParser.FormatarIntervalo(inicio.Value, fim.Value);
+
+        return $"{ordenados[0]} a {ordenados[^1]}";
     }
 
     private static string SanitizarNomeArquivo(string nome)

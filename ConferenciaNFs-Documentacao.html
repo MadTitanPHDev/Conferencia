@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ConferenciaNFs · Documentação completa</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --border: #e2e5ea;
+      --text: #1c2430;
+      --muted: #5a6575;
+      --faint: #8b95a5;
+      --accent: #1f6feb;
+      --accent-soft: #eaf2ff;
+      --green: #1a7f4b;
+      --green-soft: #e8f7ef;
+      --amber: #b45309;
+      --amber-soft: #fff7ed;
+      --slate: #334155;
+      --slate-soft: #f1f5f9;
+      --red: #b91c1c;
+      --radius: 12px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 36px 20px 72px; display: flex; flex-direction: column; gap: 22px; }
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px 28px;
+    }
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: var(--green-soft);
+      padding: 5px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .hero h1 { margin: 0 0 10px; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -0.03em; line-height: 1.2; }
+    .hero p { margin: 0; max-width: 46rem; color: var(--muted); }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .chip {
+      font-size: 0.8rem; font-weight: 600; color: var(--slate);
+      background: var(--slate-soft); border: 1px solid var(--border);
+      padding: 6px 11px; border-radius: 999px;
+    }
+    .chip.ok { color: var(--green); background: var(--green-soft); border-color: #bbf7d0; }
+    .chip.next { color: var(--accent); background: var(--accent-soft); border-color: #bfdbfe; }
+    .chip.wait { color: var(--amber); background: var(--amber-soft); border-color: #fed7aa; }
+    nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+    nav.toc a {
+      text-decoration: none; color: var(--accent); background: var(--surface);
+      border: 1px solid var(--border); padding: 8px 12px; border-radius: 999px;
+      font-size: 0.84rem; font-weight: 600;
+    }
+    section.card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 22px;
+    }
+    section.card h2 { margin: 0 0 8px; font-size: 1.22rem; letter-spacing: -0.02em; }
+    section.card > .lead { margin: 0 0 16px; color: var(--muted); }
+    h3 { margin: 20px 0 8px; font-size: 1.02rem; }
+    h3:first-of-type { margin-top: 0; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 0 0 10px; padding-left: 1.15rem; color: var(--muted); }
+    li { margin: 5px 0; }
+    li strong { color: var(--text); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 760px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    .plain-box {
+      background: #fafbfc; border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .plain-box h3 { margin: 0 0 6px; font-size: 0.95rem; }
+    .plain-box p, .plain-box ul { margin: 0; font-size: 0.92rem; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--faint); font-weight: 700;
+    }
+    tr:last-child td { border-bottom: none; }
+    code, .mono {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.84em; background: var(--slate-soft);
+      padding: 1px 6px; border-radius: 4px;
+    }
+    .phase {
+      border-left: 4px solid var(--accent); padding: 12px 14px;
+      background: #f8fafc; border-radius: 0 10px 10px 0; margin-bottom: 10px;
+    }
+    .phase.done { border-left-color: var(--green); background: #f0fdf4; }
+    .phase.wait { border-left-color: var(--amber); background: var(--amber-soft); }
+    .phase .when {
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 3px;
+    }
+    .phase.done .when { color: var(--green); }
+    .phase.wait .when { color: var(--amber); }
+    .phase h4 { margin: 0 0 4px; }
+    .phase p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+    .callout {
+      background: var(--accent-soft); border: 1px solid #bfdbfe;
+      border-radius: 12px; padding: 15px 16px; margin-top: 14px;
+    }
+    .callout.ok { background: var(--green-soft); border-color: #bbf7d0; }
+    .callout.wait { background: var(--amber-soft); border-color: #fed7aa; }
+    .swatch {
+      display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+      border: 1px solid var(--border); vertical-align: -2px; margin-right: 6px;
+    }
+    .print-hint {
+      font-size: 0.85rem; color: var(--muted); background: var(--surface);
+      border: 1px dashed var(--border); border-radius: 10px; padding: 10px 14px;
+    }
+    .footer { text-align: center; color: var(--faint); font-size: 0.85rem; }
+    .arch {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.78rem; line-height: 1.45;
+      background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px; overflow-x: auto;
+      color: var(--slate); white-space: pre;
+    }
+    @media print {
+      body { background: #fff; }
+      nav.toc, .print-hint { display: none; }
+      section.card { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="hero">
+      <div class="eyebrow">Documento interno · v1.0.9 · set/2026</div>
+      <h1>ConferenciaNFs — funções, bancos e expansão</h1>
+      <p>
+        Inventário do que o app faz hoje, das tabelas que enxergamos
+        (PostgreSQL nosso e MySQL do VSM), do que já foi entregue e de como
+        crescer até o objetivo final: um núcleo de dados nosso com Conferência,
+        Compradores e Devolução — sem gravar no sistema da farmácia.
+      </p>
+      <div class="hero-meta">
+        <span class="chip ok">Etapas 0–2 feitas</span>
+        <span class="chip next">Próximo: item na devolução / compradores</span>
+        <span class="chip wait">Pedido↔NF e SEFAZ em espera</span>
+        <span class="chip">VSM só leitura</span>
+        <span class="chip">Postgres guarda a conferência</span>
+      </div>
+    </header>
+
+    <p class="print-hint">Para imprimir ou salvar em PDF: <strong>Ctrl+P</strong> no navegador.</p>
+
+    <nav class="toc">
+      <a href="#arquitetura">Arquitetura</a>
+      <a href="#funcoes">Funções atuais</a>
+      <a href="#atalhos">Atalhos</a>
+      <a href="#status">Status e herança</a>
+      <a href="#postgres">PostgreSQL</a>
+      <a href="#vsm">MySQL VSM</a>
+      <a href="#config">Config e update</a>
+      <a href="#entregue">Já entregue</a>
+      <a href="#planejado">Planejado</a>
+      <a href="#expandir">Como expandir</a>
+    </nav>
+
+    <!-- ========== ARQUITETURA ========== -->
+    <section class="card" id="arquitetura">
+      <h2>Arquitetura atual</h2>
+      <p class="lead">
+        Dois bancos, papéis rígidos. O VSM é a fonte das notas e dos itens.
+        O PostgreSQL é a fonte da <strong>decisão da conferência</strong>.
+      </p>
+      <pre class="arch">VSM (MySQL myouro)  ──SELECT──►  ConferenciaNFs (WPF)
+  compras                         │
+  itens_compra                    ▼
+                            PostgreSQL conferencia_nfs_1
+                              NotasFiscais, Devolucoes,
+                              Distribuidoras, LojaOrdem,
+                              LojaVsmMap, AppConfig
+
+Nunca INSERT/UPDATE/DELETE no VSM.</pre>
+      <div class="grid-2" style="margin-top:14px;">
+        <div class="plain-box">
+          <h3>O que não muda</h3>
+          <p>Status coloridos, observações, devoluções e Excel continuam só no nosso sistema. Colegas compartilham o mesmo Postgres.</p>
+        </div>
+        <div class="plain-box">
+          <h3>Dia da conferência</h3>
+          <p>É a <strong>data de entrada no VSM</strong> (<code>DATACOMPRA</code>), não a emissão da NF. Cada nota continua no dia em que entrou. O app abre com intervalo <strong>ontem–ontem</strong> (um dia). Na segunda, alargue para sábado–segunda. Sync ao abrir o intervalo, no botão e a cada 30 min (todos os dias do período). Máximo 7 dias.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FUNÇÕES ========== -->
+    <section class="card" id="funcoes">
+      <h2>Funções atuais (todas as telas)</h2>
+      <p class="lead">Versão em produção: <strong>1.0.9</strong>. App desktop WPF .NET 8, várias máquinas no mesmo banco.</p>
+
+      <h3>1. Tela inicial (lojas do dia)</h3>
+      <ul>
+        <li><strong>Intervalo De / Até</strong> — escolhe um ou vários <code>DATACOMPRA</code>; padrão = ontem até ontem. Se a data inicial passar da final, o app alinha as duas. Teto: 7 dias.</li>
+        <li><strong>Cards de loja</strong> — lojas com nota em qualquer dia do intervalo; pendência = Branco + Amarelo. Clique abre a conferência da loja (lista unificada, cada nota no seu dia).</li>
+        <li><strong>Título</strong> — <em>Conferencia (data ou de–até) — N com pendências. Total de notas novas (primeira vez) — Total de notas</em>.</li>
+        <li><strong>Sincronizar VSM</strong> — puxa <code>compras</code> de cada <code>DATACOMPRA</code> do intervalo. Também roda ao abrir o período e a cada 30 min.</li>
+        <li><strong>Importar CSV</strong> — plano B se o MySQL falhar (7 linhas de lixo, cabeçalho na 8). Todas as linhas vão para a <strong>data final</strong> do intervalo.</li>
+        <li><strong>Exportar tudo</strong> — Excel de todas as lojas do intervalo, com coluna Dia e cor de status.</li>
+        <li><strong>Atualizar</strong> — recarrega lojas e totais.</li>
+        <li>Menu: Gerenciar lojas, Distribuidoras, Devoluções, Pesquisar nota, Pesquisar produto.</li>
+        <li>Menu ☰: herdar status, recalcular herdados do dia, migrar SQLite antigo.</li>
+        <li><strong>Tema</strong> claro/escuro e <strong>fixar janela</strong> no topo (valem em todas as janelas).</li>
+      </ul>
+
+      <h3>2. Conferência da loja</h3>
+      <ul>
+        <li>Grade de notas do intervalo, ordenada por dia + emissão + distribuidora, colorida por status. Coluna <strong>Dia</strong> mostra o <code>DiaConferencia</code> de cada nota (não mistura origem).</li>
+        <li>Marcar status (botões, teclado ou menu do botão direito).</li>
+        <li>Observação livre + atalhos PBM, USO E CONSUMO, CONVENIENCIA, BONIFICACAO, ENCOMENDA.</li>
+        <li>Filtros por status: priorizar no topo ou mostrar só os marcados.</li>
+        <li>Scroll do mouse troca a nota (ordem visual da grade).</li>
+        <li><strong>Duplo clique</strong> — abre os itens <em>ou</em> copia o número. <strong>F12</strong> (ou o botão no topo) alterna o modo; a escolha fica salva.</li>
+        <li>Ctrl+C e menu: copiar número / abrir itens (sempre disponíveis).</li>
+        <li>Exportar Excel só da loja atual.</li>
+        <li>Vermelho cria/atualiza item na fila de <strong>Devoluções</strong>. Sair do Vermelho remove da fila se ainda estiver pendente.</li>
+      </ul>
+
+      <h3>3. Itens da nota</h3>
+      <ul>
+        <li>Abre a partir da conferência (duplo clique ou menu) ou da pesquisa por EAN.</li>
+        <li>Lê <code>itens_compra</code> no VSM pelo <code>CODCOMPRA</code> — não grava no ERP.</li>
+        <li>Colunas: código, EAN, produto, qtd, custo, lote, validade, conferida, devolvida.</li>
+        <li>Duplo clique no item copia o <strong>EAN</strong> (não o código interno).</li>
+        <li>Notas só de CSV (sem código VSM) não têm itens até o dia ser sincronizado.</li>
+      </ul>
+
+      <h3>4. Pesquisar nota</h3>
+      <ul>
+        <li>Busca no Postgres pelo número.</li>
+        <li>Mostra a <strong>primeira conferência</strong> daquele número + CNPJ (dia, status, observação, loja).</li>
+      </ul>
+
+      <h3>5. Pesquisar produto (EAN)</h3>
+      <ul>
+        <li>Consulta o VSM: notas em que o EAN aparece (mín. 8 dígitos), a partir de uma data (padrão: hoje − 30 dias), custo mínimo opcional, até 400 ocorrências.</li>
+        <li>Enriquece com loja e status do nosso banco, quando a nota já foi sincronizada.</li>
+        <li>Duplo clique ou Ctrl+C copia o número da nota. Botão direito: copiar ou abrir os itens da compra.</li>
+      </ul>
+
+      <h3>6. Devoluções</h3>
+      <ul>
+        <li>Fila das notas Vermelho: pendentes, vencidas, a vencer (7 dias), sem prazo, concluídas.</li>
+        <li>Prazo = data de emissão + dias cadastrados na distribuidora (se “rastrear prazo” estiver ligado).</li>
+        <li>Marcar <strong>Devolvida</strong> ou <strong>Perdeu o prazo</strong>; observação própria da fila.</li>
+        <li>Data mínima de rastreio (por emissão) — recorta o histórico antigo.</li>
+        <li>Duplo clique / Ctrl+C copiam o número da NF.</li>
+        <li>Hoje a devolução é <strong>por nota</strong>, não por produto. A pré-nota item a item é etapa futura.</li>
+      </ul>
+
+      <h3>7. Gerenciar lojas</h3>
+      <ul>
+        <li>Número de ordem, apelido e nome de exibição (<code>LojaOrdem</code>).</li>
+        <li>Cadastrar, editar, remover. Apelidos que aparecem nas notas sem cadastro ficam visíveis para regularizar.</li>
+      </ul>
+
+      <h3>8. Distribuidoras</h3>
+      <ul>
+        <li>Populadas automaticamente pelos CNPJs das notas.</li>
+        <li>Prazo de devolução em dias e interruptor “rastrear prazo”.</li>
+      </ul>
+
+      <h3>9. Herança de status</h3>
+      <ul>
+        <li>Checkbox no menu ☰. Quando ligada, notas novas (CSV ou VSM) herdam o histórico.</li>
+        <li><strong>Recalcular herdados do dia</strong> reaplica as regras no dia selecionado (não mexe em Verde/Amarelo já marcados hoje via regra de emissão; histórico da mesma NF sim).</li>
+      </ul>
+    </section>
+
+    <!-- ========== ATALHOS ========== -->
+    <section class="card" id="atalhos">
+      <h2>Atalhos da conferência</h2>
+      <table>
+        <thead><tr><th>Tecla</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Branco — não conferido</td></tr>
+          <tr><td>1 / F1</td><td>Verde — nota correta</td></tr>
+          <tr><td>2 / F2</td><td>Amarelo — advertência</td></tr>
+          <tr><td>3 / F3</td><td>Vermelho — devolvida (entra na fila)</td></tr>
+          <tr><td>4 / F4</td><td>Laranja — outro dia</td></tr>
+          <tr><td>5 / F8</td><td>Azul — absorver</td></tr>
+          <tr><td>F5</td><td>Observação PBM</td></tr>
+          <tr><td>F6</td><td>USO E CONSUMO</td></tr>
+          <tr><td>F7</td><td>CONVENIENCIA</td></tr>
+          <tr><td>F9</td><td>BONIFICACAO</td></tr>
+          <tr><td>F11</td><td>ENCOMENDA</td></tr>
+          <tr><td>Enter / Ctrl+S</td><td>Salvar texto da observação</td></tr>
+          <tr><td>Ctrl+C</td><td>Copiar número da NF</td></tr>
+          <tr><td>F12</td><td>Alternar duplo clique: itens ↔ copiar número</td></tr>
+          <tr><td>Scroll</td><td>Nota seguinte / anterior</td></tr>
+          <tr><td>Esc</td><td>Fechar a janela</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ========== STATUS ========== -->
+    <section class="card" id="status">
+      <h2>Status, cores e herança</h2>
+      <table>
+        <thead><tr><th>Valor no banco</th><th>Significado</th><th>Cor</th></tr></thead>
+        <tbody>
+          <tr><td>Pendente</td><td>Não conferido</td><td><span class="swatch" style="background:#fff"></span> branco</td></tr>
+          <tr><td>Verde</td><td>Nota correta</td><td><span class="swatch" style="background:#92D050"></span> #92D050</td></tr>
+          <tr><td>Amarelo</td><td>Advertência (continua pendência no card)</td><td><span class="swatch" style="background:#FFFF00"></span> #FFFF00</td></tr>
+          <tr><td>Vermelho</td><td>Devolvida — gera fila</td><td><span class="swatch" style="background:#FF0000"></span> #FF0000</td></tr>
+          <tr><td>Laranja</td><td>Outro dia</td><td><span class="swatch" style="background:#FFC000"></span> #FFC000</td></tr>
+          <tr><td>Azul</td><td>Absorver</td><td><span class="swatch" style="background:#2F75B5"></span> #2F75B5</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Regra de herança (v1.0.7)</h3>
+      <p>Ativa no menu ☰. Vale no sync VSM, no CSV e no Recalcular.</p>
+      <ol>
+        <li><strong>Mesma NF em dia anterior</strong> (chave NFe, ou loja + número + CNPJ): Verde/Azul → Laranja; Amarelo permanece; Laranja permanece; Vermelho permanece, ou vira Laranja se a devolução já foi concluída.</li>
+        <li><strong>Sem o mesmo número</strong>, nota ainda em branco: se a <em>emissão</em> for anterior ao último dia já conferido, entra como <strong>Laranja</strong>. Ex.: conferência em 10/09, último dia 09/09, NF emitida em 08/09 → outro dia. Emissão em 09/09 continua para conferir.</li>
+        <li>Verde/Amarelo/Vermelho que vocês já marcaram <strong>hoje</strong> não são sobrescritos pela regra da emissão.</li>
+      </ol>
+      <p>O VSM traz a nota no dia em que ela <em>entrou</em> (<code>DATACOMPRA</code>), muitas vezes com número novo. Por isso a regra 2 existe: o CSV antigo relistava os mesmos números; o sync por dia, não.</p>
+    </section>
+
+    <!-- ========== POSTGRES ========== -->
+    <section class="card" id="postgres">
+      <h2>PostgreSQL — o que o app grava</h2>
+      <p class="lead">Banco operacional da equipe (ex.: <code>conferencia_nfs_1</code>). O app cria as tabelas sozinho na primeira conexão.</p>
+
+      <h3>NotasFiscais</h3>
+      <p>Uma linha por nota × dia de conferência. Não apaga se a nota sumir no VSM.</p>
+      <table>
+        <thead><tr><th>Coluna</th><th>Para que serve</th></tr></thead>
+        <tbody>
+          <tr><td>Id</td><td>Identificador interno</td></tr>
+          <tr><td>ApelidoLoja</td><td>Loja (BARAO, COHAB…)</td></tr>
+          <tr><td>NumNota</td><td>Número da NF</td></tr>
+          <tr><td>NomeForn / CnpjForn</td><td>Distribuidora</td></tr>
+          <tr><td>ValorNota</td><td>Valor da nota</td></tr>
+          <tr><td>DataCompra</td><td>Entrada no VSM (dd/MM/yyyy)</td></tr>
+          <tr><td>DataEmissao</td><td>Data impressa na NF</td></tr>
+          <tr><td>DiaConferencia</td><td>Dia de origem da nota (DATACOMPRA no sync). O intervalo só filtra; não reescreve este campo</td></tr>
+          <tr><td>StatusConferencia / Observacao</td><td>O que a equipe marcou</td></tr>
+          <tr><td>ChaveUnica</td><td><code>loja_num_cnpj_diaConferencia_dataCompra</code> — impede duplicata no mesmo dia</td></tr>
+          <tr><td>CodCompra</td><td>Código da compra no VSM (itens e realocação)</td></tr>
+          <tr><td>NfeChaveAcesso</td><td>Chave de 44 dígitos, quando o VSM manda</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Devolucoes</h3>
+      <p>Uma fila por nota Vermelho. Status: <code>Pendente</code>, <code>Devolvida</code>, <code>PerdeuPrazo</code>.</p>
+
+      <h3>Distribuidoras</h3>
+      <p>CNPJ, nome, prazo em dias, se o prazo é rastreado. Alimentada pelas notas; vocês só ajustam prazo e o interruptor.</p>
+
+      <h3>LojaOrdem</h3>
+      <p>Ordem dos cards (1 Barão, 2 Velasques…). Independente do código do VSM.</p>
+
+      <h3>LojaVsmMap</h3>
+      <p>CODLOJA do VSM → apelido real. O VSM rotula as lojas 2–5 com o nome da vizinha; o mapa usa o CNPJ correto (2=RANCHARIA, 3=VELASQUES, 4=COHAB, 5=REGENTE).</p>
+
+      <h3>AppConfig</h3>
+      <table>
+        <thead><tr><th>Chave</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td>HerancaStatusImportacao</td><td>true/false — herdar status</td></tr>
+          <tr><td>DevolucoesDataMinima</td><td>Corte do rastreio por emissão</td></tr>
+          <tr><td>CorrecaoLojasVsm2a5</td><td>Flag da correção única das lojas 2–5</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ========== VSM ========== -->
+    <section class="card" id="vsm">
+      <h2>MySQL VSM — o que o app enxerga</h2>
+      <p class="lead">
+        Leitura em <code>myouro</code>. Nada é gravado lá. Tabelas de pedido existem no ERP
+        mas <strong>ainda não são usadas</strong> no app (cruzamento pedido↔NF está em espera).
+      </p>
+
+      <h3>compras</h3>
+      <p>Filtro do sync: um <code>DATACOMPRA</code> por dia do intervalo (de / até). Todas as letras de STATUS entram. A nota permanece no dia em que o VSM a lançou.</p>
+      <table>
+        <thead><tr><th>Campo VSM</th><th>Uso no app</th></tr></thead>
+        <tbody>
+          <tr><td>CODCOMPRA</td><td>Liga a nota aos itens; realoca se a loja/chave mudar</td></tr>
+          <tr><td>CODLOJA</td><td>Virà apelido via LojaVsmMap</td></tr>
+          <tr><td>NUMNOTA</td><td>Número da NF</td></tr>
+          <tr><td>DATACOMPRA / DATAEMISSAO</td><td>Entrada vs emissão</td></tr>
+          <tr><td>CNPJFORN / VALORNOTA</td><td>Fornecedor e valor</td></tr>
+          <tr><td>NFECHAVEACESSO</td><td>Herança e identidade da NF</td></tr>
+          <tr><td>STATUS, SERIENOTA, CODFORN</td><td>Lidos; STATUS e série não são gravados</td></tr>
+        </tbody>
+      </table>
+
+      <h3>itens_compra</h3>
+      <p>Detalhe da NF e busca por EAN (<code>BARRAS_EAN</code> ou <code>BARRAS_EANTRIB</code>).</p>
+      <table>
+        <thead><tr><th>Campo VSM</th><th>Uso no app</th></tr></thead>
+        <tbody>
+          <tr><td>CODPROD / NOMEPROD</td><td>Código e nome na grade</td></tr>
+          <tr><td>QUANTITEMCOMPRA / CUSTOUNIT</td><td>Quantidade e custo</td></tr>
+          <tr><td>BARRAS_EAN</td><td>Cópia no duplo clique e pesquisa</td></tr>
+          <tr><td>NUMLOTE / DATAVALIDADE</td><td>Exibidos no detalhe</td></tr>
+          <tr><td>QUANTCONFERIDA / QUANTDEVOL</td><td>Exibidos (são do VSM, não nossos)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout wait">
+        <strong>Não usamos ainda:</strong> <code>pedido</code> / <code>pedidoitens</code> (cruzar pedido salvo com a NF),
+        tabelas de estoque, fabricante além do que já vem no item, nem qualquer escrita no ERP.
+      </div>
+    </section>
+
+    <!-- ========== CONFIG ========== -->
+    <section class="card" id="config">
+      <h2>Configuração da máquina e atualização</h2>
+      <p><code>app-settings.json</code> fica na pasta do executável (não vai no Git com senha de produção).</p>
+      <table>
+        <thead><tr><th>Campo</th><th>Função</th></tr></thead>
+        <tbody>
+          <tr><td>ConnectionString</td><td>PostgreSQL da equipe — obrigatório</td></tr>
+          <tr><td>MysqlConnectionString</td><td>VSM — sem isso não há sync, itens nem busca EAN</td></tr>
+          <tr><td>TemaEscuro / JanelaFixadaNoTopo</td><td>Aparência</td></tr>
+          <tr><td>DuploCliqueCopiaNumero</td><td>false = abre itens; true = copia o número</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Quem instalou pelo Setup Velopack recebe aviso de nova versão no GitHub
+        (<a href="https://github.com/MadTitanPHDev/Conferencia/releases">releases</a>).
+        O <code>app-settings.json</code> local é preservado na atualização.
+      </p>
+    </section>
+
+    <!-- ========== ENTREGUE ========== -->
+    <section class="card" id="entregue">
+      <h2>O que já foi entregue</h2>
+      <div class="phase done">
+        <div class="when">Etapa 0 · feita</div>
+        <h4>Regras e mapa de lojas</h4>
+        <p>Dia = DATACOMPRA (origem da nota); filtro De/Até na tela; mapa CODLOJA; sync não apaga nota; CSV como plano B na data final.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">Etapa 1 · feita (v1.0.6)</div>
+        <h4>Notas do dia sem CSV</h4>
+        <p>Sync MySQL → Postgres ao abrir o dia, no botão e a cada 30 min. Upsert, nunca delete.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">Etapa 2 · feita (v1.0.6)</div>
+        <h4>Itens e busca por EAN</h4>
+        <p>Detalhe da NF no duplo clique; pesquisa inversa produto → notas.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">Já no app antes das etapas 1–2</div>
+        <h4>Conferência, devolução por nota, Excel, multi-usuário</h4>
+        <p>Status, observações, filtros, lojas, distribuidoras, fila de devolução, Postgres compartilhado, tema, pin, herança no CSV, atualização Velopack.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">v1.0.7</div>
+        <h4>Herança no VSM + duplo clique configurável</h4>
+        <p>Laranja automático para NF de dia já conferido; F12 alterna copiar número / abrir itens.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">v1.0.8</div>
+        <h4>Nota conferida permanece no dia de origem</h4>
+        <p>Relocação só no mesmo dia. No dia seguinte a nota reaparece com status herdado (Verde/Azul → Laranja).</p>
+      </div>
+      <div class="phase done">
+        <div class="when">v1.0.9</div>
+        <h4>Intervalo De/Até + copiar nota na pesquisa de produto</h4>
+        <p>Filtro manual de vários DATACOMPRA sem misturar o dia da nota. Pesquisa por EAN: duplo clique/Ctrl+C copiam o número.</p>
+      </div>
+    </section>
+
+    <!-- ========== PLANEJADO ========== -->
+    <section class="card" id="planejado">
+      <h2>O que está planejado (objetivo final)</h2>
+      <p class="lead">
+        Meta: um <strong>núcleo Postgres</strong> e três frentes — Conferência (já existe),
+        Compradores (app novo) e Devolução (evoluir a tela atual) — lendo o VSM só quando preciso.
+      </p>
+      <pre class="arch">                    MySQL VSM (somente leitura)
+                              │
+                              ▼
+                 PostgreSQL (núcleo de vocês)
+        notas · itens copiados · usuários · auditoria
+        pendências comprador · pré-notas · histórico
+                 │            │            │
+                 ▼            ▼            ▼
+           Conferência    Compradores    Devolução
+           (este app)     (app novo)     (esta tela,
+                                          mais itens)</pre>
+
+      <div class="phase">
+        <div class="when">Etapa 3 · próxima de negócio</div>
+        <h4>Devolução por produto (pré-nota)</h4>
+        <p>
+          Hoje Vermelho = a nota inteira. O alvo: ao devolver, abrir os itens,
+          marcar produto(s), quantidade e motivo, e gravar isso no <em>nosso</em> banco.
+          A fila de Devoluções passa a trabalhar essa pré-nota. O VSM continua intocado;
+          a equipe usa o que o app gerou para lançar no ERP se quiser.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="when">Etapa 4</div>
+        <h4>App dos compradores</h4>
+        <p>
+          Na conferência, Amarelo deixa de ser só cor: escolhe-se o(s) item(ns) e envia
+          “pendência de [fabricante]” para o comprador certo
+          (hoje ~10 pessoas: perfumaria, referência, genérico, misto).
+          O comprador responde: ficar com a divergência (volta Verde + observação)
+          ou devolver (entra na mesma fila de Devolução). Tudo gravado no Postgres.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="when">Etapa 5</div>
+        <h4>Usuários e auditoria</h4>
+        <p>
+          Identidade por pessoa (não um login compartilhado): quem marcou, quando, o quê.
+          Um cadastro no Postgres serve aos três apps. Sem isso não há trilha séria.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="when">Etapas 6–7</div>
+        <h4>Roteamento e histórico entre times</h4>
+        <p>
+          Regras de quem recebe cada fabricante/linha; histórico da pendência
+          visível na conferência; notificações (no início pode ser só a lista no app).
+        </p>
+      </div>
+      <div class="phase wait">
+        <div class="when">Em espera — não implementar agora</div>
+        <h4>Cruzar pedido salvo ↔ NF</h4>
+        <p>
+          Combinado em set/2026 e deixado de lado. Viável: o VSM tem pedido/itens
+          com o mesmo CNPJ. CNPJ sozinho não basta; o cruzamento útil é loja + CNPJ +
+          itens/qtd + janela de data. Quando um produto só entra por uma distribuidora
+          e há um pedido aberto, o “bate / bate em parte / não achou” fica confiável.
+          Volta quando você pedir.
+        </p>
+      </div>
+      <div class="phase wait">
+        <div class="when">Em espera — SEFAZ</div>
+        <h4>XML da NF-e pelo governo</h4>
+        <p>
+          Branch <code>feature/integracao-sefaz</code> criada, sem código de produção.
+          Exige certificado digital da empresa; não há API pública anônima.
+          Com o VSM já entregando itens, o SEFAZ só faria sentido para XML completo
+          ou notas que o ERP não tem.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="when">Etapas 8–10 · médio/longo prazo</div>
+        <h4>Fabricante, estoque, automação</h4>
+        <p>
+          Depende de mais tabelas no VSM (ainda não liberadas de forma estável):
+          cadastro de fabricante para rotear comprador, estoque oficial, regras
+          automáticas. Só depois que 3–5 estiverem no ar.
+        </p>
+      </div>
+    </section>
+
+    <!-- ========== EXPANDIR ========== -->
+    <section class="card" id="expandir">
+      <h2>Como expandir o app atual até o objetivo</h2>
+      <p class="lead">Não recomeçar do zero. O ConferenciaNFs já é o app da conferência; o núcleo Postgres já é compartilhado.</p>
+
+      <h3>Princípios (não abrir mão)</h3>
+      <ol>
+        <li><strong>VSM só leitura.</strong> Toda decisão (status, pré-nota, resposta do comprador) mora no Postgres.</li>
+        <li><strong>Uma identidade de nota.</strong> Continuar com loja + número + CNPJ + dia, mais <code>CodCompra</code> e chave NFe quando existirem.</li>
+        <li><strong>Itens sob demanda no começo, cópia depois.</strong> Hoje os itens são lidos na hora no MySQL. Para devolução/compradores, o próximo passo natural é <em>copiar</em> os itens da nota para tabelas nossas no momento do envio (snapshot), para a fila não depender da rede do VSM.</li>
+        <li><strong>Três apps, um banco.</strong> Conferência evolui este WPF. Devolução pode continuar neste exe (nova tela/aba) ou virar exe irmão. Compradores = app novo apontando para o mesmo Postgres.</li>
+        <li><strong>CSV permanece plano B</strong> até o sync estar inquestionável na rotina.</li>
+      </ol>
+
+      <h3>Ordem prática de construção</h3>
+      <div class="flow-mini">
+        <p><strong>1. Snapshot de itens no Postgres</strong> — tabela <code>ItensNota</code> (CodCompra, EAN, qtd, custo, lote…). Preenchida ao abrir o detalhe ou ao marcar Vermelho/Amarelo. Sem isso, pré-nota e comprador quebram offline.</p>
+        <p><strong>2. Pré-nota de devolução</strong> — ao marcar Vermelho, tela de itens com seleção/qtd/motivo; <code>Devolucoes</code> ganha linhas por item. A tela Devoluções já existente só passa a listar esses itens.</p>
+        <p><strong>3. Pendência de comprador</strong> — ao marcar Amarelo, mesma tela de itens + destino (grupo/comprador). Tabelas <code>Compradores</code>, <code>PendenciasCompra</code>. App novo só lê/grava essas tabelas e devolve o status.</p>
+        <p><strong>4. Usuários</strong> — login simples no Postgres antes do app dos compradores ir para 10 pessoas. Auditoria: usuário, app, ação, antes/depois, data.</p>
+        <p><strong>5. Depois, se fizer falta</strong> — cruzamento pedido↔NF (leitura de <code>pedido</code>/<code>pedidoitens</code>), fabricante para roteamento automático, SEFAZ.</p>
+      </div>
+
+      <h3>O que já está pronto para encaixar</h3>
+      <ul>
+        <li>Leitura de itens e EAN (<code>VsmComprasReader</code>).</li>
+        <li>Fila de devolução por nota (gancho do Vermelho).</li>
+        <li>Amarelo já conta como pendência no dashboard.</li>
+        <li>Distribuidoras com prazo.</li>
+        <li>Mapa estável de lojas e CNPJ.</li>
+        <li>Update por GitHub para as máquinas da equipe.</li>
+      </ul>
+
+      <div class="callout ok">
+        <strong>Resumo:</strong> o objetivo final não exige outro “sistema de conferência”.
+        Exige copiar itens para o nosso banco, transformar Vermelho e Amarelo em
+        fluxos <em>por produto</em>, e um app irmão para o comprador responder.
+        Pedido↔NF e SEFAZ ficam de fora até você mandar retomar.
+      </div>
+    </section>
+
+    <p class="footer">
+      ConferenciaNFs · Documentação interna · v1.0.9 · set/2026 · Criado para a equipe de conferência
+    </p>
+  </div>
+</body>
+</html>
