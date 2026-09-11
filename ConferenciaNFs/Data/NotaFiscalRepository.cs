@@ -488,7 +488,7 @@ public sealed class NotaFiscalRepository
     {
         var nota = connection.QuerySingleOrDefault<NotaFiscal>("""
             SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia,
-                   StatusConferencia, Observacao, DataEmissao,
+                   StatusConferencia, Observacao, DataEmissao, CodCompra,
                    COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
             FROM NotasFiscais
             WHERE Id = @Id
@@ -506,7 +506,9 @@ public sealed class NotaFiscalRepository
             nota.DiaConferencia,
             nota.NfeChaveAcesso,
             nota.DataEmissao,
-            nota.StatusConferencia);
+            nota.StatusConferencia,
+            diaConferenciaAnterior: null,
+            nota.CodCompra);
 
         if (!heranca.HasValue)
             return;
@@ -853,7 +855,8 @@ public sealed class NotaFiscalRepository
                     nota.NfeChaveAcesso,
                     nota.DataEmissao,
                     statusAtual,
-                    diaAnterior);
+                    diaAnterior,
+                    nota.CodCompra);
 
                 if (heranca.HasValue)
                 {
@@ -915,12 +918,18 @@ public sealed class NotaFiscalRepository
             destino.ChaveUnica
         }, transaction).ToList();
 
-        if (deslocadas.Count == 0)
+        // Outro dia de conferencia: a linha de origem permanece.
+        // So realoca no mesmo dia (loja/chave errada).
+        var doMesmoDia = deslocadas
+            .Where(d => MesmoDiaConferencia(d.DiaConferencia, destino.DiaConferencia))
+            .ToList();
+
+        if (doMesmoDia.Count == 0)
             return (false, null);
 
         long? idRecalcular = null;
 
-        foreach (var deslocada in deslocadas)
+        foreach (var deslocada in doMesmoDia)
         {
             var id = RelocarOuMesclarNotaVsm(
                 connection,
@@ -936,6 +945,16 @@ public sealed class NotaFiscalRepository
         }
 
         return (true, idRecalcular);
+    }
+
+    private static bool MesmoDiaConferencia(string? a, string? b)
+    {
+        var dataA = DataCompraParser.TentarConverter(a);
+        var dataB = DataCompraParser.TentarConverter(b);
+        if (dataA.HasValue && dataB.HasValue)
+            return dataA.Value.Date == dataB.Value.Date;
+
+        return string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<Dictionary<string, string>> CarregarNomesFornecedorPorCnpjAsync(
@@ -1046,7 +1065,8 @@ public sealed class NotaFiscalRepository
                 nota.NfeChaveAcesso,
                 nota.DataEmissao,
                 nota.StatusConferencia,
-                diaAnterior);
+                diaAnterior,
+                nota.CodCompra);
 
             if (!heranca.HasValue)
                 continue;
@@ -1106,7 +1126,8 @@ public sealed class NotaFiscalRepository
         string? nfeChaveAcesso,
         string? dataEmissao,
         string statusAtual,
-        string? diaConferenciaAnterior = null)
+        string? diaConferenciaAnterior = null,
+        int? codCompra = null)
     {
         var historico = TentarResolverHerancaImportacao(
             connection,
@@ -1115,7 +1136,8 @@ public sealed class NotaFiscalRepository
             numNota,
             cnpjForn,
             diaConferenciaAtual,
-            nfeChaveAcesso);
+            nfeChaveAcesso,
+            codCompra);
 
         if (historico.HasValue)
             return new StatusHerdado(historico.Value.Status, historico.Value.Observacao);
@@ -1162,19 +1184,22 @@ public sealed class NotaFiscalRepository
         string numNota,
         string cnpjForn,
         string diaConferenciaAtual,
-        string? nfeChaveAcesso = null)
+        string? nfeChaveAcesso = null,
+        int? codCompra = null)
     {
         var cnpjNormalizado = CnpjNormalizer.Normalizar(cnpjForn);
         var numNotaTrim = numNota.Trim();
         var numNotaNormalizado = NumNotaNormalizer.Normalizar(numNota);
         var chaveNfe = nfeChaveAcesso?.Trim() ?? string.Empty;
+        var cod = codCompra.GetValueOrDefault();
         var historico = connection.Query<HistoricoNotaNegocio>("""
             SELECT StatusConferencia, Observacao, DiaConferencia
             FROM NotasFiscais
             WHERE TRIM(COALESCE(DiaConferencia, '')) <> ''
               AND DiaConferencia <> @DiaConferenciaAtual
               AND (
-                    (@ChaveNfe <> '' AND NfeChaveAcesso = @ChaveNfe)
+                    (@CodCompra > 0 AND CodCompra = @CodCompra)
+                 OR (@ChaveNfe <> '' AND NfeChaveAcesso = @ChaveNfe)
                  OR (
                         ApelidoLoja = @ApelidoLoja
                     AND (NumNota = @NumNota OR NumNota = @NumNotaNorm)
@@ -1188,7 +1213,8 @@ public sealed class NotaFiscalRepository
             NumNotaNorm = string.IsNullOrEmpty(numNotaNormalizado) ? numNotaTrim : numNotaNormalizado,
             CnpjForn = cnpjNormalizado,
             DiaConferenciaAtual = diaConferenciaAtual.Trim(),
-            ChaveNfe = chaveNfe
+            ChaveNfe = chaveNfe,
+            CodCompra = cod
         }, transaction).ToList();
 
         if (historico.Count == 0)
@@ -1206,7 +1232,8 @@ public sealed class NotaFiscalRepository
                 INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
                 WHERE d.StatusDevolucao IN (@Devolvida, @PerdeuPrazo)
                   AND (
-                        (@ChaveNfe <> '' AND n.NfeChaveAcesso = @ChaveNfe)
+                        (@CodCompra > 0 AND n.CodCompra = @CodCompra)
+                     OR (@ChaveNfe <> '' AND n.NfeChaveAcesso = @ChaveNfe)
                      OR (
                             n.ApelidoLoja = @ApelidoLoja
                         AND (n.NumNota = @NumNota OR n.NumNota = @NumNotaNorm)
@@ -1221,6 +1248,7 @@ public sealed class NotaFiscalRepository
             NumNotaNorm = string.IsNullOrEmpty(numNotaNormalizado) ? numNotaTrim : numNotaNormalizado,
             CnpjForn = cnpjNormalizado,
             ChaveNfe = chaveNfe,
+            CodCompra = cod,
             Devolvida = StatusDevolucaoValues.Devolvida,
             PerdeuPrazo = StatusDevolucaoValues.PerdeuPrazo
         }, transaction);
