@@ -65,4 +65,51 @@ public class DataCompraParserTests
         var dia = new DateTime(2026, 9, 10);
         Assert.Equal("10/09/2026", DataCompraParser.FormatarIntervalo(dia, dia));
     }
+
+    [Fact]
+    public void VariantesTextuais_CobremTodasAsGrafiasQueOParserAceita()
+    {
+        var dia = new DateTime(2026, 9, 5);
+
+        var variantes = DataCompraParser.VariantesTextuais([dia]);
+
+        Assert.Contains("05/09/2026", variantes);
+        Assert.Contains("5/9/2026", variantes);
+        Assert.Contains("05/09/26", variantes);
+        Assert.All(variantes, v => Assert.Equal(dia, DataCompraParser.TentarConverter(v)));
+    }
+
+    [Theory]
+    [InlineData("2026-09-07", "2026-09-05")] // segunda -> sabado anterior
+    [InlineData("2026-09-08", "2026-09-05")] // terca pos-feriado -> mesmo sabado
+    [InlineData("2026-09-05", "2026-09-05")] // o proprio sabado
+    [InlineData("2026-09-06", "2026-09-05")] // domingo
+    [InlineData("2026-09-11", "2026-09-05")] // sexta -> sabado de 6 dias atras
+    public void UltimoSabado_RecuaAteOSabadoMaisRecente(string hojeIso, string esperadoIso)
+    {
+        var sabado = DataCompraParser.UltimoSabado(DateTime.Parse(hojeIso));
+
+        Assert.Equal(DateTime.Parse(esperadoIso), sabado);
+        Assert.Equal(DayOfWeek.Saturday, sabado.DayOfWeek);
+    }
+
+    [Fact]
+    public void UltimoSabado_AteHoje_CabeNoLimiteDoIntervalo()
+    {
+        for (var offset = 0; offset < 7; offset++)
+        {
+            var hoje = new DateTime(2026, 9, 5).AddDays(offset);
+            Assert.True(DataCompraParser.IntervaloValido(DataCompraParser.UltimoSabado(hoje), hoje));
+        }
+    }
+
+    [Fact]
+    public void VariantesTextuais_NaoRepetemQuandoDiaTemDoisDigitos()
+    {
+        var dia = new DateTime(2026, 11, 12);
+
+        var variantes = DataCompraParser.VariantesTextuais([dia]);
+
+        Assert.Equal(["12/11/2026", "12/11/26"], variantes.Order());
+    }
 }

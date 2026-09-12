@@ -1403,7 +1403,17 @@ public sealed class NotaFiscalRepository
         CancellationToken cancellationToken = default)
     {
         var datas = DataCompraParser.EnumerarDias(inicio, fim);
-        var existentes = await ObterDatasDisponiveisAsync(cancellationToken);
+        var variantes = DataCompraParser.VariantesTextuais(datas);
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var existentes = (await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT DISTINCT DiaConferencia
+            FROM NotasFiscais
+            WHERE DiaConferencia = ANY(@Variantes)
+            """, new { Variantes = variantes }, cancellationToken: cancellationToken))).ToList();
+
         var chaves = new List<string>(datas.Count);
 
         foreach (var data in datas)
@@ -1414,6 +1424,42 @@ public sealed class NotaFiscalRepository
         }
 
         return chaves;
+    }
+
+    /// <summary>
+    /// Dia mais antigo da janela que ainda tem nota pendente, ou null se nao houver nada em aberto.
+    /// Usado pelo atalho "Em aberto", que assim cobre feriado sem precisar de calendario.
+    /// </summary>
+    public async Task<DateTime?> ObterDiaMaisAntigoComPendenciaAsync(
+        DateTime inicioJanela,
+        DateTime fimJanela,
+        CancellationToken cancellationToken = default)
+    {
+        var dias = DataCompraParser.EnumerarDias(inicioJanela, fimJanela);
+        var variantes = DataCompraParser.VariantesTextuais(dias);
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var comPendencia = await connection.QueryAsync<string>(new CommandDefinition("""
+            SELECT DISTINCT DiaConferencia
+            FROM NotasFiscais
+            WHERE StatusConferencia IN (@StatusPendente, @StatusAmarelo)
+              AND DiaConferencia = ANY(@Variantes)
+            """, new
+        {
+            StatusPendente = StatusConferenciaValues.Pendente,
+            StatusAmarelo = StatusConferenciaValues.Amarelo,
+            Variantes = variantes
+        }, cancellationToken: cancellationToken));
+
+        var datas = comPendencia
+            .Select(DataCompraParser.TentarConverter)
+            .Where(d => d.HasValue)
+            .Select(d => d!.Value.Date)
+            .ToList();
+
+        return datas.Count == 0 ? null : datas.Min();
     }
 
     public Task<IReadOnlyList<LojaPendencia>> ObterPendenciasPorLojaAsync(
@@ -1429,7 +1475,7 @@ public sealed class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var resultado = await connection.QueryAsync<LojaPendencia>("""
+        var resultado = await connection.QueryAsync<LojaPendencia>(new CommandDefinition("""
             SELECT
                 n.ApelidoLoja,
                 SUM(CASE
@@ -1448,7 +1494,7 @@ public sealed class NotaFiscalRepository
             StatusPendente = StatusConferenciaValues.Pendente,
             StatusAmarelo = StatusConferenciaValues.Amarelo,
             Dias = diasNormais
-        });
+        }, cancellationToken: cancellationToken));
 
         return resultado.ToList();
     }
@@ -1466,7 +1512,7 @@ public sealed class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var resumo = await connection.QuerySingleAsync<ResumoDiaConferencia>("""
+        var resumo = await connection.QuerySingleAsync<ResumoDiaConferencia>(new CommandDefinition("""
             SELECT
                 COALESCE(SUM(CASE
                     WHEN n.StatusConferencia IN (@StatusPendente, @StatusAmarelo) THEN 1
@@ -1493,7 +1539,7 @@ public sealed class NotaFiscalRepository
             StatusPendente = StatusConferenciaValues.Pendente,
             StatusAmarelo = StatusConferenciaValues.Amarelo,
             Dias = diasNormais
-        });
+        }, cancellationToken: cancellationToken));
 
         return resumo;
     }

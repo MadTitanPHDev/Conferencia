@@ -28,16 +28,37 @@ public sealed class VsmSyncService
         return await _repository.SincronizarComprasVsmAsync(compras, dia, cancellationToken);
     }
 
+    /// <summary>
+    /// Le o intervalo inteiro do VSM numa consulta so e grava dia a dia: o upsert exige um
+    /// unico DiaConferencia por chamada, entao cada nota continua no dia em que entrou.
+    /// </summary>
     public async Task<VsmSyncResult> SincronizarIntervaloAsync(
         DateTime inicio,
         DateTime fim,
         CancellationToken cancellationToken = default)
     {
+        var dias = DataCompraParser.EnumerarDias(inicio, fim);
+        var compras = await _reader.ListarPorIntervaloDataCompraAsync(inicio, fim, cancellationToken);
+
+        var porDia = compras
+            .Where(c => c.DataCompra.HasValue)
+            .GroupBy(c => c.DataCompra!.Value.Date)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<CompraVsm>)g.ToList());
+
         var total = new VsmSyncResult();
-        foreach (var dia in DataCompraParser.EnumerarDias(inicio, fim))
+
+        foreach (var dia in dias)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var parcial = await SincronizarDiaAsync(dia, cancellationToken);
+
+            if (!porDia.TryGetValue(dia.Date, out var comprasDoDia))
+                continue;
+
+            var parcial = await _repository.SincronizarComprasVsmAsync(
+                comprasDoDia,
+                DataCompraParser.Formatar(dia),
+                cancellationToken);
+
             total.Lidas += parcial.Lidas;
             total.Inseridas += parcial.Inseridas;
             total.Atualizadas += parcial.Atualizadas;

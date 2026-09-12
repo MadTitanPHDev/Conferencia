@@ -23,9 +23,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private bool _estaSincronizando;
     private bool _estaVazio = true;
     private string _mensagemStatus = "Importe um CSV ou sincronize o VSM para comecar.";
-    private DateTime? _dataInicio = DataCompraParser.DiaPadraoAbertura();
-    private DateTime? _dataFim = DataCompraParser.DiaPadraoAbertura();
+    private DateTime? _dataInicio;
+    private DateTime? _dataFim;
     private IReadOnlyList<string> _diasAtivos = [];
+    private CancellationTokenSource? _ctsCarregamento;
     private bool _suspenderCarregamento;
     private bool _herancaStatusImportacao;
     private int _totalPendencias;
@@ -37,6 +38,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _repository = repository;
         _syncVsm = syncVsm;
         Lojas = new ObservableCollection<LojaPendencia>();
+
+        (_dataInicio, _dataFim) = IntervaloDeAbertura();
 
         ImportarCsvCommand = new AsyncRelayCommand(_ => ImportarCsvAsync());
         SincronizarVsmCommand = new AsyncRelayCommand(_ => SincronizarVsmManualAsync(), _ => PodeSincronizarVsm);
@@ -52,6 +55,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             _ => RecalcularHerancaDiaAsync(),
             _ => PodeRecalcularHerancaDia);
         MigrarSqliteCommand = new AsyncRelayCommand(_ => MigrarSqliteAsync());
+        PresetOntemCommand = new RelayCommand(_ => AplicarPresetOntem());
+        PresetDesdeSabadoCommand = new RelayCommand(_ => AplicarPresetDesdeSabado());
+        PresetEmAbertoCommand = new AsyncRelayCommand(_ => AplicarPresetEmAbertoAsync());
 
         _ = InicializarAsync();
     }
@@ -145,6 +151,92 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand ExportarTodasCommand { get; }
     public ICommand RecalcularHerancaDiaCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
+    public ICommand PresetOntemCommand { get; }
+    public ICommand PresetDesdeSabadoCommand { get; }
+    public ICommand PresetEmAbertoCommand { get; }
+
+    /// <summary>
+    /// Retoma o intervalo da sessao anterior, mas so enquanto ele ainda termina hoje.
+    /// Virado o dia, o ponto de partida volta a ser o dia anterior.
+    /// </summary>
+    private static (DateTime inicio, DateTime fim) IntervaloDeAbertura()
+    {
+        var padrao = DataCompraParser.DiaPadraoAbertura();
+        var dados = AppSettingsStore.Instance.Data;
+
+        var inicio = DataCompraParser.TentarConverter(dados.UltimoIntervaloInicio);
+        var fim = DataCompraParser.TentarConverter(dados.UltimoIntervaloFim);
+
+        if (fim?.Date != DateTime.Today || !DataCompraParser.IntervaloValido(inicio, fim))
+            return (padrao, padrao);
+
+        return (inicio!.Value.Date, fim.Value.Date);
+    }
+
+    private void SalvarIntervaloEscolhido()
+    {
+        var dados = AppSettingsStore.Instance.Data;
+        dados.UltimoIntervaloInicio = _dataInicio.HasValue
+            ? DataCompraParser.Formatar(_dataInicio.Value)
+            : string.Empty;
+        dados.UltimoIntervaloFim = _dataFim.HasValue
+            ? DataCompraParser.Formatar(_dataFim.Value)
+            : string.Empty;
+
+        AppSettingsStore.Instance.Salvar();
+    }
+
+    private void AplicarPresetOntem()
+    {
+        var ontem = DataCompraParser.DiaPadraoAbertura();
+        DefinirIntervalo(ontem, ontem);
+    }
+
+    private void AplicarPresetDesdeSabado()
+        => DefinirIntervalo(DataCompraParser.UltimoSabado(DateTime.Today), DateTime.Today);
+
+    private async Task AplicarPresetEmAbertoAsync()
+    {
+        var hoje = DateTime.Today;
+        var inicioJanela = hoje.AddDays(-(DataCompraParser.MaxDiasIntervaloPadrao - 1));
+
+        var maisAntigo = await _repository.ObterDiaMaisAntigoComPendenciaAsync(inicioJanela, hoje);
+        if (maisAntigo is null)
+        {
+            MensagemStatus =
+                $"Nenhuma nota em aberto desde {DataCompraParser.Formatar(inicioJanela)}.";
+            return;
+        }
+
+        DefinirIntervalo(maisAntigo.Value, hoje);
+    }
+
+    /// <summary>
+    /// Troca as duas pontas de uma vez, para que um preset dispare uma unica recarga
+    /// em vez das duas que sairiam ao mexer em "De" e depois em "Ate".
+    /// </summary>
+    private void DefinirIntervalo(DateTime inicio, DateTime fim)
+    {
+        var a = inicio.Date;
+        var b = fim.Date < a ? a : fim.Date;
+
+        var mudou = _dataInicio != a || _dataFim != b;
+        _dataInicio = a;
+        _dataFim = b;
+        OnPropertyChanged(nameof(DataInicio));
+        OnPropertyChanged(nameof(DataFim));
+        OnPropertyChanged(nameof(DataSelecionadaTexto));
+        OnPropertyChanged(nameof(TituloPagina));
+        AtualizarComandosDoDia();
+
+        if (_suspenderCarregamento)
+            return;
+
+        SalvarIntervaloEscolhido();
+
+        // Mesmo sem mudanca de datas o preset recarrega: e o que o usuario espera do clique.
+        _ = mudou ? AbrirDiaAsync() : ExecutarCargaAsync(exibirErroSync: false, apenasDiasQuentes: true);
+    }
 
     private void AlterarIntervalo(DateTime? inicio, DateTime? fim, bool inicioMudou)
     {
@@ -170,6 +262,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         if (!mudou || _suspenderCarregamento)
             return;
 
+        SalvarIntervaloEscolhido();
         _ = AbrirDiaAsync();
     }
 
@@ -207,32 +300,82 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     }
 
     private void OnTimerSyncVsm(object? sender, EventArgs e)
-        => _ = AbrirDiaAsync();
+        => _ = ExecutarCargaAsync(exibirErroSync: false, apenasDiasQuentes: true);
 
-    private async Task AbrirDiaAsync()
+    private Task AbrirDiaAsync() => ExecutarCargaAsync(exibirErroSync: false);
+
+    private Task SincronizarVsmManualAsync() => ExecutarCargaAsync(exibirErroSync: true);
+
+    /// <summary>
+    /// Sincroniza e recarrega o intervalo. Uma carga nova cancela a anterior para que
+    /// a mais lenta nao sobrescreva a tela com o resultado de um intervalo ja trocado.
+    /// </summary>
+    private async Task ExecutarCargaAsync(bool exibirErroSync, bool apenasDiasQuentes = false)
     {
-        await SincronizarVsmCoreAsync(exibirErro: false);
-        await CarregarLojasAsync();
+        using var cts = new CancellationTokenSource();
+        CancelarCargaPendente();
+        _ctsCarregamento = cts;
+
+        try
+        {
+            await SincronizarVsmCoreAsync(exibirErroSync, apenasDiasQuentes, cts.Token);
+            await CarregarLojasAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // O intervalo mudou durante a carga; a chamada mais recente assume.
+        }
+        finally
+        {
+            if (ReferenceEquals(_ctsCarregamento, cts))
+                _ctsCarregamento = null;
+        }
     }
 
-    private async Task SincronizarVsmManualAsync()
+    private void CancelarCargaPendente()
     {
-        await SincronizarVsmCoreAsync(exibirErro: true);
-        await CarregarLojasAsync();
+        try
+        {
+            _ctsCarregamento?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // A carga anterior ja terminou por conta propria.
+        }
     }
 
-    private async Task SincronizarVsmCoreAsync(bool exibirErro)
+    private async Task SincronizarVsmCoreAsync(
+        bool exibirErro,
+        bool apenasDiasQuentes,
+        CancellationToken cancellationToken)
     {
         if (_syncVsm is null || !IntervaloPronto || _estaSincronizando)
             return;
+
+        var inicio = DataInicio!.Value;
+        var fim = DataFim!.Value;
+
+        if (apenasDiasQuentes)
+        {
+            // DATACOMPRA e a data em que a nota entrou no VSM, entao dias passados nao
+            // recebem nota nova. A atualizacao automatica so reve hoje e ontem.
+            var primeiroDiaQuente = DateTime.Today.AddDays(-1);
+            if (inicio < primeiroDiaQuente)
+                inicio = primeiroDiaQuente;
+
+            if (fim < inicio)
+                return;
+        }
+
+        var periodo = DataCompraParser.FormatarIntervalo(inicio, fim);
 
         try
         {
             _estaSincronizando = true;
             AtualizarComandosDoDia();
-            MensagemStatus = $"Sincronizando notas do VSM em {DataSelecionadaTexto}...";
+            MensagemStatus = $"Sincronizando notas do VSM em {periodo}...";
 
-            var resultado = await _syncVsm.SincronizarIntervaloAsync(DataInicio!.Value, DataFim!.Value);
+            var resultado = await _syncVsm.SincronizarIntervaloAsync(inicio, fim, cancellationToken);
             var detalheIgnoradas = resultado.Ignoradas > 0
                 ? $" · {resultado.Ignoradas} ignorada(s)"
                 : string.Empty;
@@ -240,9 +383,13 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 ? $" · {resultado.Relocadas} realocada(s)"
                 : string.Empty;
             MensagemStatus =
-                $"VSM {DataSelecionadaTexto}: {resultado.Inseridas} nova(s), " +
+                $"VSM {periodo}: {resultado.Inseridas} nova(s), " +
                 $"{resultado.Atualizadas} atualizada(s), {resultado.Lidas} lida(s)" +
                 $"{detalheIgnoradas}{detalheRelocadas}.";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -266,6 +413,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        CancelarCargaPendente();
+
         if (_timerSyncVsm is null)
             return;
 
@@ -306,7 +455,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task CarregarLojasAsync()
+    private async Task CarregarLojasAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -324,12 +473,19 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            _diasAtivos = await _repository.ResolverChavesIntervaloAsync(DataInicio!.Value, DataFim!.Value);
+            var dias = await _repository.ResolverChavesIntervaloAsync(
+                DataInicio!.Value,
+                DataFim!.Value,
+                cancellationToken);
+
             MensagemStatus = $"Carregando lojas de {DataSelecionadaTexto}...";
 
-            var lojas = await _repository.ObterPendenciasPorLojaAsync(_diasAtivos);
-            var resumo = await _repository.ObterResumoDiaAsync(_diasAtivos);
+            var lojas = await _repository.ObterPendenciasPorLojaAsync(dias, cancellationToken);
+            var resumo = await _repository.ObterResumoDiaAsync(dias, cancellationToken);
 
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _diasAtivos = dias;
             Lojas.Clear();
             foreach (var loja in lojas)
                 Lojas.Add(loja);
@@ -342,6 +498,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
             AtualizarComandosDoDia();
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             MensagemStatus = "Erro ao carregar dados.";
@@ -350,8 +510,12 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            IsCarregando = false;
-            AtualizarComandosDoDia();
+            // Uma carga cancelada nao libera a tela: quem a substituiu ainda esta rodando.
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                IsCarregando = false;
+                AtualizarComandosDoDia();
+            }
         }
     }
 

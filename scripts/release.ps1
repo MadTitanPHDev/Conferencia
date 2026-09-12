@@ -4,8 +4,8 @@
   Gera publish self-contained + pacote Velopack (portable/instalador) para GitHub Releases.
 
 .DESCRIPTION
-  - Inclui app-settings.json padrao (Database=conferencia_nfs_1) a partir do .example.
-  - Ainda NAO ativa checagem automatica de update no app (proximo bloco).
+  - Inclui apenas app-settings.example.json. O app grava as configuracoes em
+    %AppData%\ConferenciaNFs, fora da pasta que o Velopack substitui a cada update.
   - Opcional: -CreateGitHubRelease sobe a release com gh.
 
 .EXAMPLE
@@ -56,7 +56,9 @@ dotnet publish $proj `
     -o $publishDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou." }
 
-# Nao distribuir settings locais de dev; incluir app-settings padrao da equipe no pacote.
+# Nao distribuir settings locais de dev. O pacote leva so o .example: o app grava em
+# %AppData%\ConferenciaNFs e usa o exemplo apenas como ponto de partida na 1a execucao.
+# Embutir app-settings.json aqui era o que zerava a configuracao a cada atualizacao.
 $exampleSettings = Join-Path $root "ConferenciaNFs\app-settings.example.json"
 $publishSettings = Join-Path $publishDir "app-settings.json"
 $publishExample = Join-Path $publishDir "app-settings.example.json"
@@ -69,9 +71,8 @@ if (-not (Test-Path $exampleSettings)) {
     throw "app-settings.example.json nao encontrado."
 }
 
-Copy-Item $exampleSettings $publishSettings -Force
 Copy-Item $exampleSettings $publishExample -Force
-Write-Host "Incluido app-settings.json no pacote (Database=conferencia_nfs_1)."
+Write-Host "Pacote sem app-settings.json (configuracoes ficam em %AppData%\ConferenciaNFs)."
 
 $vpk = Get-Command vpk -ErrorAction SilentlyContinue
 if (-not $vpk) {
@@ -117,7 +118,7 @@ Instale com o Setup gerado pelo Velopack (ou use o portable, se disponivel nesta
 
 1. Baixe o instalador desta release
 2. Execute e conclua a instalacao
-3. O ``app-settings.json`` ja vem configurado para ``conferencia_nfs_1`` (ajuste Host/senha se necessario)
+3. As configuracoes ficam em ``%AppData%\ConferenciaNFs\app-settings.json`` e passam a sobreviver as atualizacoes
 
 Com o Setup/Portable Velopack, o app verifica novas releases no GitHub ao abrir.
 "@

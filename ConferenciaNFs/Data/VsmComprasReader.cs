@@ -35,10 +35,23 @@ public sealed class VsmComprasReader
     /// Notas cuja data de entrada no VSM (DATACOMPRA) e o dia informado.
     /// Todas as letras de STATUS entram.
     /// </summary>
-    public async Task<IReadOnlyList<CompraVsm>> ListarPorDataCompraAsync(
+    public Task<IReadOnlyList<CompraVsm>> ListarPorDataCompraAsync(
         DateTime dataCompra,
         CancellationToken cancellationToken = default)
+        => ListarPorIntervaloDataCompraAsync(dataCompra, dataCompra, cancellationToken);
+
+    /// <summary>
+    /// Notas cuja DATACOMPRA cai no intervalo, inclusive nas pontas. Uma ida ao VSM cobre
+    /// todos os dias; quem chama separa por dia depois.
+    /// </summary>
+    public async Task<IReadOnlyList<CompraVsm>> ListarPorIntervaloDataCompraAsync(
+        DateTime inicio,
+        DateTime fim,
+        CancellationToken cancellationToken = default)
     {
+        if (fim.Date < inicio.Date)
+            throw new ArgumentException("A data final nao pode ser anterior a data inicial.", nameof(fim));
+
         const string sql = """
             SELECT
                 CODCOMPRA      AS CodCompra,
@@ -53,7 +66,7 @@ public sealed class VsmComprasReader
                 NFECHAVEACESSO AS NfeChaveAcesso,
                 SERIENOTA      AS SerieNota
             FROM compras
-            WHERE DATACOMPRA = @DataCompra
+            WHERE DATACOMPRA >= @Inicio AND DATACOMPRA < @FimExclusivo
             """;
 
         await using var connection = CriarConexao();
@@ -61,7 +74,7 @@ public sealed class VsmComprasReader
 
         var registros = await connection.QueryAsync<CompraVsm>(new CommandDefinition(
             sql,
-            new { DataCompra = dataCompra.Date },
+            new { Inicio = inicio.Date, FimExclusivo = fim.Date.AddDays(1) },
             cancellationToken: cancellationToken));
 
         return registros.AsList();

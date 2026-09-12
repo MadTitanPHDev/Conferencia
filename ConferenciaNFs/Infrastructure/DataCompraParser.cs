@@ -7,6 +7,12 @@ public static class DataCompraParser
     private static readonly CultureInfo CulturaPtBr = CultureInfo.GetCultureInfo("pt-BR");
     private static readonly string[] Formatos = ["dd/MM/yyyy", "d/M/yyyy", "dd/MM/yy", "d/M/yy"];
 
+    private static readonly string[] FormatosDeEscrita =
+    [
+        "dd/MM/yyyy", "d/M/yyyy", "d/MM/yyyy", "dd/M/yyyy",
+        "dd/MM/yy", "d/M/yy", "d/MM/yy", "dd/M/yy"
+    ];
+
     public const int MaxDiasIntervaloPadrao = 7;
 
     public static DateTime DiaPadraoAbertura() => DateTime.Today.AddDays(-1);
@@ -63,8 +69,36 @@ public static class DataCompraParser
         return dias;
     }
 
+    /// <summary>
+    /// Sabado mais recente, contando a propria data quando ela ja e um sabado.
+    /// </summary>
+    public static DateTime UltimoSabado(DateTime referencia)
+    {
+        var dia = referencia.Date;
+        var recuo = ((int)dia.DayOfWeek - (int)DayOfWeek.Saturday + 7) % 7;
+        return dia.AddDays(-recuo);
+    }
+
     public static IReadOnlyList<string> FormatarDias(IEnumerable<DateTime> dias) =>
         dias.Select(Formatar).ToList();
+
+    /// <summary>
+    /// Todas as grafias que <see cref="TentarConverter"/> reconheceria para os dias informados.
+    /// DiaConferencia e TEXT no banco, entao comparar contra esta lista usa o indice em vez de
+    /// varrer a tabela inteira atras de datas distintas.
+    /// </summary>
+    public static IReadOnlyList<string> VariantesTextuais(IEnumerable<DateTime> dias)
+    {
+        var variantes = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var dia in dias)
+        {
+            foreach (var formato in FormatosDeEscrita)
+                variantes.Add(dia.ToString(formato, CulturaPtBr));
+        }
+
+        return variantes.ToArray();
+    }
 
     public static DateTime? TentarConverter(string? dataCompra)
     {

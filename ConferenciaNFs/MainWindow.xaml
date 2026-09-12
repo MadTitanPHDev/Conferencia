@@ -169,6 +169,33 @@
                         <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     Language="pt-BR"
                                     Width="148"/>
+
+                        <TextBlock Text="Atalhos"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,12,0,4"/>
+                        <Button Content="Ontem"
+                                Command="{Binding PresetOntemCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Width="148"
+                                Margin="0,0,0,4"
+                                ToolTip="De e Ate no dia anterior."/>
+                        <Button Content="Desde sabado"
+                                Command="{Binding PresetDesdeSabadoCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Width="148"
+                                Margin="0,0,0,4"
+                                ToolTip="Do ultimo sabado ate hoje. Cobre a segunda-feira e a volta de feriado."/>
+                        <Button Content="Em aberto"
+                                Command="{Binding PresetEmAbertoCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Width="148"
+                                ToolTip="Comeca no dia mais antigo que ainda tem nota pendente."/>
                     </StackPanel>
                 </Border>
 

@@ -33,7 +33,7 @@ public static class AppUpdateService
                 $"Atual: {atual}\n" +
                 $"Nova: {nova}\n\n" +
                 "Deseja baixar e reiniciar agora?\n" +
-                "(O arquivo app-settings.json local sera preservado.)",
+                $"(Suas configuracoes ficam em {AppSettingsStore.PastaDados} e sao preservadas.)",
                 "Atualizacao disponivel",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);

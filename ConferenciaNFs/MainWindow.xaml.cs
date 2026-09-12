@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using ConferenciaNFs.Data;
@@ -18,10 +17,9 @@ public partial class MainWindow : Window
             var connectionString = AppSettingsStore.Instance.Data.ConnectionString?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(connectionString))
             {
-                GarantirArquivoExemploSettings();
                 throw new InvalidOperationException(
-                    "Configure a ConnectionString do PostgreSQL em app-settings.json " +
-                    "(copie de app-settings.example.json se ainda nao existir).");
+                    "Configure a ConnectionString do PostgreSQL em:\n" +
+                    AppSettingsStore.Instance.CaminhoArquivo);
             }
 
             var repository = new NotaFiscalRepository(connectionString);
@@ -40,7 +38,7 @@ public partial class MainWindow : Window
                 "Nao foi possivel conectar ao PostgreSQL.\n\n" +
                 $"{ex.Message}\n\n" +
                 "Verifique:\n" +
-                "• app-settings.json na pasta do aplicativo (ConnectionString)\n" +
+                $"• ConnectionString em {AppSettingsStore.Instance.CaminhoArquivo}\n" +
                 "• Servico PostgreSQL em execucao neste PC\n" +
                 "• Firewall liberando a porta 5432 (para colegas na rede)\n" +
                 "• Host, usuario e senha corretos",
@@ -90,20 +88,4 @@ public partial class MainWindow : Window
         MenuAvancadoOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private static void GarantirArquivoExemploSettings()
-    {
-        try
-        {
-            var pasta = AppContext.BaseDirectory;
-            var destino = Path.Combine(pasta, "app-settings.json");
-            var exemplo = Path.Combine(pasta, "app-settings.example.json");
-
-            if (!File.Exists(destino) && File.Exists(exemplo))
-                File.Copy(exemplo, destino);
-        }
-        catch
-        {
-            // Melhor esforço.
-        }
-    }
 }
