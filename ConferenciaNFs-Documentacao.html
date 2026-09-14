@@ -337,8 +337,8 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       <h3>Regra de herança (v1.0.7)</h3>
       <p>Ativa no menu ☰. Vale no sync VSM, no CSV e no Recalcular.</p>
       <ol>
-        <li><strong>Mesma NF em dia anterior</strong> (chave NFe, ou loja + número + CNPJ): Verde/Azul → Laranja; Amarelo permanece; Laranja permanece; Vermelho permanece, ou vira Laranja se a devolução já foi concluída.</li>
-        <li><strong>Sem o mesmo número</strong>, nota ainda em branco: se a <em>emissão</em> for anterior ao último dia já conferido, entra como <strong>Laranja</strong>. Ex.: conferência em 10/09, último dia 09/09, NF emitida em 08/09 → outro dia. Emissão em 09/09 continua para conferir.</li>
+        <li><strong>Mesma NF em dia anterior</strong> (chave NFe, ou loja + número + CNPJ): Verde/Azul → Laranja; Amarelo permanece; Laranja permanece; Vermelho permanece, ou vira Laranja se a devolução já foi concluída. Status ainda em branco no histórico <em>não</em> herda nada.</li>
+        <li><strong>Sem conferencia anterior</strong>: a nota entra e permanece em branco até o operador marcar. A data de emissão sozinha <em>não</em> pinta Laranja.</li>
         <li>Verde/Amarelo/Vermelho que vocês já marcaram <strong>hoje</strong> não são sobrescritos pela regra da emissão.</li>
       </ol>
       <p>O VSM traz a nota no dia em que ela <em>entrou</em> (<code>DATACOMPRA</code>), muitas vezes com número novo. Por isso a regra 2 existe: o CSV antigo relistava os mesmos números; o sync por dia, não.</p>

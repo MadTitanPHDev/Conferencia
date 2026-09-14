@@ -114,13 +114,19 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Instale com o Setup gerado pelo Velopack (ou use o portable, se disponivel nesta pasta).
+Laranja automatico por data de emissao foi removido. Nota nova permanece em branco ate o operador marcar. Laranja so aparece se a mesma NF ja foi conferida em outro dia. Na primeira abertura desta versao, Laranja indevido do intervalo aberto volta para branco.
 
-1. Baixe o instalador desta release
-2. Execute e conclua a instalacao
-3. As configuracoes ficam em ``%AppData%\ConferenciaNFs\app-settings.json`` e passam a sobreviver as atualizacoes
+### Configuracao (app-settings.json)
 
-Com o Setup/Portable Velopack, o app verifica novas releases no GitHub ao abrir.
+O arquivo NAO fica mais na pasta de instalacao. Edite sempre:
+
+``%AppData%\ConferenciaNFs\app-settings.json``
+
+Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs\app-settings.json``
+
+Se o arquivo ainda nao existir, abra o app uma vez (ele cria a pasta e migra o antigo, se houver). Depois ajuste ``ConnectionString`` (PostgreSQL) e ``MysqlConnectionString`` (VSM) nesse arquivo.
+
+Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
 "@
 
     gh release create $tag @assets --title "ConferenciaNFs $Version" --notes $notes

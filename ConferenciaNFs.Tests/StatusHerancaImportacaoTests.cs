@@ -44,19 +44,17 @@ public class StatusHerancaImportacaoTests
     }
 
     [Theory]
-    [InlineData("08/09/2026", "09/09/2026", true)]
-    [InlineData("04/09/2026", "08/09/2026", true)]
-    [InlineData("09/09/2026", "09/09/2026", false)]
-    [InlineData("04/09/2026", "04/09/2026", false)]
-    [InlineData("05/09/2026", "04/09/2026", false)]
-    [InlineData("", "09/09/2026", false)]
-    [InlineData("08/09/2026", "", false)]
-    public void DeveMarcarLaranjaPorEmissao_UsaDiaConferenciaAnterior(
-        string emissao,
-        string diaAnterior,
-        bool esperado)
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData(StatusConferenciaValues.Pendente, false)]
+    [InlineData(StatusConferenciaValues.Verde, true)]
+    [InlineData(StatusConferenciaValues.Laranja, true)]
+    [InlineData(StatusConferenciaValues.Amarelo, true)]
+    [InlineData(StatusConferenciaValues.Vermelho, true)]
+    [InlineData(StatusConferenciaValues.Azul, true)]
+    public void TemStatusConferido_IgnoraPendente(string? status, bool esperado)
     {
-        Assert.Equal(esperado, StatusHerancaImportacao.DeveMarcarLaranjaPorEmissao(emissao, diaAnterior));
+        Assert.Equal(esperado, StatusHerancaImportacao.TemStatusConferido(status));
     }
 }
 

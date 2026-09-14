@@ -505,9 +505,6 @@ public sealed class NotaFiscalRepository
             nota.CnpjForn,
             nota.DiaConferencia,
             nota.NfeChaveAcesso,
-            nota.DataEmissao,
-            nota.StatusConferencia,
-            diaConferenciaAnterior: null,
             nota.CodCompra);
 
         if (!heranca.HasValue)
@@ -626,9 +623,6 @@ public sealed class NotaFiscalRepository
 
         var inseridos = 0;
         var herancaAtiva = ObterHerancaStatusImportacao(connection, transaction);
-        var diaAnteriorCsv = herancaAtiva
-            ? ObterDiaConferenciaAnterior(connection, transaction, dia)
-            : null;
 
         const string sql = """
             INSERT INTO NotasFiscais (
@@ -677,10 +671,7 @@ public sealed class NotaFiscalRepository
                     nota.NumNota,
                     nota.CnpjForn,
                     dia,
-                    nota.NfeChaveAcesso,
-                    nota.DataEmissao,
-                    StatusConferenciaValues.Pendente,
-                    diaAnteriorCsv);
+                    nota.NfeChaveAcesso);
 
                 if (heranca.HasValue)
                 {
@@ -697,6 +688,9 @@ public sealed class NotaFiscalRepository
 
         await SincronizarDistribuidorasAsync(connection, registros, transaction, cancellationToken);
 
+        if (herancaAtiva)
+            CorrigirLaranjasSemHistorico(connection, transaction, dia);
+
         await transaction.CommitAsync(cancellationToken);
         return inseridos;
     }
@@ -712,7 +706,10 @@ public sealed class NotaFiscalRepository
 
         var resultado = new VsmSyncResult { Lidas = compras.Count };
         if (compras.Count == 0)
+        {
+            await CorrigirLaranjasSemHistoricoAsync(dia, cancellationToken);
             return resultado;
+        }
 
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
@@ -726,9 +723,6 @@ public sealed class NotaFiscalRepository
         var herancaAtiva = ObterHerancaStatusImportacao(connection, transaction: null);
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        var diaAnterior = herancaAtiva
-            ? ObterDiaConferenciaAnterior(connection, transaction, dia)
-            : null;
 
         const string sql = """
             INSERT INTO NotasFiscais (
@@ -836,15 +830,6 @@ public sealed class NotaFiscalRepository
 
             if (herancaAtiva && !relocacao.Relocou)
             {
-                var statusAtual = jaExistia
-                    ? connection.QuerySingleOrDefault<string>("""
-                        SELECT StatusConferencia
-                        FROM NotasFiscais
-                        WHERE ChaveUnica = @ChaveUnica
-                        LIMIT 1
-                        """, new { nota.ChaveUnica }, transaction) ?? StatusConferenciaValues.Pendente
-                    : StatusConferenciaValues.Pendente;
-
                 var heranca = ResolverStatusHerdado(
                     connection,
                     transaction,
@@ -853,9 +838,6 @@ public sealed class NotaFiscalRepository
                     nota.CnpjForn,
                     dia,
                     nota.NfeChaveAcesso,
-                    nota.DataEmissao,
-                    statusAtual,
-                    diaAnterior,
                     nota.CodCompra);
 
                 if (heranca.HasValue)
@@ -895,6 +877,9 @@ public sealed class NotaFiscalRepository
 
         if (resultado.Relocadas > 0)
             ReconciliarFilaDevolucoes(connection, transaction);
+
+        if (herancaAtiva)
+            resultado.Atualizadas += CorrigirLaranjasSemHistorico(connection, transaction, dia);
 
         await transaction.CommitAsync(cancellationToken);
         return resultado;
@@ -1058,8 +1043,6 @@ public sealed class NotaFiscalRepository
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var diaAnterior = ObterDiaConferenciaAnterior(connection, transaction, dia);
-
         var notasDia = (await connection.QueryAsync<NotaFiscal>("""
             SELECT *
             FROM NotasFiscais
@@ -1080,13 +1063,22 @@ public sealed class NotaFiscalRepository
                 nota.CnpjForn,
                 dia,
                 nota.NfeChaveAcesso,
-                nota.DataEmissao,
-                nota.StatusConferencia,
-                diaAnterior,
                 nota.CodCompra);
 
-            if (!heranca.HasValue)
+            if (heranca.HasValue)
+            {
+                if (StatusHerancaImportacao.TemStatusConferido(nota.StatusConferencia)
+                    && nota.StatusConferencia != StatusConferenciaValues.Laranja)
+                    continue;
+            }
+            else if (nota.StatusConferencia == StatusConferenciaValues.Laranja)
+            {
+                heranca = new StatusHerdado(StatusConferenciaValues.Pendente, string.Empty);
+            }
+            else
+            {
                 continue;
+            }
 
             if (nota.StatusConferencia == heranca.Value.Status
                 && nota.Observacao == heranca.Value.Observacao)
@@ -1122,6 +1114,86 @@ public sealed class NotaFiscalRepository
         return total;
     }
 
+    public async Task<int> CorrigirLaranjasSemHistoricoAsync(
+        string diaConferencia,
+        CancellationToken cancellationToken = default)
+    {
+        var dia = diaConferencia.Trim();
+        if (string.IsNullOrWhiteSpace(dia))
+            return 0;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var corrigidas = CorrigirLaranjasSemHistorico(connection, transaction, dia);
+        await transaction.CommitAsync(cancellationToken);
+        return corrigidas;
+    }
+
+    public async Task<int> CorrigirLaranjasSemHistoricoIntervaloAsync(
+        IReadOnlyList<string> dias,
+        CancellationToken cancellationToken = default)
+    {
+        var total = 0;
+        foreach (var dia in NormalizarDiasConferencia(dias))
+            total += await CorrigirLaranjasSemHistoricoAsync(dia, cancellationToken);
+
+        return total;
+    }
+
+    private static int CorrigirLaranjasSemHistorico(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string diaConferencia)
+    {
+        var laranjas = connection.Query<NotaFiscal>("""
+            SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia,
+                   StatusConferencia, Observacao, CodCompra,
+                   COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
+            FROM NotasFiscais
+            WHERE DiaConferencia = @DiaConferencia
+              AND StatusConferencia = @Laranja
+            """, new
+        {
+            DiaConferencia = diaConferencia,
+            Laranja = StatusConferenciaValues.Laranja
+        }, transaction).ToList();
+
+        var corrigidas = 0;
+
+        foreach (var nota in laranjas)
+        {
+            var historico = TentarResolverHerancaImportacao(
+                connection,
+                transaction,
+                nota.ApelidoLoja,
+                nota.NumNota,
+                nota.CnpjForn,
+                nota.DiaConferencia,
+                nota.NfeChaveAcesso,
+                nota.CodCompra);
+
+            if (historico.HasValue)
+                continue;
+
+            connection.Execute("""
+                UPDATE NotasFiscais
+                SET StatusConferencia = @StatusConferencia,
+                    Observacao = @Observacao
+                WHERE Id = @Id
+                """, new
+            {
+                nota.Id,
+                StatusConferencia = StatusConferenciaValues.Pendente,
+                Observacao = string.Empty
+            }, transaction);
+
+            corrigidas++;
+        }
+
+        return corrigidas;
+    }
+
     private sealed class HistoricoNotaNegocio
     {
         public string StatusConferencia { get; set; } = string.Empty;
@@ -1152,9 +1224,6 @@ public sealed class NotaFiscalRepository
         string cnpjForn,
         string diaConferenciaAtual,
         string? nfeChaveAcesso,
-        string? dataEmissao,
-        string statusAtual,
-        string? diaConferenciaAnterior = null,
         int? codCompra = null)
     {
         var historico = TentarResolverHerancaImportacao(
@@ -1170,15 +1239,7 @@ public sealed class NotaFiscalRepository
         if (historico.HasValue)
             return new StatusHerdado(historico.Value.Status, historico.Value.Observacao);
 
-        if (!string.Equals(statusAtual, StatusConferenciaValues.Pendente, StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        var diaAnterior = diaConferenciaAnterior
-            ?? ObterDiaConferenciaAnterior(connection, transaction, diaConferenciaAtual);
-        if (!StatusHerancaImportacao.DeveMarcarLaranjaPorEmissao(dataEmissao, diaAnterior))
-            return null;
-
-        return new StatusHerdado(StatusConferenciaValues.Laranja, string.Empty);
+        return null;
     }
 
     private static string? ObterDiaConferenciaAnterior(
@@ -1252,6 +1313,9 @@ public sealed class NotaFiscalRepository
             .OrderBy(h => h, Comparer<HistoricoNotaNegocio>.Create((a, b) =>
                 DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia)))
             .Last();
+
+        if (!StatusHerancaImportacao.TemStatusConferido(ultima.StatusConferencia))
+            return null;
 
         var devolucaoConcluida = connection.ExecuteScalar<bool>("""
             SELECT EXISTS (

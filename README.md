@@ -4,7 +4,7 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.10**
+Versão atual: **1.0.11**
 
 ---
 
@@ -143,6 +143,8 @@ Quando o VSM traz de novo uma nota já conferida em um dia anterior, a linha do 
 | Amarelo | Amarelo |
 | Vermelho | Vermelho (ou Laranja, se a devolução já foi concluída) |
 | Pendente | Pendente |
+
+Nota nova, sem essa identidade em outro dia, **permanece em branco**. Laranja não é mais aplicado só porque a emissão é antiga.
 
 A identidade da nota é buscada por `CodCompra`, chave da NFe, ou pela combinação loja + número + CNPJ. O recurso é ligado no menu ☰ (**herdar status**), e há um **recalcular** para reaplicar as regras no intervalo aberto.
 

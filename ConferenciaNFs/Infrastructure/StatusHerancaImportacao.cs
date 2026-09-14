@@ -35,18 +35,17 @@ public static class StatusHerancaImportacao
     }
 
     /// <summary>
-    /// Sem o mesmo numero no historico: NF emitida antes do ultimo dia ja conferido
-    /// e "de outro dia" (lote que a equipe ja fechou).
+    /// Pendente nao conta: a nota ainda nao foi conferida por um operador.
+    /// Laranja so nasce de um status ja definido (Verde, Azul, Laranja, Amarelo, Vermelho).
     /// </summary>
-    public static bool DeveMarcarLaranjaPorEmissao(
-        string? dataEmissao,
-        string? diaConferenciaAnterior)
+    public static bool TemStatusConferido(string? status)
     {
-        var emissao = DataCompraParser.TentarConverter(dataEmissao);
-        var anterior = DataCompraParser.TentarConverter(diaConferenciaAnterior);
-        if (!emissao.HasValue || !anterior.HasValue)
+        if (string.IsNullOrWhiteSpace(status))
             return false;
 
-        return emissao.Value.Date < anterior.Value.Date;
+        return !string.Equals(
+            status.Trim(),
+            StatusConferenciaValues.Pendente,
+            StringComparison.OrdinalIgnoreCase);
     }
 }

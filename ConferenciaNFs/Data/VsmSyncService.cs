@@ -52,7 +52,7 @@ public sealed class VsmSyncService
             cancellationToken.ThrowIfCancellationRequested();
 
             if (!porDia.TryGetValue(dia.Date, out var comprasDoDia))
-                continue;
+                comprasDoDia = [];
 
             var parcial = await _repository.SincronizarComprasVsmAsync(
                 comprasDoDia,

@@ -613,10 +613,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
 
         var confirmar = MessageBox.Show(
-            $"Recalcular status e observacao herdados das notas de {DataSelecionadaTexto}?\n\n" +
-            "Verde/Azul no historico (loja + nota + CNPJ, ou chave NFe) viram Laranja.\n" +
-            "Notas em branco com emissao anterior ao ultimo dia ja conferido tambem viram Laranja.\n" +
-            "Notas conferidas hoje pela primeira vez permanecem como estao.\n" +
+            $"Recalcular status herdados das notas de {DataSelecionadaTexto}?\n\n" +
+            "So herda quem ja foi conferido em outro dia (loja + nota + CNPJ, chave NFe ou CodCompra).\n" +
+            "Verde/Azul no historico viram Laranja. Pendente no historico nao pinta nada.\n" +
+            "Laranja sem conferencia anterior volta para branco.\n" +
+            "Notas que o operador ja conferiu hoje (exceto Laranja automatico) permanecem.\n" +
             "Devolucoes nao serao alteradas.",
             "Recalcular heranca do dia",
             MessageBoxButton.YesNo,

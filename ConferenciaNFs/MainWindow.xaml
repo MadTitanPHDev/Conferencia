@@ -376,7 +376,7 @@
                                   IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
                                   FontSize="12"
                                   Margin="0,0,0,12"
-                                  ToolTip="Novas notas herdam status do historico (loja + nota + CNPJ ou chave NFe). Sem historico, emissao anterior ao ultimo dia conferido entra como Laranja (outro dia)."/>
+                                  ToolTip="Novas notas herdam status so se a mesma NF ja foi conferida em outro dia. Sem conferencia anterior, permanece em branco ate o operador marcar."/>
                         <Button Content="Recalcular herdados do dia"
                                 Command="{Binding RecalcularHerancaDiaCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
