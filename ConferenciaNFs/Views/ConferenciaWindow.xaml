@@ -205,7 +205,27 @@
                 <CheckBox Content="Somente status marcados (ocultar os demais)"
                           IsChecked="{Binding ModoSomenteSelecionadas}"
                           FontSize="12"
-                          Margin="0,2,0,0"/>
+                          Margin="0,2,0,8"/>
+
+                <DockPanel LastChildFill="True">
+                    <TextBlock Text="NOTA"
+                               Style="{StaticResource SectionTitleStyle}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"
+                               DockPanel.Dock="Left"/>
+                    <Button DockPanel.Dock="Right"
+                            Content="Limpar"
+                            Command="{Binding LimparBuscaNotaCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="10,4"
+                            FontSize="11"
+                            Margin="8,0,0,0"/>
+                    <TextBox x:Name="TxtBuscaNota"
+                             Text="{Binding TextoBuscaNota, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ModernTextBoxStyle}"
+                             Padding="10,6"
+                             ToolTip="Filtra as notas desta loja pelo numero (zeros a esquerda nao importam)."/>
+                </DockPanel>
             </StackPanel>
         </Border>
 

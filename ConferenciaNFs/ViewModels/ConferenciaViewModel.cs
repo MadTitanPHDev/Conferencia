@@ -22,6 +22,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _modoSomenteSelecionadas;
     private bool _atualizandoFiltro;
     private bool _duploCliqueCopiaNumero;
+    private string _textoBuscaNota = string.Empty;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
@@ -59,6 +60,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         ExportarConferenciaCommand = new AsyncRelayCommand(_ => ExportarConferenciaAsync());
         SelecionarTodosFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(true));
         LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
+        LimparBuscaNotaCommand = new RelayCommand(_ => TextoBuscaNota = string.Empty);
         CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => NotaSelecionada is not null);
         AbrirItensCommand = new RelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
         AlternarDuploCliqueCommand = new RelayCommand(_ => DuploCliqueCopiaNumero = !DuploCliqueCopiaNumero);
@@ -95,6 +97,20 @@ public sealed class ConferenciaViewModel : ViewModelBase
         ? "Modo: somente status marcados"
         : "Modo: priorizar status marcados no topo";
 
+    public string TextoBuscaNota
+    {
+        get => _textoBuscaNota;
+        set
+        {
+            if (!SetProperty(ref _textoBuscaNota, value))
+                return;
+
+            AplicarFiltroNotas();
+        }
+    }
+
+    public ICommand LimparBuscaNotaCommand { get; }
+
     public bool DuploCliqueCopiaNumero
     {
         get => _duploCliqueCopiaNumero;
@@ -123,8 +139,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
         : "F12: duplo clique passa a copiar o numero";
 
     public string TextoAtalhos => DuploCliqueCopiaNumero
-        ? "Esc: fechar · Duplo clique: copiar numero · F12: abre itens · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"
-        : "Esc: fechar · Duplo clique: itens · F12: copia numero · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver";
+        ? "Esc: fechar · Ctrl+F: buscar nota · Duplo clique: copiar numero · F12: abre itens · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"
+        : "Esc: fechar · Ctrl+F: buscar nota · Duplo clique: itens · F12: copia numero · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver";
 
     public NotaFiscal? NotaSelecionada
     {
@@ -232,7 +248,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
             return;
         }
 
-        var janela = new DetalheNotaWindow(_vsmReader, NotaSelecionada)
+        var janela = new DetalheNotaWindow(_vsmReader, NotaSelecionada, _repository)
         {
             Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
                 ?? Application.Current.MainWindow
@@ -282,6 +298,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
         IEnumerable<NotaFiscal> query = Notas;
 
+        if (!string.IsNullOrWhiteSpace(TextoBuscaNota))
+            query = query.Where(n => NotaCorrespondeBusca(n, TextoBuscaNota));
+
         if (ModoSomenteSelecionadas)
         {
             query = query.Where(n => statusAtivos.Contains(n.StatusConferencia));
@@ -302,6 +321,29 @@ public sealed class ConferenciaViewModel : ViewModelBase
             NotaSelecionada = selecionadaAntes;
         else
             NotaSelecionada = NotasVisiveis.FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(TextoBuscaNota))
+        {
+            MensagemStatus = NotasVisiveis.Count == 0
+                ? $"Nenhuma nota com '{TextoBuscaNota.Trim()}' nesta loja."
+                : $"{NotasVisiveis.Count} nota(s) com '{TextoBuscaNota.Trim()}' nesta loja.";
+        }
+    }
+
+    private static bool NotaCorrespondeBusca(NotaFiscal nota, string busca)
+    {
+        var termo = busca.Trim();
+        if (termo.Length == 0)
+            return true;
+
+        if (nota.NumNota.Contains(termo, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var notaNorm = NumNotaNormalizer.Normalizar(nota.NumNota);
+        var termoNorm = NumNotaNormalizer.Normalizar(termo);
+        return termoNorm.Length > 0
+               && (notaNorm.Contains(termoNorm, StringComparison.OrdinalIgnoreCase)
+                   || termoNorm.Contains(notaNorm, StringComparison.OrdinalIgnoreCase));
     }
 
     private void DefinirTodosFiltros(bool ativo)

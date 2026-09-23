@@ -19,6 +19,7 @@ public sealed class ItemCompraVsm
     public decimal QuantConferida { get; set; }
     public string? CodProdDistr { get; set; }
     public string? BarrasEan { get; set; }
+    public string? BarrasEanTrib { get; set; }
     public string? NumLote { get; set; }
     public DateTime? DataValidade { get; set; }
 }

@@ -83,12 +83,54 @@
                         VerticalAlignment="Top">
                 <controls:ThemeToggle Margin="0,0,6,0"/>
                 <controls:PinWindowToggle Margin="0,0,6,0"/>
+                <Button x:Name="BtnBuscarPreco"
+                        Content="Buscar preco"
+                        Command="{Binding AlternarPopupPrecosCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Padding="12,6"
+                        FontSize="12"
+                        Margin="0,0,6,0"
+                        Visibility="{Binding PodeCompararPrecos, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 <Button Content="Fechar"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="12,6"
                         FontSize="12"
                         Click="Fechar_Click"/>
             </StackPanel>
+            <Popup PlacementTarget="{Binding ElementName=BtnBuscarPreco}"
+                   Placement="Bottom"
+                   StaysOpen="True"
+                   AllowsTransparency="True"
+                   IsOpen="{Binding PopupPrecosAberto, Mode=TwoWay}">
+                <Border Background="{DynamicResource Brush.Surface}"
+                        BorderBrush="{DynamicResource Brush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        MinWidth="260"
+                        MaxHeight="320">
+                    <StackPanel>
+                        <TextBlock Text="Selecione as tabelas"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding Importacoes}"
+                                      MaxHeight="200">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Rotulo}"
+                                              IsChecked="{Binding EstaSelecionada}"
+                                              Margin="0,0,0,6"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="Buscar"
+                                Command="{Binding CompararPrecosCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+            </Popup>
         </Grid>
 
         <Border Grid.Row="1"
@@ -125,6 +167,34 @@
                       HeadersVisibility="Column"
                       RowHeaderWidth="0"
                       MouseDoubleClick="GrdItens_MouseDoubleClick">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Setter Property="Background" Value="{DynamicResource Brush.RowDefault}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Verde">
+                                <Setter Property="Background" Value="#92D050"/>
+                                <Setter Property="Foreground" Value="#1A2E05"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="AzulClaro">
+                                <Setter Property="Background" Value="#9DC3E6"/>
+                                <Setter Property="Foreground" Value="#0F2A44"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Vermelho">
+                                <Setter Property="Background" Value="#FF6B6B"/>
+                                <Setter Property="Foreground" Value="#3B0000"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Cinza">
+                                <Setter Property="Background" Value="#D9D9D9"/>
+                                <Setter Property="Foreground" Value="#333333"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Ambar">
+                                <Setter Property="Background" Value="#FFC000"/>
+                                <Setter Property="Foreground" Value="#3D2E00"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Codigo"
                                         Binding="{Binding CodProd}"
@@ -150,6 +220,11 @@
                                         Binding="{Binding CustoUnit, StringFormat='R$ {0:N2}'}"
                                         Width="100"
                                         MinWidth="90"
+                                        ElementStyle="{StaticResource DetalheNotaCellTextoStyle}"/>
+                    <DataGridTextColumn Header="vs tabela"
+                                        Binding="{Binding TextoVsTabela}"
+                                        Width="200"
+                                        MinWidth="140"
                                         ElementStyle="{StaticResource DetalheNotaCellTextoStyle}"/>
                     <DataGridTextColumn Header="Lote"
                                         Binding="{Binding NumLote}"

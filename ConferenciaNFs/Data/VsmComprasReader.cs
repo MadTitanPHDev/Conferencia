@@ -106,6 +106,7 @@ public sealed class VsmComprasReader
                 QUANTCONFERIDA   AS QuantConferida,
                 CODPRODDISTR     AS CodProdDistr,
                 BARRAS_EAN       AS BarrasEan,
+                BARRAS_EANTRIB   AS BarrasEanTrib,
                 NUMLOTE          AS NumLote,
                 DATAVALIDADE     AS DataValidade
             FROM itens_compra

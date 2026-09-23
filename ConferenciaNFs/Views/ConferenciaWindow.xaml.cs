@@ -28,6 +28,14 @@ public partial class ConferenciaWindow : Window
 
     private void ConferenciaWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            TxtBuscaNota.Focus();
+            TxtBuscaNota.SelectAll();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.Escape)
             return;
 

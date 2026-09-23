@@ -47,6 +47,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         AbrirConferenciaCommand = new RelayCommand(AbrirConferencia, param => param is LojaPendencia);
         GerenciarLojasCommand = new RelayCommand(GerenciarLojas);
         GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
+        GerenciarPrecosCommand = new RelayCommand(GerenciarPrecos);
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
@@ -145,6 +146,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand AbrirConferenciaCommand { get; }
     public ICommand GerenciarLojasCommand { get; }
     public ICommand GerenciarDistribuidorasCommand { get; }
+    public ICommand GerenciarPrecosCommand { get; }
     public ICommand DevolucoesCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand PesquisarProdutoCommand { get; }
@@ -749,6 +751,16 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private void GerenciarDistribuidoras(object? parameter)
     {
         var janela = new GerenciarDistribuidorasWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
+    }
+
+    private void GerenciarPrecos(object? parameter)
+    {
+        var janela = new GerenciarPrecosWindow(_repository)
         {
             Owner = Application.Current.MainWindow
         };

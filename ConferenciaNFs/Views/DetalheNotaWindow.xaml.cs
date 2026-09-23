@@ -11,10 +11,13 @@ namespace ConferenciaNFs.Views;
 
 public partial class DetalheNotaWindow : Window
 {
-    public DetalheNotaWindow(VsmComprasReader reader, NotaFiscal nota)
+    public DetalheNotaWindow(
+        VsmComprasReader reader,
+        NotaFiscal nota,
+        NotaFiscalRepository? repository = null)
     {
         InitializeComponent();
-        DataContext = new DetalheNotaViewModel(reader, nota);
+        DataContext = new DetalheNotaViewModel(reader, nota, repository);
         Title = ((DetalheNotaViewModel)DataContext).TituloNota;
         Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
         PreviewKeyDown += DetalheNotaWindow_PreviewKeyDown;

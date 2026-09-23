@@ -65,6 +65,10 @@
                             Command="{Binding GerenciarDistribuidorasCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Tabelas de preco"
+                            Command="{Binding GerenciarPrecosCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
                     <Button Content="  Devolucoes"
                             Command="{Binding DevolucoesCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"

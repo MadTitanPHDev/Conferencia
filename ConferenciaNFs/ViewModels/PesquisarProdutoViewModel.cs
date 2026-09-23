@@ -151,7 +151,7 @@ public sealed class PesquisarProdutoViewModel : ViewModelBase
             DataCompra = ItemSelecionado.DataCompra
         };
 
-        var janela = new DetalheNotaWindow(_reader, nota)
+        var janela = new DetalheNotaWindow(_reader, nota, _repository)
         {
             Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
                 ?? Application.Current.MainWindow
