@@ -20,7 +20,7 @@ public sealed class ItemNotaPrecoLinha : ViewModelBase
     public string? BarrasEanTrib => Item.BarrasEanTrib;
     public string? NomeProd => Item.NomeProd;
     public decimal QuantItemCompra => Item.QuantItemCompra;
-    public decimal CustoUnit => Item.CustoUnit;
+    public decimal CustoUnit => Item.CustoNota;
     public string? NumLote => Item.NumLote;
     public DateTime? DataValidade => Item.DataValidade;
     public decimal QuantConferida => Item.QuantConferida;

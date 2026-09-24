@@ -100,6 +100,7 @@ public sealed class VsmComprasReader
                 QUANTITEMCOMPRA  AS QuantItemCompra,
                 VALORITEMCOMPRA  AS ValorItemCompra,
                 VALORITEMFABRICA AS ValorItemFabrica,
+                DESCONTO         AS Desconto,
                 CUSTOUNIT        AS CustoUnit,
                 PRECOVENDANOVO   AS PrecoVendaNovo,
                 QUANTDEVOL       AS QuantDevol,
@@ -151,13 +152,13 @@ public sealed class VsmComprasReader
                 i.CODPROD          AS CodProd,
                 i.NOMEPROD         AS NomeProd,
                 i.QUANTITEMCOMPRA  AS QuantItemCompra,
-                i.CUSTOUNIT        AS CustoUnit,
+                (i.VALORITEMCOMPRA - IFNULL(i.DESCONTO, 0)) AS CustoUnit,
                 i.BARRAS_EAN       AS BarrasEan
             FROM itens_compra i
             INNER JOIN compras c ON c.CODCOMPRA = i.CODCOMPRA
             WHERE (i.BARRAS_EAN = @Ean OR i.BARRAS_EANTRIB = @Ean)
               AND c.DATACOMPRA >= @DataInicio
-              AND (@CustoMinimo IS NULL OR i.CUSTOUNIT > @CustoMinimo)
+              AND (@CustoMinimo IS NULL OR (i.VALORITEMCOMPRA - IFNULL(i.DESCONTO, 0)) > @CustoMinimo)
             ORDER BY c.DATACOMPRA DESC, i.CODCOMPRA DESC
             LIMIT @Limite
             """;

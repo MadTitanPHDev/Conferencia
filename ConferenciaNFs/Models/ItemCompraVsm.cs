@@ -13,7 +13,13 @@ public sealed class ItemCompraVsm
     public decimal QuantItemCompra { get; set; }
     public decimal ValorItemCompra { get; set; }
     public decimal ValorItemFabrica { get; set; }
+    public decimal Desconto { get; set; }
+
+    /// <summary>Custo após formação de preços no VSM. Costuma ficar 0 até acertarem o item.</summary>
     public decimal CustoUnit { get; set; }
+
+    /// <summary>Preço de compra da NF já com desconto do item (VALORITEMCOMPRA − DESCONTO).</summary>
+    public decimal CustoNota => Math.Max(0m, ValorItemCompra - Desconto);
     public decimal PrecoVendaNovo { get; set; }
     public decimal QuantDevol { get; set; }
     public decimal QuantConferida { get; set; }
