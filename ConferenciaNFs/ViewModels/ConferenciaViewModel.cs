@@ -228,17 +228,17 @@ public sealed class ConferenciaViewModel : ViewModelBase
             return;
         }
 
-        if (_vsmReader is null)
+        if (_vsmReader is null && NotaSelecionada.CodCompra is not int)
         {
             MessageBox.Show(
-                "A conexao com o VSM nao esta configurada.\nNao e possivel carregar os itens da nota.",
+                "A conexao com o VSM nao esta configurada e esta nota nao tem foto de itens.",
                 "Itens da nota",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
         }
 
-        if (NotaSelecionada.CodCompra is not int codCompra || codCompra <= 0)
+        if (_vsmReader is not null && (NotaSelecionada.CodCompra is not int codCompra || codCompra <= 0))
         {
             MessageBox.Show(
                 "Esta nota nao tem codigo do VSM.\nSincronize o dia para carregar os itens.",
@@ -387,7 +387,21 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
         try
         {
+            if (novoStatus == StatusConferenciaValues.Vermelho)
+            {
+                if (!await ConfirmarPreNotaAsync())
+                    return;
+                NotaSelecionada.StatusConferencia = novoStatus;
+                MensagemStatus =
+                    $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).";
+                AplicarFiltroNotas();
+                return;
+            }
+
             await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
+
+            if (novoStatus == StatusConferenciaValues.Amarelo)
+                await TentarFotografarItensAsync();
             NotaSelecionada.StatusConferencia = novoStatus;
             MensagemStatus = novoStatus == StatusConferenciaValues.Vermelho
                 ? $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (entrou na fila de devolucoes)."
@@ -398,6 +412,35 @@ public sealed class ConferenciaViewModel : ViewModelBase
         {
             MessageBox.Show($"Erro ao atualizar status:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task<bool> ConfirmarPreNotaAsync()
+    {
+        if (NotaSelecionada is null)
+            return false;
+
+        var janela = new PreNotaWindow(_repository, _vsmReader, NotaSelecionada)
+        {
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
+                ?? Application.Current.MainWindow
+        };
+
+        return janela.ShowDialog() == true && janela.Confirmou;
+    }
+
+    private async Task TentarFotografarItensAsync()
+    {
+        if (NotaSelecionada is null)
+            return;
+
+        try
+        {
+            await ItemNotaSnapshotServico.GarantirAsync(_repository, _vsmReader, NotaSelecionada);
+        }
+        catch
+        {
+            // Foto e melhor esforco: o Amarelo ja foi gravado.
         }
     }
 

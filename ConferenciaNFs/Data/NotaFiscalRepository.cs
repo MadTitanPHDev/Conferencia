@@ -10,7 +10,7 @@ using Npgsql;
 
 namespace ConferenciaNFs.Data;
 
-public sealed class NotaFiscalRepository
+public sealed partial class NotaFiscalRepository
 {
     private const int LinhasMetadados = 7;
 
@@ -85,11 +85,39 @@ public sealed class NotaFiscalRepository
         InicializarTabelaDistribuidoras(connection);
         InicializarTabelaAppConfig(connection);
         InicializarTabelaDevolucoes(connection);
+        InicializarTabelaItensNota(connection);
+        InicializarTabelaMotivosDevolucao(connection);
+        InicializarTabelaDevolucaoItens(connection);
+        InicializarTabelaDevolucaoObservacoes(connection);
+        AplicarCorteFilaDevolucoesPorAcao(connection);
         InicializarTabelaPrecos(connection);
         CorrigirNotasLojasVsm2a5(connection);
     }
 
+    /// <summary>
+    /// Mesma compra/NF em dias de conferencia diferentes (aliases n e n2).
+    /// </summary>
+    private const string SqlMesmaIdentidadeNotas = """
+        (
+            (COALESCE(n.CodCompra, 0) > 0 AND n2.CodCompra = n.CodCompra)
+         OR (
+                TRIM(COALESCE(n.NfeChaveAcesso, '')) <> ''
+            AND TRIM(COALESCE(n2.NfeChaveAcesso, '')) <> ''
+            AND n2.NfeChaveAcesso = n.NfeChaveAcesso
+            )
+         OR (
+                n2.ApelidoLoja = n.ApelidoLoja
+            AND COALESCE(NULLIF(LTRIM(TRIM(n2.NumNota), '0'), ''), '0')
+              = COALESCE(NULLIF(LTRIM(TRIM(n.NumNota), '0'), ''), '0')
+            AND regexp_replace(COALESCE(n2.CnpjForn, ''), '[^0-9]', '', 'g')
+              = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+            )
+        )
+        """;
+
     private const string ConfigDevolucoesDataMinima = "DevolucoesDataMinima";
+    private const string ConfigCorteFilaDevolucoesAcao = "CorteFilaDevolucoesAcao_2026-10-01";
+    private static readonly DateTime InicioFilaDevolucoesPorAcao = new(2026, 10, 1);
     private const string ConfigHerancaStatusImportacao = "HerancaStatusImportacao";
     private const string ConfigCorrecaoLojasVsm2a5 = "CorrecaoLojasVsm2a5";
     private const string ValorCorrecaoLojasVsm2a5 = "1";
@@ -166,28 +194,48 @@ public sealed class NotaFiscalRepository
                 ON Devolucoes (NotaFiscalId);
             """);
 
-        // Notas Vermelho entram na fila se ainda nao tiverem registro (respeita data minima por emissao).
-        connection.Execute($"""
-            INSERT INTO Devolucoes (NotaFiscalId, StatusDevolucao, DataMarcada, Observacao)
-            SELECT
-                n.Id,
-                'Pendente',
-                COALESCE(NULLIF(TRIM(n.DiaConferencia), ''), to_char(CURRENT_DATE, 'DD/MM/YYYY')),
-                ''
-            FROM NotasFiscais n
-            LEFT JOIN Devolucoes d ON d.NotaFiscalId = n.Id
-            LEFT JOIN AppConfig cfg ON cfg.Chave = '{ConfigDevolucoesDataMinima}'
-            WHERE n.StatusConferencia = 'Vermelho'
-              AND d.Id IS NULL
-              AND (
-                cfg.Valor IS NULL OR TRIM(cfg.Valor) = ''
-                OR (
-                    NULLIF(TRIM(n.DataEmissao), '') IS NOT NULL
-                    AND to_date(NULLIF(TRIM(n.DataEmissao), ''), 'DD/MM/YYYY')
-                        >= to_date(NULLIF(TRIM(cfg.Valor), ''), 'DD/MM/YYYY')
-                )
-              );
+        connection.Execute("""
+            ALTER TABLE Devolucoes
+            ADD COLUMN IF NOT EXISTS Andamento TEXT NOT NULL DEFAULT 'AguardandoLoja';
+
+            CREATE INDEX IF NOT EXISTS IX_Devolucoes_Andamento
+                ON Devolucoes (Andamento);
             """);
+    }
+
+    private static void AplicarCorteFilaDevolucoesPorAcao(NpgsqlConnection connection)
+    {
+        var jaAplicou = connection.ExecuteScalar<string?>("""
+            SELECT Valor
+            FROM AppConfig
+            WHERE Chave = @Chave
+            """, new { Chave = ConfigCorteFilaDevolucoesAcao });
+
+        if (string.Equals(jaAplicou?.Trim(), "1", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var inicio = DataCompraParser.Formatar(InicioFilaDevolucoesPorAcao);
+
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, @Valor)
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new
+        {
+            Chave = ConfigDevolucoesDataMinima,
+            Valor = inicio
+        });
+
+        connection.Execute("""
+            DELETE FROM Devolucoes
+            WHERE StatusDevolucao = @StatusPendente
+            """, new { StatusPendente = StatusDevolucaoValues.Pendente });
+
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, '1')
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new { Chave = ConfigCorteFilaDevolucoesAcao });
     }
 
     private static void InicializarTabelaDistribuidoras(NpgsqlConnection connection)
@@ -207,26 +255,103 @@ public sealed class NotaFiscalRepository
                 ON Distribuidoras (RastrearPrazo);
             """);
 
-        // Popular a partir de notas ja importadas (sem sobrescrever prazo/rastreio).
         connection.Execute("""
             INSERT INTO Distribuidoras (CnpjForn, NomeForn, PrazoDevolucaoDias, RastrearPrazo)
-            SELECT DISTINCT ON (TRIM(CnpjForn))
-                TRIM(CnpjForn),
-                COALESCE(NULLIF(TRIM(NomeForn), ''), TRIM(CnpjForn)),
+            SELECT
+                s.CnpjDig,
+                s.NomeForn,
                 NULL,
                 FALSE
-            FROM NotasFiscais
-            WHERE CnpjForn IS NOT NULL AND TRIM(CnpjForn) <> ''
-            ORDER BY TRIM(CnpjForn), Id DESC
+            FROM (
+                SELECT DISTINCT ON (regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g'))
+                    regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g') AS CnpjDig,
+                    CASE
+                        WHEN TRIM(COALESCE(NomeForn, '')) ~ '^[0-9./ -]+$' THEN ''
+                        WHEN regexp_replace(TRIM(COALESCE(NomeForn, '')), '[^0-9]', '', 'g')
+                           = regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g') THEN ''
+                        ELSE TRIM(NomeForn)
+                    END AS NomeForn
+                FROM NotasFiscais
+                WHERE CnpjForn IS NOT NULL AND TRIM(CnpjForn) <> ''
+                ORDER BY
+                    regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g'),
+                    CASE
+                        WHEN TRIM(COALESCE(NomeForn, '')) ~ '^[0-9./ -]+$' THEN 1
+                        WHEN regexp_replace(TRIM(COALESCE(NomeForn, '')), '[^0-9]', '', 'g')
+                           = regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g') THEN 1
+                        ELSE 0
+                    END,
+                    length(TRIM(COALESCE(NomeForn, ''))) DESC,
+                    Id DESC
+            ) s
+            WHERE s.CnpjDig <> ''
             ON CONFLICT (CnpjForn) DO UPDATE SET
-                NomeForn = EXCLUDED.NomeForn;
+                NomeForn = CASE
+                    WHEN EXCLUDED.NomeForn <> '' THEN EXCLUDED.NomeForn
+                    ELSE Distribuidoras.NomeForn
+                END;
             """);
 
-        // Normaliza CNPJs antigos (com mascara) para apenas digitos.
         connection.Execute("""
             UPDATE Distribuidoras
             SET CnpjForn = regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g')
             WHERE CnpjForn ~ '[^0-9]';
+            """);
+
+        CorrigirNomesDistribuidorasComCnpj(connection);
+    }
+
+    private static void CorrigirNomesDistribuidorasComCnpj(NpgsqlConnection connection)
+    {
+        connection.Execute("""
+            UPDATE Distribuidoras d
+            SET NomeForn = s.NomeMelhor
+            FROM (
+                SELECT
+                    regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g') AS CnpjDig,
+                    (array_agg(TRIM(NomeForn) ORDER BY
+                        CASE
+                            WHEN TRIM(NomeForn) ~ '^[0-9./ -]+$' THEN 1
+                            WHEN regexp_replace(TRIM(NomeForn), '[^0-9]', '', 'g')
+                               = regexp_replace(TRIM(CnpjForn), '[^0-9]', '', 'g') THEN 1
+                            ELSE 0
+                        END,
+                        length(TRIM(NomeForn)) DESC,
+                        Id DESC
+                    ))[1] AS NomeMelhor
+                FROM NotasFiscais
+                WHERE CnpjForn IS NOT NULL AND TRIM(CnpjForn) <> ''
+                  AND NomeForn IS NOT NULL AND TRIM(NomeForn) <> ''
+                GROUP BY 1
+            ) s
+            WHERE regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g') = s.CnpjDig
+              AND TRIM(COALESCE(s.NomeMelhor, '')) <> ''
+              AND s.NomeMelhor !~ '^[0-9./ -]+$'
+              AND regexp_replace(s.NomeMelhor, '[^0-9]', '', 'g') <> s.CnpjDig
+              AND (
+                    TRIM(COALESCE(d.NomeForn, '')) = ''
+                 OR d.NomeForn ~ '^[0-9./ -]+$'
+                 OR regexp_replace(COALESCE(d.NomeForn, ''), '[^0-9]', '', 'g')
+                    = regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
+              );
+            """);
+
+        connection.Execute("""
+            UPDATE NotasFiscais n
+            SET NomeForn = d.NomeForn
+            FROM Distribuidoras d
+            WHERE regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+                = regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
+              AND TRIM(COALESCE(d.NomeForn, '')) <> ''
+              AND d.NomeForn !~ '^[0-9./ -]+$'
+              AND regexp_replace(d.NomeForn, '[^0-9]', '', 'g')
+                <> regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
+              AND (
+                    TRIM(COALESCE(n.NomeForn, '')) = ''
+                 OR n.NomeForn ~ '^[0-9./ -]+$'
+                 OR regexp_replace(COALESCE(n.NomeForn, ''), '[^0-9]', '', 'g')
+                    = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+              );
             """);
     }
 
@@ -298,6 +423,10 @@ public sealed class NotaFiscalRepository
             UPDATE LojaOrdem
             SET ApelidoLoja = 'LUCELIA CE', NomeExibicao = 'Lucelia Centro'
             WHERE ApelidoLoja = '__TMP_LUCELIA_CE__';
+
+            UPDATE LojaOrdem
+            SET NomeExibicao = 'Paraguaçu'
+            WHERE ApelidoLoja = 'PARAGUACU';
             """);
     }
 
@@ -571,27 +700,59 @@ public sealed class NotaFiscalRepository
             StatusVermelho = StatusConferenciaValues.Vermelho
         }, transaction);
 
+        // Varias linhas da mesma NF (um dia de conferencia cada): fica a mais antiga,
+        // ou a que ja tem itens da pre-nota.
         connection.Execute($"""
-            INSERT INTO Devolucoes (NotaFiscalId, StatusDevolucao, DataMarcada, Observacao)
-            SELECT
-                n.Id,
-                'Pendente',
-                COALESCE(NULLIF(TRIM(n.DiaConferencia), ''), to_char(CURRENT_DATE, 'DD/MM/YYYY')),
-                ''
-            FROM NotasFiscais n
-            LEFT JOIN Devolucoes d ON d.NotaFiscalId = n.Id
-            LEFT JOIN AppConfig cfg ON cfg.Chave = '{ConfigDevolucoesDataMinima}'
-            WHERE n.StatusConferencia = 'Vermelho'
-              AND d.Id IS NULL
-              AND (
-                cfg.Valor IS NULL OR TRIM(cfg.Valor) = ''
-                OR (
-                    NULLIF(TRIM(n.DataEmissao), '') IS NOT NULL
-                    AND to_date(NULLIF(TRIM(n.DataEmissao), ''), 'DD/MM/YYYY')
-                        >= to_date(NULLIF(TRIM(cfg.Valor), ''), 'DD/MM/YYYY')
-                )
+            DELETE FROM Devolucoes d
+            USING NotasFiscais n
+            WHERE d.NotaFiscalId = n.Id
+              AND d.StatusDevolucao = @StatusPendente
+              AND EXISTS (
+                  SELECT 1
+                  FROM Devolucoes d2
+                  INNER JOIN NotasFiscais n2 ON n2.Id = d2.NotaFiscalId
+                  WHERE d2.Id <> d.Id
+                    AND {SqlMesmaIdentidadeNotas}
+                    AND (
+                        (
+                            EXISTS (SELECT 1 FROM DevolucaoItens i WHERE i.DevolucaoId = d2.Id)
+                            AND NOT EXISTS (SELECT 1 FROM DevolucaoItens i WHERE i.DevolucaoId = d.Id)
+                        )
+                        OR (
+                            (EXISTS (SELECT 1 FROM DevolucaoItens i WHERE i.DevolucaoId = d2.Id))
+                            = (EXISTS (SELECT 1 FROM DevolucaoItens i WHERE i.DevolucaoId = d.Id))
+                            AND d2.Id < d.Id
+                        )
+                    )
               )
-            """, transaction: transaction);
+            """, new { StatusPendente = StatusDevolucaoValues.Pendente }, transaction);
+
+        connection.Execute($"""
+            UPDATE NotasFiscais n
+            SET StatusConferencia = @StatusLaranja
+            WHERE n.StatusConferencia = @StatusVermelho
+              AND NOT EXISTS (
+                  SELECT 1 FROM Devolucoes d WHERE d.NotaFiscalId = n.Id
+              )
+              AND EXISTS (
+                  SELECT 1
+                  FROM Devolucoes d2
+                  INNER JOIN NotasFiscais n2 ON n2.Id = d2.NotaFiscalId
+                  WHERE n2.Id <> n.Id
+                    AND {SqlMesmaIdentidadeNotas}
+              )
+            """, new
+        {
+            StatusLaranja = StatusConferenciaValues.Laranja,
+            StatusVermelho = StatusConferenciaValues.Vermelho
+        }, transaction);
+    }
+
+    public async Task ReconciliarFilaDevolucoesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        ReconciliarFilaDevolucoes(connection, transaction: null);
     }
 
     public async Task<IReadOnlyDictionary<int, LojaVsmMap>> ObterMapaLojasVsmAsync(
@@ -664,7 +825,14 @@ public sealed class NotaFiscalRepository
             )
             ON CONFLICT (ChaveUnica) DO UPDATE SET
                 ApelidoLoja = EXCLUDED.ApelidoLoja,
-                NomeForn = EXCLUDED.NomeForn,
+                NomeForn = CASE
+                    WHEN EXCLUDED.NomeForn <> ''
+                     AND EXCLUDED.NomeForn !~ '^[0-9./ -]+$'
+                     AND regexp_replace(EXCLUDED.NomeForn, '[^0-9]', '', 'g')
+                       <> regexp_replace(COALESCE(EXCLUDED.CnpjForn, ''), '[^0-9]', '', 'g')
+                    THEN EXCLUDED.NomeForn
+                    ELSE NotasFiscais.NomeForn
+                END,
                 ValorNota = EXCLUDED.ValorNota,
                 DataCompra = EXCLUDED.DataCompra,
                 DiaConferencia = EXCLUDED.DiaConferencia,
@@ -719,6 +887,8 @@ public sealed class NotaFiscalRepository
         if (herancaAtiva)
             CorrigirLaranjasSemHistorico(connection, transaction, dia);
 
+        ReconciliarFilaDevolucoes(connection, transaction);
+
         await transaction.CommitAsync(cancellationToken);
         return inseridos;
     }
@@ -765,7 +935,11 @@ public sealed class NotaFiscalRepository
             ON CONFLICT (ChaveUnica) DO UPDATE SET
                 ApelidoLoja = EXCLUDED.ApelidoLoja,
                 NomeForn = CASE
-                    WHEN EXCLUDED.NomeForn <> '' THEN EXCLUDED.NomeForn
+                    WHEN EXCLUDED.NomeForn <> ''
+                     AND EXCLUDED.NomeForn !~ '^[0-9./ -]+$'
+                     AND regexp_replace(EXCLUDED.NomeForn, '[^0-9]', '', 'g')
+                       <> regexp_replace(COALESCE(EXCLUDED.CnpjForn, ''), '[^0-9]', '', 'g')
+                    THEN EXCLUDED.NomeForn
                     ELSE NotasFiscais.NomeForn
                 END,
                 ValorNota = EXCLUDED.ValorNota,
@@ -786,6 +960,7 @@ public sealed class NotaFiscalRepository
             LIMIT 1
             """;
 
+        var notasLidas = new List<NotaFiscal>();
         foreach (var compra in compras)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -811,9 +986,10 @@ public sealed class NotaFiscalRepository
                 ? DataCompraParser.Formatar(compra.DataEmissao.Value)
                 : string.Empty;
 
-            nomesPorCnpj.TryGetValue(cnpjForn, out var nomeForn);
-            if (string.IsNullOrWhiteSpace(nomeForn) || CnpjNormalizer.SaoEquivalentes(nomeForn, cnpjForn))
-                nomeForn = cnpjForn;
+            nomesPorCnpj.TryGetValue(cnpjForn, out var nomeMapa);
+            var nomeForn = NomeFornecedorEscolha.Escolher(
+                [compra.NomeForn, nomeMapa],
+                cnpjForn);
 
             var nota = new NotaFiscal
             {
@@ -831,12 +1007,17 @@ public sealed class NotaFiscalRepository
                 CodCompra = compra.CodCompra,
                 NfeChaveAcesso = compra.NfeChaveAcesso?.Trim() ?? string.Empty
             };
+            notasLidas.Add(nota);
 
-            var relocacao = RelocarNotaVsmPorCodCompra(
-                connection,
-                transaction,
-                compra.CodCompra,
-                nota);
+            var relocacao = (Relocou: false, IdRecalcular: (long?)null);
+            if (compra.CodCompra > 0)
+            {
+                relocacao = RelocarNotaVsmPorCodCompra(
+                    connection,
+                    transaction,
+                    compra.CodCompra,
+                    nota);
+            }
 
             if (relocacao.Relocou)
             {
@@ -903,11 +1084,10 @@ public sealed class NotaFiscalRepository
                 resultado.Inseridas++;
         }
 
-        if (resultado.Relocadas > 0)
-            ReconciliarFilaDevolucoes(connection, transaction);
-
         if (herancaAtiva)
             resultado.Atualizadas += CorrigirLaranjasSemHistorico(connection, transaction, dia);
+
+        await SincronizarDistribuidorasAsync(connection, notasLidas, transaction, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         return resultado;
@@ -919,16 +1099,21 @@ public sealed class NotaFiscalRepository
         int codCompra,
         NotaFiscal destino)
     {
+        if (codCompra <= 0)
+            return (false, null);
+
         var deslocadas = connection.Query<NotaVsmDeslocada>("""
             SELECT Id, ApelidoLoja, NumNota, CnpjForn, DiaConferencia, DataCompra,
                    CodCompra, COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
             FROM NotasFiscais
             WHERE CodCompra = @CodCompra
               AND ChaveUnica <> @ChaveUnica
+              AND DiaConferencia = @DiaConferencia
             """, new
         {
             CodCompra = codCompra,
-            destino.ChaveUnica
+            destino.ChaveUnica,
+            DiaConferencia = destino.DiaConferencia
         }, transaction).ToList();
 
         // Outro dia de conferencia: a linha de origem permanece.
@@ -994,33 +1179,60 @@ public sealed class NotaFiscalRepository
         var nomes = new Dictionary<string, string>(StringComparer.Ordinal);
 
         var daDistribuidora = await connection.QueryAsync<(string Cnpj, string? Nome)>(new CommandDefinition("""
-            SELECT regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
-                   MAX(NULLIF(TRIM(NomeForn), '')) AS Nome
-            FROM Distribuidoras
-            GROUP BY regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g')
+            SELECT Cnpj, Nome
+            FROM (
+                SELECT DISTINCT ON (regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g'))
+                    regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
+                    TRIM(NomeForn) AS Nome
+                FROM Distribuidoras
+                WHERE TRIM(COALESCE(CnpjForn, '')) <> ''
+                ORDER BY
+                    regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g'),
+                    CASE
+                        WHEN TRIM(COALESCE(NomeForn, '')) ~ '^[0-9./ -]+$' THEN 1
+                        WHEN regexp_replace(TRIM(COALESCE(NomeForn, '')), '[^0-9]', '', 'g')
+                           = regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') THEN 1
+                        ELSE 0
+                    END,
+                    length(TRIM(COALESCE(NomeForn, ''))) DESC
+            ) s
             """, cancellationToken: cancellationToken));
 
         foreach (var item in daDistribuidora)
         {
             if (string.IsNullOrWhiteSpace(item.Cnpj) || string.IsNullOrWhiteSpace(item.Nome))
                 continue;
-            if (CnpjNormalizer.SaoEquivalentes(item.Nome, item.Cnpj))
+            if (NomeFornecedorEscolha.EhRotuloCnpj(item.Nome, item.Cnpj))
                 continue;
             nomes[item.Cnpj] = item.Nome;
         }
 
         var dasNotas = await connection.QueryAsync<(string Cnpj, string? Nome)>(new CommandDefinition("""
-            SELECT regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
-                   MAX(NULLIF(TRIM(NomeForn), '')) AS Nome
-            FROM NotasFiscais
-            GROUP BY regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g')
+            SELECT Cnpj, Nome
+            FROM (
+                SELECT DISTINCT ON (regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g'))
+                    regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') AS Cnpj,
+                    TRIM(NomeForn) AS Nome
+                FROM NotasFiscais
+                WHERE TRIM(COALESCE(CnpjForn, '')) <> ''
+                ORDER BY
+                    regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g'),
+                    CASE
+                        WHEN TRIM(COALESCE(NomeForn, '')) ~ '^[0-9./ -]+$' THEN 1
+                        WHEN regexp_replace(TRIM(COALESCE(NomeForn, '')), '[^0-9]', '', 'g')
+                           = regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') THEN 1
+                        ELSE 0
+                    END,
+                    length(TRIM(COALESCE(NomeForn, ''))) DESC,
+                    Id DESC
+            ) s
             """, cancellationToken: cancellationToken));
 
         foreach (var item in dasNotas)
         {
             if (string.IsNullOrWhiteSpace(item.Cnpj) || string.IsNullOrWhiteSpace(item.Nome))
                 continue;
-            if (CnpjNormalizer.SaoEquivalentes(item.Nome, item.Cnpj))
+            if (NomeFornecedorEscolha.EhRotuloCnpj(item.Nome, item.Cnpj))
                 continue;
             if (!nomes.ContainsKey(item.Cnpj))
                 nomes[item.Cnpj] = item.Nome;
@@ -1126,6 +1338,8 @@ public sealed class NotaFiscalRepository
 
             atualizadas++;
         }
+
+        ReconciliarFilaDevolucoes(connection, transaction);
 
         await transaction.CommitAsync(cancellationToken);
         return atualizadas;
@@ -1345,13 +1559,12 @@ public sealed class NotaFiscalRepository
         if (!StatusHerancaImportacao.TemStatusConferido(ultima.StatusConferencia))
             return null;
 
-        var devolucaoConcluida = connection.ExecuteScalar<bool>("""
+        var devolucaoJaRegistrada = connection.ExecuteScalar<bool>("""
             SELECT EXISTS (
                 SELECT 1
                 FROM Devolucoes d
                 INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
-                WHERE d.StatusDevolucao IN (@Devolvida, @PerdeuPrazo)
-                  AND (
+                WHERE (
                         (@CodCompra > 0 AND n.CodCompra = @CodCompra)
                      OR (@ChaveNfe <> '' AND n.NfeChaveAcesso = @ChaveNfe)
                      OR (
@@ -1368,15 +1581,13 @@ public sealed class NotaFiscalRepository
             NumNotaNorm = string.IsNullOrEmpty(numNotaNormalizado) ? numNotaTrim : numNotaNormalizado,
             CnpjForn = cnpjNormalizado,
             ChaveNfe = chaveNfe,
-            CodCompra = cod,
-            Devolvida = StatusDevolucaoValues.Devolvida,
-            PerdeuPrazo = StatusDevolucaoValues.PerdeuPrazo
+            CodCompra = cod
         }, transaction);
 
         return StatusHerancaImportacao.Calcular(
             ultima.StatusConferencia,
             ultima.Observacao,
-            devolucaoConcluida);
+            devolucaoJaRegistrada);
     }
 
     private static async Task SincronizarDistribuidorasAsync(
@@ -1387,14 +1598,11 @@ public sealed class NotaFiscalRepository
     {
         var porCnpj = registros
             .Where(n => !string.IsNullOrWhiteSpace(n.CnpjForn))
-            .GroupBy(n => n.CnpjForn.Trim(), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(n => CnpjNormalizer.Normalizar(n.CnpjForn.Trim()), StringComparer.Ordinal)
             .Select(g => new
             {
-                CnpjForn = CnpjNormalizer.Normalizar(g.Key),
-                NomeForn = g
-                    .Select(n => n.NomeForn?.Trim() ?? string.Empty)
-                    .LastOrDefault(n => !string.IsNullOrWhiteSpace(n))
-                    ?? CnpjNormalizer.Normalizar(g.Key)
+                CnpjForn = g.Key,
+                NomeForn = NomeFornecedorEscolha.Escolher(g.Select(n => n.NomeForn), g.Key)
             })
             .Where(x => !string.IsNullOrWhiteSpace(x.CnpjForn));
 
@@ -1402,7 +1610,10 @@ public sealed class NotaFiscalRepository
             INSERT INTO Distribuidoras (CnpjForn, NomeForn, PrazoDevolucaoDias, RastrearPrazo)
             VALUES (@CnpjForn, @NomeForn, NULL, FALSE)
             ON CONFLICT (CnpjForn) DO UPDATE SET
-                NomeForn = EXCLUDED.NomeForn;
+                NomeForn = CASE
+                    WHEN EXCLUDED.NomeForn <> '' THEN EXCLUDED.NomeForn
+                    ELSE Distribuidoras.NomeForn
+                END;
             """;
 
         foreach (var item in porCnpj)
@@ -1847,7 +2058,7 @@ public sealed class NotaFiscalRepository
             && statusAtual != StatusConferenciaValues.Vermelho)
         {
             var dataMinima = await ObterDataMinimaDevolucoesInternalAsync(connection, transaction);
-            if (await NotaEntraNoPeriodoDevolucaoAsync(connection, transaction, id, dataMinima))
+            if (FilaAceitaNovosRegistros(dataMinima))
                 await RegistrarDevolucaoPendenteAsync(connection, transaction, id, cancellationToken);
         }
         else if (status != StatusConferenciaValues.Vermelho
@@ -1868,26 +2079,12 @@ public sealed class NotaFiscalRepository
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static async Task<bool> NotaEntraNoPeriodoDevolucaoAsync(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long notaFiscalId,
-        DateTime? dataMinima)
+    private static bool FilaAceitaNovosRegistros(DateTime? dataMinima)
     {
         if (!dataMinima.HasValue)
             return true;
 
-        var dataEmissao = await connection.QuerySingleOrDefaultAsync<string?>("""
-            SELECT DataEmissao
-            FROM NotasFiscais
-            WHERE Id = @Id
-            """, new { Id = notaFiscalId }, transaction);
-
-        var emissao = DataCompraParser.TentarConverter(dataEmissao);
-        if (!emissao.HasValue)
-            return false;
-
-        return emissao.Value.Date >= dataMinima.Value.Date;
+        return DateTime.Today >= dataMinima.Value.Date;
     }
 
     private static bool DevolucaoVisivelNoPeriodo(DevolucaoItem item, DateTime? dataMinima)
@@ -1898,33 +2095,57 @@ public sealed class NotaFiscalRepository
         if (!dataMinima.HasValue)
             return true;
 
-        var emissao = item.DataReferenciaRastreio;
-        return emissao.HasValue && emissao.Value.Date >= dataMinima.Value.Date;
+        var referencia = item.DataReferenciaRastreio;
+        return referencia.HasValue && referencia.Value.Date >= dataMinima.Value.Date;
     }
 
-    private static async Task RegistrarDevolucaoPendenteAsync(
+    private static async Task<long> RegistrarDevolucaoPendenteAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long notaFiscalId,
         CancellationToken cancellationToken)
     {
+        var existente = await connection.QuerySingleOrDefaultAsync<long?>($"""
+            SELECT d.Id
+            FROM Devolucoes d
+            INNER JOIN NotasFiscais n2 ON n2.Id = d.NotaFiscalId
+            INNER JOIN NotasFiscais n ON n.Id = @NotaFiscalId
+            WHERE {SqlMesmaIdentidadeNotas}
+            ORDER BY
+                CASE WHEN d.NotaFiscalId = @NotaFiscalId THEN 0 ELSE 1 END,
+                d.Id
+            LIMIT 1
+            """, new { NotaFiscalId = notaFiscalId }, transaction);
+
+        if (existente.HasValue)
+            return existente.Value;
+
+        var dataMinima = await ObterDataMinimaDevolucoesInternalAsync(connection, transaction);
+        if (!FilaAceitaNovosRegistros(dataMinima))
+            return 0;
+
         var dataMarcada = DataCompraParser.Formatar(DateTime.Today);
         await connection.ExecuteAsync("""
-            INSERT INTO Devolucoes (NotaFiscalId, StatusDevolucao, DataMarcada, DataConclusao, Observacao)
-            VALUES (@NotaFiscalId, @StatusDevolucao, @DataMarcada, NULL, '')
+            INSERT INTO Devolucoes (NotaFiscalId, StatusDevolucao, DataMarcada, DataConclusao, Observacao, Andamento)
+            VALUES (@NotaFiscalId, @StatusDevolucao, @DataMarcada, NULL, '', @Andamento)
             ON CONFLICT (NotaFiscalId) DO UPDATE SET
                 StatusDevolucao = EXCLUDED.StatusDevolucao,
                 DataMarcada = EXCLUDED.DataMarcada,
-                DataConclusao = NULL,
-                Observacao = ''
+                DataConclusao = NULL
             WHERE Devolucoes.StatusDevolucao = @StatusPendente;
             """, new
         {
             NotaFiscalId = notaFiscalId,
             StatusDevolucao = StatusDevolucaoValues.Pendente,
             StatusPendente = StatusDevolucaoValues.Pendente,
-            DataMarcada = dataMarcada
+            DataMarcada = dataMarcada,
+            Andamento = AndamentoDevolucaoValues.AguardandoLoja
         }, transaction);
+
+        return await connection.QuerySingleAsync<long>(
+            "SELECT Id FROM Devolucoes WHERE NotaFiscalId = @NotaFiscalId",
+            new { NotaFiscalId = notaFiscalId },
+            transaction);
     }
 
     public async Task<IReadOnlyList<DevolucaoItem>> ObterDevolucoesAsync(
@@ -1945,6 +2166,7 @@ public sealed class NotaFiscalRepository
                 n.DataEmissao,
                 n.DiaConferencia,
                 d.StatusDevolucao,
+                COALESCE(NULLIF(TRIM(d.Andamento), ''), 'AguardandoLoja') AS Andamento,
                 d.DataMarcada,
                 d.DataConclusao,
                 d.Observacao,
@@ -1957,6 +2179,7 @@ public sealed class NotaFiscalRepository
                 CASE d.StatusDevolucao
                     WHEN 'Pendente' THEN 0
                     WHEN 'Devolvida' THEN 1
+                    WHEN 'Absorvido' THEN 1
                     ELSE 2
                 END,
                 n.DataEmissao,
@@ -2019,6 +2242,7 @@ public sealed class NotaFiscalRepository
                     n.DataEmissao,
                     n.DiaConferencia,
                     d.StatusDevolucao,
+                    COALESCE(NULLIF(TRIM(d.Andamento), ''), 'AguardandoLoja') AS Andamento,
                     d.DataMarcada,
                     d.DataConclusao,
                     d.Observacao,
@@ -2063,12 +2287,12 @@ public sealed class NotaFiscalRepository
     public async Task AtualizarStatusDevolucaoAsync(
         long devolucaoId,
         string statusDevolucao,
-        string? observacao,
         CancellationToken cancellationToken = default)
     {
         if (statusDevolucao is not (
             StatusDevolucaoValues.Pendente
             or StatusDevolucaoValues.Devolvida
+            or StatusDevolucaoValues.Absorvido
             or StatusDevolucaoValues.PerdeuPrazo))
         {
             throw new ArgumentException("Status de devolucao invalido.", nameof(statusDevolucao));
@@ -2084,7 +2308,6 @@ public sealed class NotaFiscalRepository
         var linhas = await connection.ExecuteAsync("""
             UPDATE Devolucoes
             SET StatusDevolucao = @StatusDevolucao,
-                Observacao = @Observacao,
                 DataConclusao = CASE
                     WHEN @StatusDevolucao = 'Pendente' THEN NULL
                     WHEN StatusDevolucao <> @StatusDevolucao THEN @DataConclusaoNova
@@ -2096,9 +2319,29 @@ public sealed class NotaFiscalRepository
         {
             Id = devolucaoId,
             StatusDevolucao = statusDevolucao,
-            Observacao = observacao?.Trim() ?? string.Empty,
             DataConclusaoNova = dataConclusaoNova
         });
+
+        if (linhas == 0)
+            throw new InvalidOperationException($"Devolucao com Id {devolucaoId} nao encontrada.");
+    }
+
+    public async Task AtualizarAndamentoAsync(
+        long devolucaoId,
+        string andamento,
+        CancellationToken cancellationToken = default)
+    {
+        if (!AndamentoDevolucaoValues.EhValido(andamento))
+            throw new ArgumentException("Andamento de devolucao invalido.", nameof(andamento));
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.ExecuteAsync("""
+            UPDATE Devolucoes
+            SET Andamento = @Andamento
+            WHERE Id = @Id
+            """, new { Id = devolucaoId, Andamento = andamento });
 
         if (linhas == 0)
             throw new InvalidOperationException($"Devolucao com Id {devolucaoId} nao encontrada.");

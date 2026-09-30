@@ -28,13 +28,13 @@ public partial class DevolucoesWindow : Window
             e.Handled = true;
     }
 
-    private void GrdDevolucoes_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private async void GrdDevolucoes_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (FindParent<DataGridRow>((DependencyObject)e.OriginalSource) is null)
             return;
 
         if (DataContext is DevolucoesViewModel viewModel)
-            viewModel.CopiarNumeroNotaSelecionada();
+            await viewModel.AbrirItensDaSelecionadaAsync();
     }
 
     private static T? FindParent<T>(DependencyObject? child) where T : DependencyObject

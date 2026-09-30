@@ -48,6 +48,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         GerenciarLojasCommand = new RelayCommand(GerenciarLojas);
         GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
         GerenciarPrecosCommand = new RelayCommand(GerenciarPrecos);
+        GerenciarMotivosCommand = new RelayCommand(GerenciarMotivos);
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
@@ -59,6 +60,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         PresetOntemCommand = new RelayCommand(_ => AplicarPresetOntem());
         PresetDesdeSabadoCommand = new RelayCommand(_ => AplicarPresetDesdeSabado());
         PresetEmAbertoCommand = new AsyncRelayCommand(_ => AplicarPresetEmAbertoAsync());
+        BuscarAtualizacaoCommand = new AsyncRelayCommand(_ => BuscarAtualizacaoAsync());
 
         _ = InicializarAsync();
     }
@@ -147,6 +149,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand GerenciarLojasCommand { get; }
     public ICommand GerenciarDistribuidorasCommand { get; }
     public ICommand GerenciarPrecosCommand { get; }
+    public ICommand GerenciarMotivosCommand { get; }
     public ICommand DevolucoesCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand PesquisarProdutoCommand { get; }
@@ -156,6 +159,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand PresetOntemCommand { get; }
     public ICommand PresetDesdeSabadoCommand { get; }
     public ICommand PresetEmAbertoCommand { get; }
+    public ICommand BuscarAtualizacaoCommand { get; }
+
+    public string VersaoInstalada => AppUpdateService.ObterVersaoInstalada();
 
     /// <summary>
     /// Retoma o intervalo da sessao anterior, mas so enquanto ele ainda termina hoje.
@@ -377,7 +383,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             AtualizarComandosDoDia();
             MensagemStatus = $"Sincronizando notas do VSM em {periodo}...";
 
-            var resultado = await _syncVsm.SincronizarIntervaloAsync(inicio, fim, cancellationToken);
+            var sync = _syncVsm;
+            var resultado = await Task.Run(
+                () => sync.SincronizarIntervaloAsync(inicio, fim, cancellationToken),
+                cancellationToken);
             var detalheIgnoradas = resultado.Ignoradas > 0
                 ? $" · {resultado.Ignoradas} ignorada(s)"
                 : string.Empty;
@@ -768,6 +777,16 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         janela.ShowDialog();
     }
 
+    private void GerenciarMotivos(object? parameter)
+    {
+        var janela = new GerenciarMotivosWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
+    }
+
     private void AbrirDevolucoes(object? parameter)
     {
         var janela = new DevolucoesWindow(_repository)
@@ -865,5 +884,10 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         {
             IsCarregando = false;
         }
+    }
+
+    private async Task BuscarAtualizacaoAsync()
+    {
+        await AppUpdateService.VerificarAsync(Application.Current.MainWindow, silencioso: false);
     }
 }

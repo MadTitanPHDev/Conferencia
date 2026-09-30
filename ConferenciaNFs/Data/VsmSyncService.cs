@@ -25,7 +25,9 @@ public sealed class VsmSyncService
     {
         var compras = await _reader.ListarPorDataCompraAsync(dataCompra, cancellationToken);
         var dia = DataCompraParser.Formatar(dataCompra);
-        return await _repository.SincronizarComprasVsmAsync(compras, dia, cancellationToken);
+        var resultado = await _repository.SincronizarComprasVsmAsync(compras, dia, cancellationToken);
+        await _repository.ReconciliarFilaDevolucoesAsync(cancellationToken);
+        return resultado;
     }
 
     /// <summary>
@@ -65,6 +67,8 @@ public sealed class VsmSyncService
             total.Ignoradas += parcial.Ignoradas;
             total.Relocadas += parcial.Relocadas;
         }
+
+        await _repository.ReconciliarFilaDevolucoesAsync(cancellationToken);
 
         return total;
     }

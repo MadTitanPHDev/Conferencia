@@ -14,30 +14,30 @@ public class StatusHerancaImportacaoTests
     [InlineData(StatusConferenciaValues.Laranja, StatusConferenciaValues.Laranja)]
     public void Calcular_SemDevolucaoConcluida_AplicaRegras(string anterior, string esperado)
     {
-        var (status, obs) = StatusHerancaImportacao.Calcular(anterior, "PBM", devolucaoConcluida: false);
+        var (status, obs) = StatusHerancaImportacao.Calcular(anterior, "PBM", devolucaoJaRegistrada: false);
 
         Assert.Equal(esperado, status);
         Assert.Equal("PBM", obs);
     }
 
     [Fact]
-    public void Calcular_VermelhoSemDevolucaoConcluida_MantemVermelho()
+    public void Calcular_VermelhoSemDevolucaoRegistrada_MantemVermelho()
     {
         var (status, _) = StatusHerancaImportacao.Calcular(
             StatusConferenciaValues.Vermelho,
             string.Empty,
-            devolucaoConcluida: false);
+            devolucaoJaRegistrada: false);
 
         Assert.Equal(StatusConferenciaValues.Vermelho, status);
     }
 
     [Fact]
-    public void Calcular_VermelhoComDevolucaoConcluida_ViraLaranja()
+    public void Calcular_VermelhoComDevolucaoJaRegistrada_ViraLaranja()
     {
         var (status, obs) = StatusHerancaImportacao.Calcular(
             StatusConferenciaValues.Vermelho,
             "ENCOMENDA",
-            devolucaoConcluida: true);
+            devolucaoJaRegistrada: true);
 
         Assert.Equal(StatusConferenciaValues.Laranja, status);
         Assert.Equal("ENCOMENDA", obs);

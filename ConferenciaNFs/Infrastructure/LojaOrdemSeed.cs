@@ -38,7 +38,7 @@ public static class LojaOrdemSeed
         new() { NumeroOrdem = 30, ApelidoLoja = "TUPA", NomeExibicao = "Tupa" },
         new() { NumeroOrdem = 31, ApelidoLoja = "AVENIDA BR", NomeExibicao = "Avenida Brasil" },
         new() { NumeroOrdem = 32, ApelidoLoja = "ANDRADINA", NomeExibicao = "Andradina" },
-        new() { NumeroOrdem = 33, ApelidoLoja = "PARAGUACU", NomeExibicao = "Paraguassu" },
+        new() { NumeroOrdem = 33, ApelidoLoja = "PARAGUACU", NomeExibicao = "Paraguaçu" },
         new() { NumeroOrdem = 34, ApelidoLoja = "TARABAI", NomeExibicao = "Tarabai" },
         new() { NumeroOrdem = 35, ApelidoLoja = "CASTILHO", NomeExibicao = "Castilho" },
         new() { NumeroOrdem = 36, ApelidoLoja = "PEREIRA BA", NomeExibicao = "Pereira Barreto" },

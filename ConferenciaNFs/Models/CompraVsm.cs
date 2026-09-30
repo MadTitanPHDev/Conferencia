@@ -12,6 +12,7 @@ public sealed class CompraVsm
     public DateTime? DataCompra { get; set; }
     public int CodForn { get; set; }
     public string? CnpjForn { get; set; }
+    public string? NomeForn { get; set; }
     public decimal ValorNota { get; set; }
     public string? Status { get; set; }
     public string? NfeChaveAcesso { get; set; }

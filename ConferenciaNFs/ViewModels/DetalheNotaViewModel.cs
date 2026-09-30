@@ -9,17 +9,16 @@ namespace ConferenciaNFs.ViewModels;
 
 public sealed class DetalheNotaViewModel : ViewModelBase
 {
-    private readonly VsmComprasReader _reader;
+    private readonly VsmComprasReader? _reader;
     private readonly NotaFiscalRepository? _repository;
     private readonly NotaFiscal _nota;
     private bool _isCarregando;
     private bool _estaVazio = true;
-    private bool _popupPrecosAberto;
     private string _mensagemStatus = "Carregando itens...";
     private ItemNotaPrecoLinha? _itemSelecionado;
 
     public DetalheNotaViewModel(
-        VsmComprasReader reader,
+        VsmComprasReader? reader,
         NotaFiscal nota,
         NotaFiscalRepository? repository = null)
     {
@@ -27,14 +26,11 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         _repository = repository;
         _nota = nota;
         Itens = new ObservableCollection<ItemNotaPrecoLinha>();
-        Importacoes = new ObservableCollection<ImportacaoPrecoOpcao>();
-        AlternarPopupPrecosCommand = new AsyncRelayCommand(_ => AlternarPopupPrecosAsync(), _ => PodeCompararPrecos);
         CompararPrecosCommand = new AsyncRelayCommand(_ => CompararPrecosAsync(), _ => PodeCompararPrecos);
         _ = CarregarItensAsync();
     }
 
     public ObservableCollection<ItemNotaPrecoLinha> Itens { get; }
-    public ObservableCollection<ImportacaoPrecoOpcao> Importacoes { get; }
 
     public bool PodeCompararPrecos => _repository is not null && !IsCarregando;
 
@@ -64,7 +60,6 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             if (!SetProperty(ref _isCarregando, value))
                 return;
             OnPropertyChanged(nameof(PodeCompararPrecos));
-            ((AsyncRelayCommand)AlternarPopupPrecosCommand).RaiseCanExecuteChanged();
             ((AsyncRelayCommand)CompararPrecosCommand).RaiseCanExecuteChanged();
         }
     }
@@ -73,12 +68,6 @@ public sealed class DetalheNotaViewModel : ViewModelBase
     {
         get => _estaVazio;
         private set => SetProperty(ref _estaVazio, value);
-    }
-
-    public bool PopupPrecosAberto
-    {
-        get => _popupPrecosAberto;
-        set => SetProperty(ref _popupPrecosAberto, value);
     }
 
     public string MensagemStatus
@@ -98,7 +87,6 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         }
     }
 
-    public ICommand AlternarPopupPrecosCommand { get; }
     public ICommand CompararPrecosCommand { get; }
 
     public bool CopiarEanItemSelecionado()
@@ -125,56 +113,26 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         }
     }
 
-    private async Task AlternarPopupPrecosAsync()
-    {
-        if (_repository is null)
-            return;
-
-        if (PopupPrecosAberto)
-        {
-            PopupPrecosAberto = false;
-            return;
-        }
-
-        try
-        {
-            var lista = await _repository.ListarPrecosImportacoesAsync();
-            Importacoes.Clear();
-            foreach (var item in lista)
-            {
-                var opcao = new ImportacaoPrecoOpcao(item);
-                if (lista.Count == 1)
-                    opcao.EstaSelecionada = true;
-                Importacoes.Add(opcao);
-            }
-
-            PopupPrecosAberto = true;
-            if (Importacoes.Count == 0)
-                MensagemStatus = "Nenhuma tabela importada. Use Tabelas de preco no menu.";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Erro ao listar tabelas de preco:\n{ex.Message}", "Buscar preco",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
-
     private async Task CompararPrecosAsync()
     {
         if (_repository is null)
             return;
 
-        var ids = Importacoes.Where(i => i.EstaSelecionada).Select(i => i.Id).ToList();
-        if (ids.Count == 0)
-        {
-            MessageBox.Show("Selecione ao menos uma importacao.", "Buscar preco",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
         try
         {
             IsCarregando = true;
+            var tabelas = await _repository.ListarPrecosImportacoesAsync();
+            if (tabelas.Count == 0)
+            {
+                MessageBox.Show(
+                    "Nenhuma tabela importada. Use Tabelas de preco no menu.",
+                    "Buscar preco",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var ids = tabelas.Select(t => t.Id).ToList();
             var eans = Itens.Select(i => i.EanParaCruzar).Where(EanNormalizer.EhValido).ToList();
             var mapa = await _repository.ObterPrecosPorEansAsync(ids, eans);
 
@@ -215,9 +173,11 @@ public sealed class DetalheNotaViewModel : ViewModelBase
                 }
             }
 
-            PopupPrecosAberto = false;
+            var rotuloTabelas = tabelas.Count == 1
+                ? "1 tabela"
+                : $"{tabelas.Count} tabelas";
             MensagemStatus =
-                $"Preco: {verde} verde · {azul} azul · {vermelho} vermelho · {cinza} fora · {ambar} sem EAN.";
+                $"Preco ({rotuloTabelas}): {verde} verde · {azul} azul · {vermelho} vermelho · {cinza} fora · {ambar} sem EAN.";
         }
         catch (Exception ex)
         {
@@ -235,10 +195,24 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         try
         {
             IsCarregando = true;
-            MensagemStatus = "Buscando itens no VSM...";
+            MensagemStatus = "Buscando itens...";
 
-            var codCompra = _nota.CodCompra ?? 0;
-            var itens = await _reader.ListarItensPorCodCompraAsync(codCompra);
+            IReadOnlyList<ItemCompraVsm> itens;
+            var veioDoSnapshot = false;
+
+            if (_repository is not null)
+            {
+                var foto = await ItemNotaSnapshotServico.GarantirAsync(_repository, _reader, _nota);
+                itens = foto.Select(ItemNotaSnapshotMap.ParaVsm).ToList();
+                veioDoSnapshot = _reader is null || foto.Count > 0;
+            }
+            else
+            {
+                var codCompra = _nota.CodCompra ?? 0;
+                itens = _reader is null
+                    ? []
+                    : await _reader.ListarItensPorCodCompraAsync(codCompra);
+            }
 
             Itens.Clear();
             foreach (var item in itens)
@@ -247,8 +221,10 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             EstaVazio = Itens.Count == 0;
             ItemSelecionado = Itens.FirstOrDefault();
             MensagemStatus = EstaVazio
-                ? "Nenhum item encontrado para esta nota no VSM."
-                : $"{Itens.Count} item(ns) carregado(s).";
+                ? "Nenhum item encontrado para esta nota."
+                : veioDoSnapshot && _reader is null
+                    ? $"{Itens.Count} item(ns) da foto (VSM indisponivel)."
+                    : $"{Itens.Count} item(ns) carregado(s).";
             OnPropertyChanged(nameof(TextoResumo));
         }
         catch (Exception ex)
@@ -256,7 +232,7 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             EstaVazio = true;
             MensagemStatus = "Nao foi possivel carregar os itens.";
             MessageBox.Show(
-                $"Erro ao buscar itens no VSM:\n{ex.Message}",
+                $"Erro ao buscar itens:\n{ex.Message}",
                 "Itens da nota",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);

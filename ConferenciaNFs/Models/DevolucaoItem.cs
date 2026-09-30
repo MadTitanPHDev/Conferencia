@@ -8,12 +8,14 @@ public static class StatusDevolucaoValues
 {
     public const string Pendente = "Pendente";
     public const string Devolvida = "Devolvida";
+    public const string Absorvido = "Absorvido";
     public const string PerdeuPrazo = "PerdeuPrazo";
 
     public static readonly IReadOnlyList<string> Todos =
     [
         Pendente,
         Devolvida,
+        Absorvido,
         PerdeuPrazo
     ];
 
@@ -21,14 +23,19 @@ public static class StatusDevolucaoValues
     {
         Pendente => "Pendente",
         Devolvida => "Devolvida",
+        Absorvido => "Absorvido",
         PerdeuPrazo => "Perdeu o prazo",
         _ => status
     };
+
+    public static bool EstaConcluido(string status) =>
+        status is Devolvida or Absorvido or PerdeuPrazo;
 }
 
 public sealed class DevolucaoItem : INotifyPropertyChanged
 {
     private string _statusDevolucao = StatusDevolucaoValues.Pendente;
+    private string _andamento = AndamentoDevolucaoValues.AguardandoLoja;
     private string _observacao = string.Empty;
     private string? _dataConclusao;
 
@@ -60,6 +67,20 @@ public sealed class DevolucaoItem : INotifyPropertyChanged
         }
     }
 
+    public string Andamento
+    {
+        get => _andamento;
+        set
+        {
+            if (_andamento == value)
+                return;
+
+            _andamento = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AndamentoRotulo));
+        }
+    }
+
     public string Observacao
     {
         get => _observacao;
@@ -88,14 +109,18 @@ public sealed class DevolucaoItem : INotifyPropertyChanged
 
     public string StatusRotulo => StatusDevolucaoValues.ObterRotulo(StatusDevolucao);
 
+    public string AndamentoRotulo => AndamentoDevolucaoValues.ObterRotulo(Andamento);
+
     public bool PodeConcluir => StatusDevolucao == StatusDevolucaoValues.Pendente;
 
     public DateTime? DataEmissaoParseada => DataCompraParser.TentarConverter(DataEmissao);
 
     /// <summary>
-    /// Data usada para corte do periodo de rastreio (somente emissao da NF).
+    /// Corte da fila: data em que a devolucao foi marcada (nao a emissao, nem o historico da conferencia).
     /// </summary>
-    public DateTime? DataReferenciaRastreio => DataEmissaoParseada;
+    public DateTime? DataReferenciaRastreio =>
+        DataCompraParser.TentarConverter(DataMarcada)
+        ?? DataCompraParser.TentarConverter(DiaConferencia);
 
     public DateTime? DataLimite
     {

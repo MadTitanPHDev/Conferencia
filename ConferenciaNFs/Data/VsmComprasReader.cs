@@ -22,6 +22,23 @@ public sealed class VsmComprasReader
 
     public bool EstaConfigurado => !string.IsNullOrWhiteSpace(_connectionString);
 
+    private const string SqlComprasBase = """
+            SELECT
+                c.CODCOMPRA      AS CodCompra,
+                c.CODLOJA        AS CodLoja,
+                c.NUMNOTA        AS NumNota,
+                c.DATAEMISSAO    AS DataEmissao,
+                c.DATACOMPRA     AS DataCompra,
+                c.CODFORN        AS CodForn,
+                c.CNPJFORN       AS CnpjForn,
+                c.VALORNOTA      AS ValorNota,
+                c.STATUS         AS Status,
+                c.NFECHAVEACESSO AS NfeChaveAcesso,
+                c.SERIENOTA      AS SerieNota
+            FROM compras c
+            WHERE c.DATACOMPRA >= @Inicio AND c.DATACOMPRA < @FimExclusivo
+            """;
+
     public async Task TestarConexaoAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = CriarConexao();
@@ -52,32 +69,62 @@ public sealed class VsmComprasReader
         if (fim.Date < inicio.Date)
             throw new ArgumentException("A data final nao pode ser anterior a data inicial.", nameof(fim));
 
-        const string sql = """
-            SELECT
-                CODCOMPRA      AS CodCompra,
-                CODLOJA        AS CodLoja,
-                NUMNOTA        AS NumNota,
-                DATAEMISSAO    AS DataEmissao,
-                DATACOMPRA     AS DataCompra,
-                CODFORN        AS CodForn,
-                CNPJFORN       AS CnpjForn,
-                VALORNOTA      AS ValorNota,
-                STATUS         AS Status,
-                NFECHAVEACESSO AS NfeChaveAcesso,
-                SERIENOTA      AS SerieNota
-            FROM compras
-            WHERE DATACOMPRA >= @Inicio AND DATACOMPRA < @FimExclusivo
-            """;
-
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var registros = await connection.QueryAsync<CompraVsm>(new CommandDefinition(
-            sql,
-            new { Inicio = inicio.Date, FimExclusivo = fim.Date.AddDays(1) },
-            cancellationToken: cancellationToken));
+        var parametros = new { Inicio = inicio.Date, FimExclusivo = fim.Date.AddDays(1) };
 
-        return registros.AsList();
+        var registros = (await connection.QueryAsync<CompraVsm>(new CommandDefinition(
+            SqlComprasBase,
+            parametros,
+            commandTimeout: 90,
+            cancellationToken: cancellationToken))).AsList();
+
+        await PreencherNomesFornecedorAsync(connection, registros, cancellationToken);
+        return registros;
+    }
+
+    private static async Task PreencherNomesFornecedorAsync(
+        MySqlConnection connection,
+        IReadOnlyList<CompraVsm> compras,
+        CancellationToken cancellationToken)
+    {
+        var codigos = compras
+            .Select(c => c.CodForn)
+            .Where(c => c > 0)
+            .Distinct()
+            .ToArray();
+
+        if (codigos.Length == 0)
+            return;
+
+        try
+        {
+            var nomes = await connection.QueryAsync<(int CodForn, string? Nome)>(new CommandDefinition(
+                """
+                SELECT CODFORN AS CodForn, NOME AS Nome
+                FROM fornecedor
+                WHERE CODFORN IN @Codigos
+                """,
+                new { Codigos = codigos },
+                commandTimeout: 30,
+                cancellationToken: cancellationToken));
+
+            var mapa = nomes
+                .Where(x => !string.IsNullOrWhiteSpace(x.Nome))
+                .GroupBy(x => x.CodForn)
+                .ToDictionary(g => g.Key, g => g.First().Nome!.Trim());
+
+            foreach (var compra in compras)
+            {
+                if (mapa.TryGetValue(compra.CodForn, out var nome))
+                    compra.NomeForn = nome;
+            }
+        }
+        catch (Exception)
+        {
+            // Schema antigo ou tabela ausente: segue so com CNPJ da compra.
+        }
     }
 
     /// <summary>

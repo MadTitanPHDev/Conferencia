@@ -83,9 +83,8 @@
                         VerticalAlignment="Top">
                 <controls:ThemeToggle Margin="0,0,6,0"/>
                 <controls:PinWindowToggle Margin="0,0,6,0"/>
-                <Button x:Name="BtnBuscarPreco"
-                        Content="Buscar preco"
-                        Command="{Binding AlternarPopupPrecosCommand}"
+                <Button Content="Buscar preco"
+                        Command="{Binding CompararPrecosCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Padding="12,6"
                         FontSize="12"
@@ -97,40 +96,6 @@
                         FontSize="12"
                         Click="Fechar_Click"/>
             </StackPanel>
-            <Popup PlacementTarget="{Binding ElementName=BtnBuscarPreco}"
-                   Placement="Bottom"
-                   StaysOpen="True"
-                   AllowsTransparency="True"
-                   IsOpen="{Binding PopupPrecosAberto, Mode=TwoWay}">
-                <Border Background="{DynamicResource Brush.Surface}"
-                        BorderBrush="{DynamicResource Brush.Border}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="12"
-                        MinWidth="260"
-                        MaxHeight="320">
-                    <StackPanel>
-                        <TextBlock Text="Selecione as tabelas"
-                                   Style="{StaticResource SectionTitleStyle}"
-                                   Margin="0,0,0,8"/>
-                        <ItemsControl ItemsSource="{Binding Importacoes}"
-                                      MaxHeight="200">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Content="{Binding Rotulo}"
-                                              IsChecked="{Binding EstaSelecionada}"
-                                              Margin="0,0,0,6"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Button Content="Buscar"
-                                Command="{Binding CompararPrecosCommand}"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Margin="0,8,0,0"
-                                HorizontalAlignment="Right"/>
-                    </StackPanel>
-                </Border>
-            </Popup>
         </Grid>
 
         <Border Grid.Row="1"

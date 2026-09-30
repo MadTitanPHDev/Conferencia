@@ -12,7 +12,7 @@ namespace ConferenciaNFs.Views;
 public partial class DetalheNotaWindow : Window
 {
     public DetalheNotaWindow(
-        VsmComprasReader reader,
+        VsmComprasReader? reader,
         NotaFiscal nota,
         NotaFiscalRepository? repository = null)
     {

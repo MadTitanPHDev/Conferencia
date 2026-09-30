@@ -73,6 +73,10 @@
                             Command="{Binding DevolucoesCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Motivos de devolucao"
+                            Command="{Binding GerenciarMotivosCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar nota"
                             Command="{Binding PesquisarNotaCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
@@ -401,7 +405,28 @@
                                 Padding="12,8"
                                 FontSize="12"
                                 HorizontalAlignment="Stretch"
+                                Margin="0,0,0,20"
                                 ToolTip="Copia database.db antigo para o PostgreSQL (uso unico)"/>
+
+                        <TextBlock Text="Atualizacao"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   Margin="0,0,0,8"/>
+                        <TextBlock FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Margin="0,0,0,10"
+                                   TextWrapping="Wrap">
+                            <Run Text="Versao instalada: "/>
+                            <Run Text="{Binding VersaoInstalada, Mode=OneWay}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Button Content="Buscar atualizacao"
+                                Command="{Binding BuscarAtualizacaoCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Padding="12,8"
+                                FontSize="12"
+                                HorizontalAlignment="Stretch"
+                                ToolTip="Consulta o GitHub e oferece baixar se houver versao nova."/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
