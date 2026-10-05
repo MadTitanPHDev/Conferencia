@@ -2,29 +2,30 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using ConferenciaNFs.Data;
-using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
 using ConferenciaNFs.ViewModels;
 
 namespace ConferenciaNFs.Views;
 
-public partial class ConferenciaWindow : Window
+public partial class ConferenciaWindow : UserControl
 {
-    public ConferenciaWindow(
-        NotaFiscalRepository repository,
-        string apelidoLoja,
-        IReadOnlyList<string> diasConferencia,
-        VsmComprasReader? vsmReader = null)
+    public ConferenciaWindow()
     {
         InitializeComponent();
-        DataContext = new ConferenciaViewModel(repository, apelidoLoja, diasConferencia, vsmReader);
-        Title = ((ConferenciaViewModel)DataContext).TituloConferencia;
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        Loaded += (_, _) => Focus();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+                Focus();
+        };
         PreviewKeyDown += ConferenciaWindow_PreviewKeyDown;
     }
 
-    private void Fechar_Click(object sender, RoutedEventArgs e) => Close();
+    private void Fechar_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ConferenciaViewModel viewModel)
+            viewModel.AoFechar?.Invoke();
+    }
 
     private void ConferenciaWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -39,7 +40,8 @@ public partial class ConferenciaWindow : Window
         if (e.Key != Key.Escape)
             return;
 
-        Close();
+        if (DataContext is ConferenciaViewModel viewModel)
+            viewModel.AoFechar?.Invoke();
         e.Handled = true;
     }
 
@@ -79,7 +81,6 @@ public partial class ConferenciaWindow : Window
         if (DataContext is not ConferenciaViewModel viewModel)
             return;
 
-        // Usa a ordem visual da grade (após ordenação por coluna), não a ordem da coleção.
         var itensVisiveis = GrdNotas.Items;
         if (itensVisiveis.Count == 0)
             return;

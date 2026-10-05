@@ -34,9 +34,13 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            var detalhe = ex.InnerException is null
+                ? ex.Message
+                : $"{ex.Message}\n{ex.InnerException.Message}";
+
             MessageBox.Show(
                 "Nao foi possivel conectar ao PostgreSQL.\n\n" +
-                $"{ex.Message}\n\n" +
+                $"{detalhe}\n\n" +
                 "Verifique:\n" +
                 $"• ConnectionString em {AppSettingsStore.Instance.CaminhoArquivo}\n" +
                 "• Servico PostgreSQL em execucao neste PC\n" +
@@ -57,9 +61,32 @@ public partial class MainWindow : Window
 
     private void ToggleMenuAvancado_Click(object sender, RoutedEventArgs e)
     {
+        FecharMenuFlutuante();
         var abrir = MenuAvancadoDrawer.Visibility != Visibility.Visible;
         MenuAvancadoDrawer.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
         MenuAvancadoOverlay.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ToggleMenuFlutuante_Click(object sender, RoutedEventArgs e)
+    {
+        FecharMenuAvancado();
+        var abrir = MenuFlutuanteDrawer.Visibility != Visibility.Visible;
+        MenuFlutuanteDrawer.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
+        MenuFlutuanteOverlay.Visibility = abrir ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void FecharMenuFlutuante_Click(object sender, RoutedEventArgs e) => FecharMenuFlutuante();
+
+    private void FecharMenuFlutuante_Click(object sender, MouseButtonEventArgs e)
+    {
+        FecharMenuFlutuante();
+        e.Handled = true;
+    }
+
+    private void FecharMenuFlutuante()
+    {
+        MenuFlutuanteDrawer.Visibility = Visibility.Collapsed;
+        MenuFlutuanteOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void FecharMenuAvancado_Click(object sender, MouseButtonEventArgs e)
@@ -75,7 +102,17 @@ public partial class MainWindow : Window
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Escape || MenuAvancadoDrawer.Visibility != Visibility.Visible)
+        if (e.Key != Key.Escape)
+            return;
+
+        if (MenuFlutuanteDrawer.Visibility == Visibility.Visible)
+        {
+            FecharMenuFlutuante();
+            e.Handled = true;
+            return;
+        }
+
+        if (MenuAvancadoDrawer.Visibility != Visibility.Visible)
             return;
 
         FecharMenuAvancado();

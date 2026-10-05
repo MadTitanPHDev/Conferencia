@@ -36,8 +36,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
             "Pendentes",
             "Vencidas",
             "A vencer (7 dias)",
-            "Sem prazo / nao rastreada",
-            "Concluidas",
+            "Sem prazo / não rastreada",
+            "Concluídas",
             "Absorvidas",
             "Todas"
         ]);
@@ -67,6 +67,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
         _ = CarregarAsync();
     }
 
+    public Action? AoFechar { get; set; }
+
     public ObservableCollection<DevolucaoItem> Devolucoes { get; }
     public ObservableCollection<string> FiltrosModo { get; }
     public ObservableCollection<string> FiltrosAndamento { get; }
@@ -92,7 +94,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
 
     public string TextoItensPreNota =>
         ItensPreNota.Count == 0
-            ? "Esta nota nao tem pre-nota (marcada no fluxo antigo)."
+            ? "Esta nota não tem pré-nota (marcada no fluxo antigo)."
             : string.Join(" · ", ItensPreNota.Select(i =>
                 $"{i.NomeProd} ({i.Quantidade:N3}) · {i.Motivo} · {i.Classe}"));
 
@@ -182,7 +184,12 @@ public sealed class DevolucoesViewModel : ViewModelBase
     public DateTime? DataMinimaRastreio
     {
         get => _dataMinimaRastreio;
-        set => SetProperty(ref _dataMinimaRastreio, value);
+        set
+        {
+            if (!SetProperty(ref _dataMinimaRastreio, value))
+                return;
+            OnPropertyChanged(nameof(TextoPeriodoAtual));
+        }
     }
 
     public bool RemoverPendentesAnteriores
@@ -192,8 +199,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
     }
 
     public string TextoPeriodoAtual => DataMinimaRastreio.HasValue
-        ? $"Rastreando a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}"
-        : "Sem data minima (rastreia todas as devolucoes da fila)";
+        ? $"Fila a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)} (marcações novas)"
+        : "Sem data mínima (rastreia todas as devoluções da fila)";
 
     public DevolucoesPainel Painel
     {
@@ -210,16 +217,16 @@ public sealed class DevolucoesViewModel : ViewModelBase
     }
 
     public string TextoTopLojas =>
-        Painel.TopLojas.Count == 0 ? "Sem pendencias" : string.Join("  ·  ", Painel.TopLojas);
+        Painel.TopLojas.Count == 0 ? "Sem pendências" : string.Join("  ·  ", Painel.TopLojas);
 
     public string TextoPorAndamento =>
-        Painel.PorAndamento.Count == 0 ? "Sem pendencias" : string.Join("  ·  ", Painel.PorAndamento);
+        Painel.PorAndamento.Count == 0 ? "Sem pendências" : string.Join("  ·  ", Painel.PorAndamento);
 
     public string TextoPorClasse =>
-        Painel.PorClasse.Count == 0 ? "Sem itens na pre-nota" : string.Join("  ·  ", Painel.PorClasse);
+        Painel.PorClasse.Count == 0 ? "Sem itens na pré-nota" : string.Join("  ·  ", Painel.PorClasse);
 
     public string TextoPorMotivo =>
-        Painel.PorMotivo.Count == 0 ? "Sem itens na pre-nota" : string.Join("  ·  ", Painel.PorMotivo);
+        Painel.PorMotivo.Count == 0 ? "Sem itens na pré-nota" : string.Join("  ·  ", Painel.PorMotivo);
 
     public ICommand AtualizarCommand { get; }
     public ICommand ExportarExcelCommand { get; }
@@ -309,14 +316,14 @@ public sealed class DevolucoesViewModel : ViewModelBase
         {
             var confirmar = MessageBox.Show(
                 DataMinimaRastreio.HasValue
-                    ? $"Definir rastreio de devolucoes a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}?\n\n"
-                      + "A fila so recebe o que for marcado Vermelho/pre-nota a partir dessa data. "
-                      + "Notas Vermelho antigas da conferencia nao voltam a entrar.\n\n"
+                    ? $"Definir fila de devoluções a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}?\n\n"
+                      + "A fila só recebe o que for marcado Devolver / pré-nota a partir dessa data. "
+                      + "Notas Devolver antigas da conferência não voltam a entrar.\n\n"
                       + (RemoverPendentesAnteriores
-                          ? "Pendencias anteriores a essa data serao removidas da fila."
-                          : "Pendencias anteriores apenas deixarao de aparecer na lista (permanecem no banco).")
-                    : "Nenhuma data selecionada. Use \"Limpar periodo\" para rastrear todas, ou escolha uma data.",
-                "Periodo de rastreio",
+                          ? "Pendências anteriores a essa data serão removidas da fila."
+                          : "Pendências anteriores apenas deixarão de aparecer na lista (permanecem no banco).")
+                    : "Nenhuma data selecionada. Use \"Limpar período\" para rastrear todas, ou escolha uma data.",
+                "Período da fila",
                 DataMinimaRastreio.HasValue ? MessageBoxButton.YesNo : MessageBoxButton.OK,
                 MessageBoxImage.Question);
 
@@ -327,7 +334,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
                 DataMinimaRastreio,
                 RemoverPendentesAnteriores);
 
-            Mensagem = $"Periodo salvo: a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}.";
+            Mensagem = $"Período salvo: a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}.";
             await CarregarAsync();
         }
         catch (Exception ex)
@@ -340,8 +347,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
     private async Task LimparPeriodoAsync()
     {
         var confirmar = MessageBox.Show(
-            "Remover a data minima e voltar a listar todas as devolucoes da fila?",
-            "Limpar periodo",
+            "Remover a data mínima e voltar a listar todas as devoluções da fila?",
+            "Limpar período",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
@@ -373,10 +380,10 @@ public sealed class DevolucoesViewModel : ViewModelBase
             "A vencer (7 dias)" => query.Where(d =>
                 d.StatusDevolucao == StatusDevolucaoValues.Pendente
                 && d.DiasRestantes is >= 0 and <= 7),
-            "Sem prazo / nao rastreada" => query.Where(d =>
+            "Sem prazo / não rastreada" => query.Where(d =>
                 d.StatusDevolucao == StatusDevolucaoValues.Pendente
                 && d.Urgencia is "SemRastreio" or "SemPrazo"),
-            "Concluidas" => query.Where(d => StatusDevolucaoValues.EstaConcluido(d.StatusDevolucao)),
+            "Concluídas" => query.Where(d => StatusDevolucaoValues.EstaConcluido(d.StatusDevolucao)),
             "Absorvidas" => query.Where(d => d.StatusDevolucao == StatusDevolucaoValues.Absorvido),
             _ => query
         };

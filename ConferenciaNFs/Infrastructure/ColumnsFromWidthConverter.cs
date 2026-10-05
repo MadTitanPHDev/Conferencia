@@ -12,9 +12,9 @@ public sealed class ColumnsFromWidthConverter : IValueConverter
 
         return width switch
         {
-            < 720 => 1,
-            < 980 => 2,
-            < 1280 => 3,
+            < 820 => 1,
+            < 1100 => 2,
+            < 1400 => 3,
             _ => 4
         };
     }

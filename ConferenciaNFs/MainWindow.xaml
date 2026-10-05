@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:ConferenciaNFs.Models"
         xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
-        Title="Conferencia de Notas Fiscais"
+        xmlns:views="clr-namespace:ConferenciaNFs.Views"
+        Title="Conferência de Notas Fiscais"
         Height="820"
         Width="1280"
         MinHeight="560"
@@ -15,7 +16,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" MinWidth="180" MaxWidth="240"/>
+            <ColumnDefinition Width="Auto" MinWidth="0"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -23,7 +24,8 @@
                 Width="220"
                 Background="{DynamicResource Brush.Surface}"
                 BorderBrush="{DynamicResource Brush.Border}"
-                BorderThickness="0,0,1,0">
+                BorderThickness="0,0,1,0"
+                Visibility="{Binding MostrarPainelHoje, Converter={StaticResource BoolToVisibilityConverter}}">
             <Grid Margin="18,24,18,20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -43,38 +45,23 @@
                                HorizontalAlignment="Center"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border>
-                    <TextBlock Text="Controle diario de notas"
+                    <TextBlock Text="Controle diário de notas"
                                Style="{StaticResource PageSubtitleStyle}"
                                Margin="2,0,0,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock Text="MENU"
+                    <TextBlock Text="HOJE"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="6,0,0,8"/>
-                    <Button Content="  Conferencia"
-                            Style="{StaticResource SidebarNavButtonActiveStyle}"
-                            IsEnabled="False"
-                            Margin="0,0,0,4"/>
-                    <Button Content="  Gerenciar lojas"
-                            Command="{Binding GerenciarLojasCommand}"
+                    <Button Content="  Lojas"
+                            Command="{Binding VoltarHojeCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
-                            Margin="0,0,0,4"/>
-                    <Button Content="  Distribuidoras"
-                            Command="{Binding GerenciarDistribuidorasCommand}"
-                            Style="{StaticResource SidebarNavButtonStyle}"
-                            Margin="0,0,0,4"/>
-                    <Button Content="  Tabelas de preco"
-                            Command="{Binding GerenciarPrecosCommand}"
-                            Style="{StaticResource SidebarNavButtonStyle}"
-                            Margin="0,0,0,4"/>
-                    <Button Content="  Devolucoes"
+                            Margin="0,0,0,4"
+                            ToolTip="Lista de lojas deste intervalo. Clique num card para conferir."/>
+                    <Button Content="  Devoluções"
                             Command="{Binding DevolucoesCommand}"
-                            Style="{StaticResource SidebarNavButtonStyle}"
-                            Margin="0,0,0,4"/>
-                    <Button Content="  Motivos de devolucao"
-                            Command="{Binding GerenciarMotivosCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar nota"
@@ -83,6 +70,25 @@
                             Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar produto"
                             Command="{Binding PesquisarProdutoCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,12"/>
+                    <TextBlock Text="CONFIGURAR"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="6,0,0,8"/>
+                    <Button Content="  Lojas (ordem)"
+                            Command="{Binding GerenciarLojasCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Distribuidoras"
+                            Command="{Binding GerenciarDistribuidorasCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Tabelas de preço"
+                            Command="{Binding GerenciarPrecosCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Motivos de devolução"
+                            Command="{Binding GerenciarMotivosCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"/>
                 </StackPanel>
 
@@ -93,11 +99,11 @@
                         BorderBrush="{DynamicResource Brush.Border}"
                         BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="Dica rapida"
+                        <TextBlock Text="Dica rápida"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextPrimary}"/>
-                        <TextBlock Text="Escolha o intervalo (de / ate). As notas entram pelo VSM; o CSV continua como reserva na data final."
+                        <TextBlock Text="Escolha o intervalo (de / até). As notas entram pelo VSM; o CSV continua como reserva na data final."
                                    TextWrapping="Wrap"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextSecondary}"
@@ -108,14 +114,16 @@
         </Border>
 
         <Grid Grid.Column="1">
-            <Grid Margin="24,22,24,20">
+            <Grid Margin="24,22,24,20"
+                  Visibility="{Binding MostrarPainelHoje, Converter={StaticResource BoolToVisibilityConverter}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid Grid.Row="0"
+                  Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -127,12 +135,23 @@
                             VerticalAlignment="Center">
                     <TextBlock Text="{Binding TituloPagina}"
                                Style="{StaticResource PageTitleStyle}"
-                               FontSize="22"
+                               FontSize="18"
                                TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding ResumoPagina}"
+                               Style="{StaticResource PageSubtitleStyle}"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding ResumoPagina, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
                     <TextBlock Text="{Binding MensagemStatus}"
                                Style="{StaticResource PageSubtitleStyle}"
-                               Margin="0,6,0,12"
+                               Margin="0,6,0,8"
                                TextWrapping="Wrap"/>
+                    <ProgressBar Height="6"
+                                 Minimum="0"
+                                 Maximum="1"
+                                 Value="{Binding ProgressoSync, Mode=OneWay}"
+                                 Margin="0,0,0,12"
+                                 Visibility="{Binding EstaSincronizando, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <WrapPanel HorizontalAlignment="Left">
                         <controls:ThemeToggle Margin="0,0,8,0"/>
                         <controls:PinWindowToggle Margin="0,0,8,0"/>
@@ -155,6 +174,39 @@
                                 Command="{Binding AtualizarCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"/>
                     </WrapPanel>
+                    <WrapPanel Margin="0,10,0,0"
+                               Visibility="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource WidthThresholdToInverseVisibilityConverter}, ConverterParameter=980}">
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="De" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Language="pt-BR"
+                                        Width="148"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,8">
+                            <TextBlock Text="Até" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Language="pt-BR"
+                                        Width="148"/>
+                        </StackPanel>
+                        <Button Content="Ontem"
+                                Command="{Binding PresetOntemCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Margin="0,18,8,8"/>
+                        <Button Content="Desde sábado"
+                                Command="{Binding PresetDesdeSabadoCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Margin="0,18,8,8"/>
+                        <Button Content="Em aberto"
+                                Command="{Binding PresetEmAbertoCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,5"
+                                FontSize="12"
+                                Margin="0,18,0,8"/>
+                    </WrapPanel>
                 </StackPanel>
 
                 <Border Grid.Column="1"
@@ -162,7 +214,8 @@
                         Padding="12,10"
                         Margin="0,0,10,0"
                         VerticalAlignment="Top"
-                        MinWidth="168">
+                        MinWidth="148"
+                        Visibility="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource WidthThresholdToVisibilityConverter}, ConverterParameter=980}">
                     <StackPanel>
                         <TextBlock Text="De"
                                    Style="{StaticResource SectionTitleStyle}"
@@ -171,7 +224,7 @@
                                     Language="pt-BR"
                                     Width="148"
                                     Margin="0,0,0,8"/>
-                        <TextBlock Text="Ate"
+                        <TextBlock Text="Até"
                                    Style="{StaticResource SectionTitleStyle}"
                                    Margin="0,0,0,4"/>
                         <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -189,7 +242,7 @@
                                 Width="148"
                                 Margin="0,0,0,4"
                                 ToolTip="De e Ate no dia anterior."/>
-                        <Button Content="Desde sabado"
+                        <Button Content="Desde sábado"
                                 Command="{Binding PresetDesdeSabadoCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Padding="8,5"
@@ -217,134 +270,175 @@
                         FontSize="18"
                         Padding="0"
                         Click="ToggleMenuAvancado_Click"
-                        ToolTip="Ferramentas avancadas"/>
+                        ToolTip="Ferramentas avançadas"/>
             </Grid>
 
-            <Border Grid.Row="1"
-                    Style="{StaticResource EmptyStateBorderStyle}"
-                    Visibility="{Binding EstaVazio, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Border Width="88" Height="88"
-                            CornerRadius="20"
-                            Background="#0B0B0B"
-                            Padding="10"
-                            Margin="0,0,0,16">
-                        <Image Source="pack://application:,,,/Assets/logo-mark.png"
-                               Stretch="Uniform"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
+            <Grid Grid.Row="1">
+                    <Border Style="{StaticResource EmptyStateBorderStyle}"
+                            Visibility="{Binding EstaVazio, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border Width="88" Height="88"
+                                    CornerRadius="20"
+                                    Background="#0B0B0B"
+                                    Padding="10"
+                                    Margin="0,0,0,16">
+                                <Image Source="pack://application:,,,/Assets/logo-mark.png"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </Border>
+                            <TextBlock Text="Nenhuma loja neste intervalo"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Brush.TextPrimary}"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Sincronize o VSM, importe um CSV ou ajuste as datas."
+                                       Style="{StaticResource PageSubtitleStyle}"
+                                       Margin="0,8,0,0"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
                     </Border>
-                    <TextBlock Text="Nenhuma loja neste intervalo"
-                               FontSize="20"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush.TextPrimary}"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="Sincronize o VSM, importe um CSV ou ajuste as datas."
-                               Style="{StaticResource PageSubtitleStyle}"
-                               Margin="0,8,0,0"
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
 
-            <ScrollViewer Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          Visibility="{Binding EstaVazio, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                <ItemsControl ItemsSource="{Binding Lojas}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ColumnsFromWidthConverter}}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding EstaVazio, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding Lojas}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ColumnsFromWidthConverter}}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
 
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:LojaPendencia}">
-                            <Button Command="{Binding DataContext.AbrirConferenciaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource LojaCardButtonStyle}"
-                                    Margin="0,0,12,12">
-                                <Border Style="{StaticResource LojaCardBorderStyle}" MinHeight="124">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type models:LojaPendencia}">
+                                    <Button Command="{Binding DataContext.AbrirConferenciaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource LojaCardButtonStyle}"
+                                            Margin="0,0,12,12">
+                                        <Border Style="{StaticResource LojaCardBorderStyle}" MinHeight="124">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
 
-                                        <Grid Grid.Row="0" Margin="0,0,0,8">
-                                            <Border HorizontalAlignment="Left"
-                                                    Background="{DynamicResource Brush.AccentSoft}"
-                                                    CornerRadius="8"
-                                                    Padding="8,4"
-                                                    Visibility="{Binding PossuiOrdemCadastrada, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                <TextBlock Text="{Binding NumeroOrdem, StringFormat='Loja {0}'}"
-                                                           FontSize="11"
+                                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                                    <Border HorizontalAlignment="Left"
+                                                            Background="{DynamicResource Brush.AccentSoft}"
+                                                            CornerRadius="8"
+                                                            Padding="8,4"
+                                                            Visibility="{Binding PossuiOrdemCadastrada, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="{Binding NumeroOrdem, StringFormat='Loja {0}'}"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource Brush.Accent}"/>
+                                                    </Border>
+
+                                                    <Border HorizontalAlignment="Right"
+                                                            Background="{DynamicResource Brush.DangerSoft}"
+                                                            CornerRadius="20"
+                                                            Padding="10,5"
+                                                            MinWidth="32"
+                                                            Visibility="{Binding TemPendencias, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="{Binding Pendencias}"
+                                                                   Foreground="{DynamicResource Brush.Danger}"
+                                                                   FontWeight="Bold"
+                                                                   FontSize="13"
+                                                                   HorizontalAlignment="Center"/>
+                                                    </Border>
+
+                                                    <Border HorizontalAlignment="Right"
+                                                            Background="{DynamicResource Brush.AccentSoft}"
+                                                            CornerRadius="20"
+                                                            Padding="10,5"
+                                                            Visibility="{Binding TemPendencias, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                                        <TextBlock Text="OK"
+                                                                   Foreground="{DynamicResource Brush.Accent}"
+                                                                   FontWeight="Bold"
+                                                                   FontSize="12"
+                                                                   HorizontalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding TituloCard}"
+                                                           FontSize="15"
                                                            FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Brush.Accent}"/>
-                                            </Border>
+                                                           Foreground="{DynamicResource Brush.TextPrimary}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,0,6"/>
 
-                                            <Border HorizontalAlignment="Right"
-                                                    Background="{DynamicResource Brush.DangerSoft}"
-                                                    CornerRadius="20"
-                                                    Padding="10,5"
-                                                    MinWidth="32"
-                                                    Visibility="{Binding TemPendencias, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                <TextBlock Text="{Binding Pendencias}"
-                                                           Foreground="{DynamicResource Brush.Danger}"
-                                                           FontWeight="Bold"
-                                                           FontSize="13"
-                                                           HorizontalAlignment="Center"/>
-                                            </Border>
-
-                                            <Border HorizontalAlignment="Right"
-                                                    Background="{DynamicResource Brush.AccentSoft}"
-                                                    CornerRadius="20"
-                                                    Padding="10,5"
-                                                    Visibility="{Binding TemPendencias, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                                <TextBlock Text="OK"
-                                                           Foreground="{DynamicResource Brush.Accent}"
-                                                           FontWeight="Bold"
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding TextoStatusCard}"
                                                            FontSize="12"
-                                                           HorizontalAlignment="Center"/>
-                                            </Border>
-                                        </Grid>
+                                                           Foreground="{DynamicResource Brush.TextSecondary}"/>
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
-                                        <TextBlock Grid.Row="1"
-                                                   Text="{Binding TituloCard}"
-                                                   FontSize="15"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Brush.TextPrimary}"
-                                                   TextWrapping="Wrap"
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,0,6"/>
-
-                                        <TextBlock Grid.Row="2"
-                                                   Text="{Binding TextoStatusCard}"
-                                                   FontSize="12"
-                                                   Foreground="{DynamicResource Brush.TextSecondary}"/>
-                                    </Grid>
-                                </Border>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <Border Grid.Row="1"
-                    Background="{DynamicResource Brush.Overlay}"
-                    CornerRadius="14"
-                    Visibility="{Binding IsCarregando, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Text="Carregando..."
-                           FontSize="16"
-                           Foreground="{DynamicResource Brush.TextPrimary}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
-            </Border>
+                    <Border Background="{DynamicResource Brush.Overlay}"
+                            CornerRadius="14"
+                            Visibility="{Binding IsCarregando, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Carregando..."
+                                   FontSize="16"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+            </Grid>
 
             <TextBlock Grid.Row="2"
                        Margin="0,14,0,0"
                        FontSize="12"
                        Foreground="{DynamicResource Brush.TextSecondary}"
                        TextWrapping="Wrap"
+                       Visibility="{Binding MostrarPainelHoje, Converter={StaticResource BoolToVisibilityConverter}}"
                        Text="Todas as lojas do dia ficam disponiveis. O numero vermelho indica notas em branco ou amarelo."/>
+            </Grid>
+
+            <Grid Visibility="{Binding MostrarPainelHoje, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Margin="8,6,8,0">
+                    <Button Content="☰"
+                            Style="{StaticResource BackArrowButtonStyle}"
+                            FontSize="15"
+                            Width="28"
+                            Height="28"
+                            Padding="0"
+                            Click="ToggleMenuFlutuante_Click"
+                            ToolTip="Menu"/>
+                    <Button Content="←"
+                            Command="{Binding VoltarHojeCommand}"
+                            Style="{StaticResource BackArrowButtonStyle}"
+                            FontSize="18"
+                            Width="28"
+                            Height="28"
+                            Padding="0"
+                            Margin="2,0,0,0"
+                            Click="FecharMenuFlutuante_Click"
+                            ToolTip="Voltar às lojas"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="8,4,8,8">
+                    <Grid Visibility="{Binding MostrarConferencia, Converter={StaticResource BoolToVisibilityConverter}}"
+                          Background="{DynamicResource Brush.Background}">
+                        <views:ConferenciaWindow DataContext="{Binding ConferenciaAtual}"/>
+                    </Grid>
+                    <Grid Visibility="{Binding MostrarDevolucoes, Converter={StaticResource BoolToVisibilityConverter}}"
+                          Background="{DynamicResource Brush.Background}">
+                        <views:DevolucoesWindow DataContext="{Binding DevolucoesAtual}"/>
+                    </Grid>
+                </Grid>
             </Grid>
 
             <Border x:Name="MenuAvancadoOverlay"
@@ -375,12 +469,12 @@
                                     Click="FecharMenuAvancado_Click"/>
                         </Grid>
 
-                        <TextBlock Text="Heranca de status"
+                        <TextBlock Text="Herança de status"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextPrimary}"
                                    Margin="0,0,0,8"/>
-                        <CheckBox Content="Herdar status na importacao"
+                        <CheckBox Content="Herdar status na importação"
                                   IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
                                   FontSize="12"
                                   Margin="0,0,0,12"
@@ -394,7 +488,7 @@
                                 Margin="0,0,0,20"
                                 ToolTip="Aplica heranca no dia selecionado: historico da mesma NF e notas em branco emitidas antes do ultimo dia ja conferido."/>
 
-                        <TextBlock Text="Migracao"
+                        <TextBlock Text="Migração"
                                    FontWeight="SemiBold"
                                    FontSize="12"
                                    Foreground="{DynamicResource Brush.TextPrimary}"
@@ -417,10 +511,10 @@
                                    Foreground="{DynamicResource Brush.TextSecondary}"
                                    Margin="0,0,0,10"
                                    TextWrapping="Wrap">
-                            <Run Text="Versao instalada: "/>
+                            <Run Text="Versão instalada: "/>
                             <Run Text="{Binding VersaoInstalada, Mode=OneWay}" FontWeight="SemiBold"/>
                         </TextBlock>
-                        <Button Content="Buscar atualizacao"
+                        <Button Content="Buscar atualização"
                                 Command="{Binding BuscarAtualizacaoCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Padding="12,8"
@@ -432,5 +526,104 @@
             </Border>
 
         </Grid>
+
+        <Border x:Name="MenuFlutuanteOverlay"
+                Grid.ColumnSpan="2"
+                Background="#66000000"
+                Visibility="Collapsed"
+                Panel.ZIndex="40"
+                MouseDown="FecharMenuFlutuante_Click"/>
+
+        <Border x:Name="MenuFlutuanteDrawer"
+                Grid.ColumnSpan="2"
+                HorizontalAlignment="Left"
+                Width="240"
+                Visibility="Collapsed"
+                Panel.ZIndex="41"
+                Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="0,0,1,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16,18,16,20">
+                    <DockPanel Margin="0,0,0,14">
+                        <Button DockPanel.Dock="Right"
+                                Content="✕"
+                                Style="{StaticResource BackArrowButtonStyle}"
+                                FontSize="14"
+                                Click="FecharMenuFlutuante_Click"
+                                ToolTip="Fechar menu"/>
+                        <TextBlock Text="MENU"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <WrapPanel Margin="0,0,0,16">
+                        <controls:ThemeToggle Margin="0,0,8,0"/>
+                        <controls:PinWindowToggle/>
+                    </WrapPanel>
+                    <TextBlock Text="HOJE"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="6,0,0,8"/>
+                    <Button Content="  Lojas"
+                            Command="{Binding VoltarHojeCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Devoluções"
+                            Command="{Binding DevolucoesCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Pesquisar nota"
+                            Command="{Binding PesquisarNotaCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Pesquisar produto"
+                            Command="{Binding PesquisarProdutoCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,12"/>
+                    <TextBlock Text="CONFIGURAR"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="6,0,0,8"/>
+                    <Button Content="  Lojas (ordem)"
+                            Command="{Binding GerenciarLojasCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Distribuidoras"
+                            Command="{Binding GerenciarDistribuidorasCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Tabelas de preço"
+                            Command="{Binding GerenciarPrecosCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Motivos de devolução"
+                            Command="{Binding GerenciarMotivosCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,12"/>
+                    <TextBlock Text="FERRAMENTAS"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="6,0,0,8"/>
+                    <CheckBox Content="Herdar status na importação"
+                              IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
+                              FontSize="12"
+                              Margin="6,0,0,10"/>
+                    <Button Content="Recalcular herdados do dia"
+                            Command="{Binding RecalcularHerancaDiaCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="Buscar atualização"
+                            Command="{Binding BuscarAtualizacaoCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Window>

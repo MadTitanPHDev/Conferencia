@@ -82,12 +82,12 @@ public static class StatusConferenciaValues
 
     public static string ObterDescricao(string status) => status switch
     {
-        Pendente => "Nao conferido",
+        Pendente => "Não conferido",
         Verde => "Nota correta",
-        Amarelo => "Nota com advertencia",
-        Vermelho => "Nota devolvida",
-        Laranja => "Nota de outro dia",
-        Azul => "Nota absorvida",
+        Amarelo => "Falar com compras",
+        Vermelho => "Devolver",
+        Laranja => "Já vista",
+        Azul => "Absorver na loja",
         _ => status
     };
 }

@@ -37,9 +37,19 @@ public sealed class VsmSyncService
     public async Task<VsmSyncResult> SincronizarIntervaloAsync(
         DateTime inicio,
         DateTime fim,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<VsmSyncProgress>? progress = null)
     {
-        var dias = DataCompraParser.EnumerarDias(inicio, fim);
+        var dias = DataCompraParser.EnumerarDias(inicio, fim).ToList();
+        var totalEtapas = Math.Max(2, dias.Count + 2);
+
+        progress?.Report(new VsmSyncProgress
+        {
+            Etapa = 0,
+            Total = totalEtapas,
+            Texto = "Lendo compras no VSM..."
+        });
+
         var compras = await _reader.ListarPorIntervaloDataCompraAsync(inicio, fim, cancellationToken);
 
         var porDia = compras
@@ -48,10 +58,19 @@ public sealed class VsmSyncService
             .ToDictionary(g => g.Key, g => (IReadOnlyList<CompraVsm>)g.ToList());
 
         var total = new VsmSyncResult();
+        var indice = 0;
 
         foreach (var dia in dias)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            indice++;
+
+            progress?.Report(new VsmSyncProgress
+            {
+                Etapa = indice,
+                Total = totalEtapas,
+                Texto = $"Gravando {DataCompraParser.Formatar(dia)} ({indice}/{dias.Count})..."
+            });
 
             if (!porDia.TryGetValue(dia.Date, out var comprasDoDia))
                 comprasDoDia = [];
@@ -68,7 +87,21 @@ public sealed class VsmSyncService
             total.Relocadas += parcial.Relocadas;
         }
 
+        progress?.Report(new VsmSyncProgress
+        {
+            Etapa = totalEtapas - 1,
+            Total = totalEtapas,
+            Texto = "Reconciliando fila de devoluções..."
+        });
+
         await _repository.ReconciliarFilaDevolucoesAsync(cancellationToken);
+
+        progress?.Report(new VsmSyncProgress
+        {
+            Etapa = totalEtapas,
+            Total = totalEtapas,
+            Texto = "Sincronização concluída."
+        });
 
         return total;
     }

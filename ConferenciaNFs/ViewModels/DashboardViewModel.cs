@@ -32,6 +32,17 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private int _totalPendencias;
     private int _totalNotasNovas;
     private int _totalNotas;
+    private PaginaAtiva _pagina = PaginaAtiva.Hoje;
+    private ConferenciaViewModel? _conferenciaAtual;
+    private DevolucoesViewModel? _devolucoesAtual;
+    private double _progressoSync;
+
+    private enum PaginaAtiva
+    {
+        Hoje,
+        Conferencia,
+        Devolucoes
+    }
 
     public DashboardViewModel(NotaFiscalRepository repository, VsmSyncService? syncVsm = null)
     {
@@ -50,6 +61,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         GerenciarPrecosCommand = new RelayCommand(GerenciarPrecos);
         GerenciarMotivosCommand = new RelayCommand(GerenciarMotivos);
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
+        VoltarHojeCommand = new RelayCommand(_ => VoltarHoje());
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
         ExportarTodasCommand = new AsyncRelayCommand(_ => ExportarTodasAsync(), _ => PodeExportarTodas);
@@ -90,12 +102,28 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public string DataSelecionadaTexto =>
         IntervaloPronto
             ? DataCompraParser.FormatarIntervalo(DataInicio!.Value, DataFim!.Value)
-            : "Intervalo invalido";
+            : "Intervalo inválido";
 
-    public string TituloPagina =>
+    public string TituloPagina
+    {
+        get
+        {
+            if (_pagina == PaginaAtiva.Conferencia && _conferenciaAtual is not null)
+                return _conferenciaAtual.TituloConferencia;
+
+            if (_pagina == PaginaAtiva.Devolucoes)
+                return "Fila de devoluções";
+
+            return IntervaloPronto
+                ? $"Conferência {DataSelecionadaTexto}"
+                : "Conferência";
+        }
+    }
+
+    public string ResumoPagina =>
         IntervaloPronto
-            ? $"Conferencia {DataSelecionadaTexto} - {_totalPendencias} com pendencias. Total de notas novas {_totalNotasNovas} - Total de notas {_totalNotas}"
-            : "Conferencia";
+            ? $"{_totalPendencias} com pendências · {_totalNotasNovas} novas · {_totalNotas} notas"
+            : string.Empty;
 
     public bool IsCarregando
     {
@@ -118,6 +146,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 return;
 
             AtualizarComandosDoDia();
+            NotificarVisibilidadePainelHoje();
         }
     }
 
@@ -125,6 +154,64 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         get => _mensagemStatus;
         private set => SetProperty(ref _mensagemStatus, value);
+    }
+
+    public bool EstaSincronizando
+    {
+        get => _estaSincronizando;
+        private set
+        {
+            if (!SetProperty(ref _estaSincronizando, value))
+                return;
+
+            AtualizarComandosDoDia();
+        }
+    }
+
+    public double ProgressoSync
+    {
+        get => _progressoSync;
+        private set => SetProperty(ref _progressoSync, value);
+    }
+
+    public bool MostrarPainelHoje => _pagina == PaginaAtiva.Hoje;
+
+    public bool MostrarConferencia =>
+        _pagina == PaginaAtiva.Conferencia && _conferenciaAtual is not null;
+
+    public bool MostrarDevolucoes =>
+        _pagina == PaginaAtiva.Devolucoes && _devolucoesAtual is not null;
+
+    public bool MostrarEmptyHoje => MostrarPainelHoje && EstaVazio;
+
+    public bool MostrarCardsHoje => MostrarPainelHoje && !EstaVazio;
+
+    public ConferenciaViewModel? ConferenciaAtual
+    {
+        get => _conferenciaAtual;
+        private set
+        {
+            if (!SetProperty(ref _conferenciaAtual, value))
+                return;
+
+            OnPropertyChanged(nameof(MostrarConferencia));
+            OnPropertyChanged(nameof(TituloPagina));
+            OnPropertyChanged(nameof(ResumoPagina));
+        }
+    }
+
+    public DevolucoesViewModel? DevolucoesAtual
+    {
+        get => _devolucoesAtual;
+        private set
+        {
+            if (!SetProperty(ref _devolucoesAtual, value))
+                return;
+
+            OnPropertyChanged(nameof(MostrarDevolucoes));
+            OnPropertyChanged(nameof(TituloPagina));
+            OnPropertyChanged(nameof(ResumoPagina));
+        }
     }
 
     public bool HerancaStatusImportacao
@@ -151,6 +238,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand GerenciarPrecosCommand { get; }
     public ICommand GerenciarMotivosCommand { get; }
     public ICommand DevolucoesCommand { get; }
+    public ICommand VoltarHojeCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand PesquisarProdutoCommand { get; }
     public ICommand ExportarTodasCommand { get; }
@@ -235,6 +323,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DataFim));
         OnPropertyChanged(nameof(DataSelecionadaTexto));
         OnPropertyChanged(nameof(TituloPagina));
+        OnPropertyChanged(nameof(ResumoPagina));
         AtualizarComandosDoDia();
 
         if (_suspenderCarregamento)
@@ -265,11 +354,13 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DataFim));
         OnPropertyChanged(nameof(DataSelecionadaTexto));
         OnPropertyChanged(nameof(TituloPagina));
+        OnPropertyChanged(nameof(ResumoPagina));
         AtualizarComandosDoDia();
 
         if (!mudou || _suspenderCarregamento)
             return;
 
+        VoltarHoje(recarregarLojas: false);
         SalvarIntervaloEscolhido();
         _ = AbrirDiaAsync();
     }
@@ -286,6 +377,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DataFim));
             OnPropertyChanged(nameof(DataSelecionadaTexto));
             OnPropertyChanged(nameof(TituloPagina));
+        OnPropertyChanged(nameof(ResumoPagina));
             _suspenderCarregamento = false;
         }
 
@@ -379,13 +471,19 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
         try
         {
-            _estaSincronizando = true;
-            AtualizarComandosDoDia();
+            EstaSincronizando = true;
+            ProgressoSync = 0;
             MensagemStatus = $"Sincronizando notas do VSM em {periodo}...";
 
             var sync = _syncVsm;
+            IProgress<VsmSyncProgress> progresso = new Progress<VsmSyncProgress>(p =>
+            {
+                ProgressoSync = p.Total <= 0 ? 0 : (double)p.Etapa / p.Total;
+                if (!string.IsNullOrWhiteSpace(p.Texto))
+                    MensagemStatus = p.Texto;
+            });
             var resultado = await Task.Run(
-                () => sync.SincronizarIntervaloAsync(inicio, fim, cancellationToken),
+                () => sync.SincronizarIntervaloAsync(inicio, fim, cancellationToken, progresso),
                 cancellationToken);
             var detalheIgnoradas = resultado.Ignoradas > 0
                 ? $" · {resultado.Ignoradas} ignorada(s)"
@@ -417,8 +515,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            _estaSincronizando = false;
-            AtualizarComandosDoDia();
+            EstaSincronizando = false;
+            ProgressoSync = 0;
         }
     }
 
@@ -595,13 +693,46 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var janela = new ConferenciaWindow(_repository, loja.ApelidoLoja, _diasAtivos, _syncVsm?.Reader)
+        DevolucoesAtual = null;
+        ConferenciaAtual = new ConferenciaViewModel(_repository, loja.ApelidoLoja, _diasAtivos, _syncVsm?.Reader)
         {
-            Owner = Application.Current.MainWindow
+            AoFechar = () => VoltarHoje()
         };
+        _pagina = PaginaAtiva.Conferencia;
+        NotificarPagina();
+    }
 
-        janela.ShowDialog();
-        _ = CarregarLojasAsync();
+    private void VoltarHoje() => VoltarHoje(recarregarLojas: true);
+
+    private void VoltarHoje(bool recarregarLojas)
+    {
+        var estavaFora = _pagina != PaginaAtiva.Hoje
+            || _conferenciaAtual is not null
+            || _devolucoesAtual is not null;
+
+        ConferenciaAtual = null;
+        DevolucoesAtual = null;
+        _pagina = PaginaAtiva.Hoje;
+        NotificarPagina();
+
+        if (recarregarLojas && estavaFora)
+            _ = CarregarLojasAsync();
+    }
+
+    private void NotificarPagina()
+    {
+        OnPropertyChanged(nameof(MostrarPainelHoje));
+        OnPropertyChanged(nameof(MostrarConferencia));
+        OnPropertyChanged(nameof(MostrarDevolucoes));
+        OnPropertyChanged(nameof(TituloPagina));
+        OnPropertyChanged(nameof(ResumoPagina));
+        NotificarVisibilidadePainelHoje();
+    }
+
+    private void NotificarVisibilidadePainelHoje()
+    {
+        OnPropertyChanged(nameof(MostrarEmptyHoje));
+        OnPropertyChanged(nameof(MostrarCardsHoje));
     }
 
     private async Task RecalcularHerancaDiaAsync()
@@ -671,6 +802,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _totalNotasNovas = resumo.NotasNovas;
         _totalNotas = resumo.TotalNotas;
         OnPropertyChanged(nameof(TituloPagina));
+        OnPropertyChanged(nameof(ResumoPagina));
     }
 
     private void AtualizarComandosDoDia()
@@ -789,12 +921,13 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private void AbrirDevolucoes(object? parameter)
     {
-        var janela = new DevolucoesWindow(_repository)
+        ConferenciaAtual = null;
+        DevolucoesAtual = new DevolucoesViewModel(_repository)
         {
-            Owner = Application.Current.MainWindow
+            AoFechar = () => VoltarHoje()
         };
-
-        janela.ShowDialog();
+        _pagina = PaginaAtiva.Devolucoes;
+        NotificarPagina();
     }
 
     private void PesquisarNota(object? parameter)

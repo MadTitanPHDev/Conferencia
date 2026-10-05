@@ -2,22 +2,28 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using ConferenciaNFs.Data;
-using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.ViewModels;
 
 namespace ConferenciaNFs.Views;
 
-public partial class DevolucoesWindow : Window
+public partial class DevolucoesWindow : UserControl
 {
-    public DevolucoesWindow(NotaFiscalRepository repository)
+    public DevolucoesWindow()
     {
         InitializeComponent();
-        DataContext = new DevolucoesViewModel(repository);
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        Loaded += (_, _) => Focus();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+                Focus();
+        };
     }
 
-    private void Fechar_Click(object sender, RoutedEventArgs e) => Close();
+    private void Fechar_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is DevolucoesViewModel viewModel)
+            viewModel.AoFechar?.Invoke();
+    }
 
     private void GrdDevolucoes_PreviewKeyDown(object sender, KeyEventArgs e)
     {

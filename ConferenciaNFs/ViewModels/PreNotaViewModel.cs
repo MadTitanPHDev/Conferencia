@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using ConferenciaNFs.Data;
@@ -17,6 +18,8 @@ public sealed class PreNotaViewModel : ViewModelBase
     private bool _isCarregando;
     private string _mensagem = "Carregando itens...";
     private bool _confirmou;
+    private string _motivoLote = string.Empty;
+    private string _classeLote = string.Empty;
 
     public PreNotaViewModel(
         NotaFiscalRepository repository,
@@ -36,6 +39,9 @@ public sealed class PreNotaViewModel : ViewModelBase
         ConfirmarCommand = new AsyncRelayCommand(
             _ => ConfirmarAsync(),
             _ => PodeEditar && !IsCarregando && Linhas.Count > 0);
+        AplicarMotivoClasseMarcadosCommand = new RelayCommand(
+            _ => AplicarMotivoClasseMarcados(),
+            _ => PodeEditar && !IsCarregando);
         _ = CarregarAsync();
     }
 
@@ -43,6 +49,7 @@ public sealed class PreNotaViewModel : ViewModelBase
     public ObservableCollection<string> Motivos { get; }
     public ObservableCollection<string> Classes { get; }
     public ICommand ConfirmarCommand { get; }
+    public ICommand AplicarMotivoClasseMarcadosCommand { get; }
 
     public bool Confirmou => _confirmou;
 
@@ -55,10 +62,33 @@ public sealed class PreNotaViewModel : ViewModelBase
         : $"Pré-nota · {_nota.NumNota} · {_nota.ApelidoLoja}";
 
     public string TextoBotaoConfirmar => _modo == PreNotaModo.ConfirmacaoFila
-        ? "Confirmar itens e marcar devolvida"
-        : "Confirmar devolucao";
+        ? "Confirmar itens e marcar devolvida ao dist."
+        : "Confirmar e devolver";
 
     public string TextoCancelar => PodeEditar ? "Cancelar" : "Fechar";
+
+    public string MotivoLote
+    {
+        get => _motivoLote;
+        set => SetProperty(ref _motivoLote, value ?? string.Empty);
+    }
+
+    public string ClasseLote
+    {
+        get => _classeLote;
+        set => SetProperty(ref _classeLote, value ?? string.Empty);
+    }
+
+    public string TextoResumo
+    {
+        get
+        {
+            var marcados = Linhas.Where(l => l.Selecionado).ToList();
+            var quantidade = marcados.Sum(l => l.QuantidadeDevolver);
+            var valor = marcados.Sum(l => l.QuantidadeDevolver * l.CustoNota);
+            return $"{marcados.Count} marcado(s) · {quantidade:N3} un. · R$ {valor:N2}";
+        }
+    }
 
     public bool IsCarregando
     {
@@ -89,6 +119,11 @@ public sealed class PreNotaViewModel : ViewModelBase
             foreach (var motivo in motivos)
                 Motivos.Add(motivo.Descricao);
 
+            if (Motivos.Count > 0 && string.IsNullOrWhiteSpace(MotivoLote))
+                MotivoLote = Motivos[0];
+            if (Classes.Count > 0 && string.IsNullOrWhiteSpace(ClasseLote))
+                ClasseLote = Classes[0];
+
             IReadOnlyList<ItemNotaSnapshot> itens =
                 await ItemNotaSnapshotServico.GarantirAsync(_repository, _reader, _nota);
             var preNota = _devolucao is null
@@ -110,7 +145,7 @@ public sealed class PreNotaViewModel : ViewModelBase
                 }).ToList();
             }
 
-            Linhas.Clear();
+            LimparLinhas();
             foreach (var item in itens)
             {
                 var linha = new PreNotaLinha(item);
@@ -122,10 +157,12 @@ public sealed class PreNotaViewModel : ViewModelBase
                     linha.Classe = marcado.Classe;
                 }
 
+                linha.PropertyChanged += OnLinhaPropertyChanged;
                 Linhas.Add(linha);
             }
 
             ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(TextoResumo));
 
             if (Linhas.Count == 0)
             {
@@ -143,7 +180,7 @@ public sealed class PreNotaViewModel : ViewModelBase
                 ? "Confira de novo os produtos, quantidades, motivo e classe. Confirmar marca a nota como devolvida."
                 : Motivos.Count == 0
                     ? "Cadastre um motivo em Motivos de devolucao antes de confirmar."
-                    : "Marque os produtos, quantidade, motivo e classe. Cancelar nao muda o status.";
+                    : "Marque os produtos e a quantidade. Depois aplique motivo e classe aos marcados.";
         }
         catch (Exception ex)
         {
@@ -154,6 +191,29 @@ public sealed class PreNotaViewModel : ViewModelBase
         finally
         {
             IsCarregando = false;
+        }
+    }
+
+    private void LimparLinhas()
+    {
+        foreach (var linha in Linhas)
+            linha.PropertyChanged -= OnLinhaPropertyChanged;
+        Linhas.Clear();
+    }
+
+    private void OnLinhaPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PreNotaLinha.Selecionado)
+            or nameof(PreNotaLinha.QuantidadeDevolver))
+            OnPropertyChanged(nameof(TextoResumo));
+    }
+
+    private void AplicarMotivoClasseMarcados()
+    {
+        foreach (var linha in Linhas.Where(l => l.Selecionado))
+        {
+            linha.Motivo = MotivoLote;
+            linha.Classe = ClasseLote;
         }
     }
 

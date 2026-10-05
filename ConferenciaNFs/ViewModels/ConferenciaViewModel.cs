@@ -21,7 +21,6 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private string _observacaoTexto = string.Empty;
     private bool _modoSomenteSelecionadas;
     private bool _atualizandoFiltro;
-    private bool _duploCliqueCopiaNumero;
     private string _textoBuscaNota = string.Empty;
 
     public ConferenciaViewModel(
@@ -63,18 +62,17 @@ public sealed class ConferenciaViewModel : ViewModelBase
         LimparBuscaNotaCommand = new RelayCommand(_ => TextoBuscaNota = string.Empty);
         CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => NotaSelecionada is not null);
         AbrirItensCommand = new RelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
-        AlternarDuploCliqueCommand = new RelayCommand(_ => DuploCliqueCopiaNumero = !DuploCliqueCopiaNumero);
-
-        _duploCliqueCopiaNumero = AppSettingsStore.Instance.Data.DuploCliqueCopiaNumero;
 
         _ = CarregarNotasAsync();
     }
+
+    public Action? AoFechar { get; set; }
 
     public string ApelidoLoja { get; }
     public IReadOnlyList<string> DiasConferencia { get; }
     public string DataCompra { get; }
 
-    public string TituloConferencia => $"Conferencia - {ApelidoLoja} - {DataCompra}";
+    public string TituloConferencia => $"Conferência - {ApelidoLoja} - {DataCompra}";
 
     public ObservableCollection<NotaFiscal> Notas { get; }
     public ObservableCollection<NotaFiscal> NotasVisiveis { get; }
@@ -111,36 +109,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
     public ICommand LimparBuscaNotaCommand { get; }
 
-    public bool DuploCliqueCopiaNumero
-    {
-        get => _duploCliqueCopiaNumero;
-        set
-        {
-            if (!SetProperty(ref _duploCliqueCopiaNumero, value))
-                return;
-
-            AppSettingsStore.Instance.Data.DuploCliqueCopiaNumero = value;
-            AppSettingsStore.Instance.Salvar();
-            OnPropertyChanged(nameof(TextoDuploClique));
-            OnPropertyChanged(nameof(DicaDuploClique));
-            OnPropertyChanged(nameof(TextoAtalhos));
-            MensagemStatus = value
-                ? "Duplo clique copia o numero da nota. F12 alterna para itens."
-                : "Duplo clique abre os itens da nota. F12 alterna para copiar.";
-        }
-    }
-
-    public string TextoDuploClique => DuploCliqueCopiaNumero
-        ? "Duplo clique: copiar"
-        : "Duplo clique: itens";
-
-    public string DicaDuploClique => DuploCliqueCopiaNumero
-        ? "F12: duplo clique passa a abrir os itens"
-        : "F12: duplo clique passa a copiar o numero";
-
-    public string TextoAtalhos => DuploCliqueCopiaNumero
-        ? "Esc: fechar · Ctrl+F: buscar nota · Duplo clique: copiar numero · F12: abre itens · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver"
-        : "Esc: fechar · Ctrl+F: buscar nota · Duplo clique: itens · F12: copia numero · Ctrl+C / botao direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver";
+    public string TextoAtalhos =>
+        "Esc: lojas · Ctrl+F: buscar nota · Duplo clique / F12: itens · Ctrl+C / botão direito: copiar · Scroll: troca nota · 0 Branco · 1/F1 Verde · 2/F2 Amarelo · 3/F3 Vermelho · 4/F4 Laranja · 5/F8 Absorver";
 
     public NotaFiscal? NotaSelecionada
     {
@@ -191,15 +161,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand LimparFiltrosCommand { get; }
     public ICommand CopiarNumeroNotaCommand { get; }
     public ICommand AbrirItensCommand { get; }
-    public ICommand AlternarDuploCliqueCommand { get; }
 
-    public void ExecutarAcaoDuploClique()
-    {
-        if (DuploCliqueCopiaNumero)
-            CopiarNumeroNotaSelecionada();
-        else
-            AbrirItensNotaSelecionada();
-    }
+    public void ExecutarAcaoDuploClique() => AbrirItensNotaSelecionada();
 
     public bool CopiarNumeroNotaSelecionada()
     {
@@ -364,12 +327,12 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
     private static string ObterRotuloFiltro(string status) => status switch
     {
-        StatusConferenciaValues.Pendente => "Pendente",
+        StatusConferenciaValues.Pendente => "Não conferido",
         StatusConferenciaValues.Verde => "Correta",
-        StatusConferenciaValues.Amarelo => "Advertencia",
-        StatusConferenciaValues.Vermelho => "Devolvida",
-        StatusConferenciaValues.Laranja => "Outro dia",
-        StatusConferenciaValues.Azul => "Absorvida",
+        StatusConferenciaValues.Amarelo => "Falar com compras",
+        StatusConferenciaValues.Vermelho => "Devolver",
+        StatusConferenciaValues.Laranja => "Já vista",
+        StatusConferenciaValues.Azul => "Absorver na loja",
         _ => status
     };
 

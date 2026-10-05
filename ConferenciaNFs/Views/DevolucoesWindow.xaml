@@ -1,18 +1,11 @@
-<Window x:Class="ConferenciaNFs.Views.DevolucoesWindow"
+<UserControl x:Class="ConferenciaNFs.Views.DevolucoesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
-        Title="Devolucoes"
-        Height="820"
-        Width="1180"
-        MinHeight="520"
-        MinWidth="820"
-        Icon="pack://application:,,,/Assets/app.ico"
-        WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Background}"
-        FontFamily="{StaticResource Font.Primary}">
+        FontFamily="{StaticResource Font.Primary}"
+        Focusable="True">
 
-    <Grid Margin="16,12">
+    <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -29,34 +22,20 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <DockPanel Grid.Column="0" LastChildFill="True">
-                <Border DockPanel.Dock="Left"
-                        Width="32" Height="32"
-                        CornerRadius="8"
-                        Background="#0B0B0B"
-                        Padding="4"
-                        Margin="0,0,8,0"
-                        VerticalAlignment="Top">
-                    <Image Source="pack://application:,,,/Assets/logo-mark.png"
-                           Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                </Border>
-                <StackPanel>
-                    <TextBlock Text="Devolucoes"
+            <StackPanel>
+                    <TextBlock Text="Devoluções"
                                Style="{StaticResource PageTitleStyle}"
-                               FontSize="20"
-                               TextWrapping="Wrap"/>
+                               FontSize="16"
+                               TextWrapping="NoWrap"
+                               TextTrimming="CharacterEllipsis"/>
                     <TextBlock Text="{Binding Mensagem}"
                                Style="{StaticResource PageSubtitleStyle}"
                                FontSize="12"
                                Margin="0,2,0,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-            </DockPanel>
 
             <WrapPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
-                <controls:ThemeToggle Margin="0,0,6,4"/>
-                <controls:PinWindowToggle Margin="0,0,6,4"/>
                 <Button Content="Exportar Excel"
                         Command="{Binding ExportarExcelCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
@@ -68,12 +47,6 @@
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="12,6"
                         FontSize="12"
-                        Margin="0,0,6,4"/>
-                <Button Content="Fechar"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Padding="12,6"
-                        FontSize="12"
-                        Click="Fechar_Click"
                         Margin="0,0,0,4"/>
             </WrapPanel>
         </Grid>
@@ -84,13 +57,13 @@
                 Padding="10,6"
                 Margin="0,0,0,8">
             <DockPanel LastChildFill="False">
-                <TextBlock Text="PERIODO"
-                           Style="{StaticResource SectionTitleStyle}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0"
-                           DockPanel.Dock="Left"/>
+                    <TextBlock Text="FILA"
+                               Style="{StaticResource SectionTitleStyle}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"
+                               DockPanel.Dock="Left"/>
                 <WrapPanel VerticalAlignment="Center">
-                    <TextBlock Text="Emissao a partir de"
+                    <TextBlock Text="A partir de (marcações novas)"
                                Style="{StaticResource PageSubtitleStyle}"
                                FontSize="12"
                                VerticalAlignment="Center"
@@ -100,12 +73,12 @@
                                 Height="28"
                                 Margin="0,2,10,2"
                                 VerticalAlignment="Center"/>
-                    <CheckBox Content="Remover pendencias anteriores"
+                    <CheckBox Content="Remover pendências anteriores"
                               IsChecked="{Binding RemoverPendentesAnteriores, Mode=TwoWay}"
                               FontSize="12"
                               VerticalAlignment="Center"
                               Margin="0,2,10,2"
-                              ToolTip="Pendencias usam a data de emissao. Concluidas permanecem visiveis fora do periodo."/>
+                              ToolTip="Pendências usam a data em que entrou na fila. Concluídas permanecem visíveis."/>
                     <Button Content="Salvar"
                             Command="{Binding SalvarPeriodoCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
@@ -146,7 +119,7 @@
             </Border>
             <Border Style="{StaticResource SurfaceCardStyle}" Padding="10,8" Margin="0,0,6,0">
                 <StackPanel>
-                    <TextBlock Text="DEVOLVIDAS" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="DEVOLVIDAS AO DIST." Style="{StaticResource SectionTitleStyle}"/>
                     <TextBlock FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}">
                         <Run Text="{Binding Painel.Devolvidas, Mode=OneWay}"/>
                         <Run Text=" · R$ "/>
@@ -166,7 +139,7 @@
                         <Run Text=" · R$ "/>
                         <Run Text="{Binding Painel.ValorAbsorvido, Mode=OneWay, StringFormat=N2}"/>
                     </TextBlock>
-                    <TextBlock Text="Dist. absorveu (sem devolucao)"
+                    <TextBlock Text="Dist. absorveu (sem devolução)"
                                Style="{StaticResource PageSubtitleStyle}"
                                FontSize="11"
                                Margin="0,4,0,0"
@@ -254,12 +227,6 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Urgencia}" Value="Vencida">
                                 <Setter Property="Background" Value="#33FF0000"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Urgencia}" Value="Critica">
-                                <Setter Property="Background" Value="#33FF9800"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Urgencia}" Value="Atencao">
-                                <Setter Property="Background" Value="#33FFEB3B"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -392,7 +359,7 @@
                               FontSize="12"
                               Padding="8,4"
                               IsEnabled="{Binding Selecionada.PodeConcluir, FallbackValue=False, TargetNullValue=False}"
-                              ToolTip="Proximo passo da tratativa (so em notas abertas)"/>
+                              ToolTip="Próximo passo da tratativa (só em notas abertas)"/>
                     <Button DockPanel.Dock="Left"
                             Content="Salvar andamento"
                             Command="{Binding SalvarAndamentoCommand}"
@@ -408,7 +375,7 @@
                 </DockPanel>
 
                 <WrapPanel Grid.Row="4">
-                    <Button Content="Salvar observacao"
+                    <Button Content="Salvar observação"
                             Command="{Binding SalvarObservacaoCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Padding="12,5"
@@ -420,7 +387,7 @@
                             Padding="12,5"
                             FontSize="12"
                             Margin="0,0,6,0"/>
-                    <Button Content="Marcar devolvida"
+                    <Button Content="Devolvida ao dist."
                             Command="{Binding MarcarDevolvidaCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Padding="12,5"
@@ -441,4 +408,4 @@
             </Grid>
         </Border>
     </Grid>
-</Window>
+</UserControl>

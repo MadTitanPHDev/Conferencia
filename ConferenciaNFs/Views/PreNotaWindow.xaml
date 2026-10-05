@@ -4,9 +4,9 @@
         xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
         Title="{Binding Titulo}"
         Height="640"
-        Width="1100"
+        Width="1180"
         MinHeight="480"
-        MinWidth="860"
+        MinWidth="900"
         Icon="pack://application:,,,/Assets/app.ico"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Background}"
@@ -34,10 +34,16 @@
             </StackPanel>
         </DockPanel>
 
-        <Border Grid.Row="1"
-                Style="{StaticResource SurfaceCardStyle}"
-                Padding="0"
-                Margin="0,0,0,10">
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="280"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Style="{StaticResource SurfaceCardStyle}"
+                    Padding="0"
+                    Margin="0,0,10,0">
             <DataGrid ItemsSource="{Binding Linhas}"
                       Style="{StaticResource ModernDataGridStyle}"
                       AutoGenerateColumns="False"
@@ -71,29 +77,53 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Motivo" Width="180">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <ComboBox ItemsSource="{Binding DataContext.Motivos, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          SelectedItem="{Binding Motivo, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding DataContext.PodeEditar, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          IsEditable="False"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Classe" Width="120">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <ComboBox ItemsSource="{Binding DataContext.Classes, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          SelectedItem="{Binding Classe, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding DataContext.PodeEditar, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          IsEditable="False"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-        </Border>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Style="{StaticResource SurfaceCardStyle}"
+                    Padding="14,12"
+                    VerticalAlignment="Stretch">
+                <StackPanel>
+                    <TextBlock Text="Aplicar aos marcados"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,10"/>
+                    <TextBlock Text="Motivo"
+                               FontSize="12"
+                               Foreground="{DynamicResource Brush.TextSecondary}"
+                               Margin="0,0,0,4"/>
+                    <ComboBox ItemsSource="{Binding Motivos}"
+                              SelectedItem="{Binding MotivoLote, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding PodeEditar}"
+                              IsEditable="False"
+                              Margin="0,0,0,10"/>
+                    <TextBlock Text="Classe"
+                               FontSize="12"
+                               Foreground="{DynamicResource Brush.TextSecondary}"
+                               Margin="0,0,0,4"/>
+                    <ComboBox ItemsSource="{Binding Classes}"
+                              SelectedItem="{Binding ClasseLote, UpdateSourceTrigger=PropertyChanged}"
+                              IsEnabled="{Binding PodeEditar}"
+                              IsEditable="False"
+                              Margin="0,0,0,12"/>
+                    <Button Content="Aplicar aos marcados"
+                            Command="{Binding AplicarMotivoClasseMarcadosCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Padding="12,8"
+                            Margin="0,0,0,16"/>
+                    <TextBlock Text="Resumo"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,6"/>
+                    <TextBlock Text="{Binding TextoResumo}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource Brush.TextPrimary}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <DockPanel Grid.Row="2">
             <WrapPanel DockPanel.Dock="Right">

@@ -22,7 +22,7 @@ public static class StatusDevolucaoValues
     public static string ObterRotulo(string status) => status switch
     {
         Pendente => "Pendente",
-        Devolvida => "Devolvida",
+        Devolvida => "Devolvida ao dist.",
         Absorvido => "Absorvido",
         PerdeuPrazo => "Perdeu o prazo",
         _ => status

@@ -11,7 +11,7 @@ public sealed class WidthThresholdToInverseVisibilityConverter : IValueConverter
         if (value is not double width)
             return Visibility.Visible;
 
-        if (!double.TryParse(parameter?.ToString(), NumberStyles.Any, culture, out var threshold))
+        if (!double.TryParse(parameter?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var threshold))
             threshold = 900;
 
         return width < threshold ? Visibility.Visible : Visibility.Collapsed;

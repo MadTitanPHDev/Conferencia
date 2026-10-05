@@ -114,17 +114,17 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Laranja automatico por data de emissao foi removido. Nota nova permanece em branco ate o operador marcar. Laranja so aparece se a mesma NF ja foi conferida em outro dia. Na primeira abertura desta versao, Laranja indevido do intervalo aberto volta para branco.
+Conferência e devoluções abrem na janela principal. Na loja, o menu lateral some: o botão ☰ abre o painel flutuante e a seta volta às lojas. Layout compacto para janela pequena.
+
+Pré-nota em dois passos (marcar itens, aplicar motivo/classe aos marcados). Duplo clique e F12 abrem os itens. A sincronização do VSM mostra progresso. A conexão local com o PostgreSQL usa 127.0.0.1 sem SSL e tenta de novo se a primeira leitura falhar.
 
 ### Configuracao (app-settings.json)
 
-O arquivo NAO fica mais na pasta de instalacao. Edite sempre:
+O arquivo NAO fica na pasta de instalacao. Edite sempre:
 
 ``%AppData%\ConferenciaNFs\app-settings.json``
 
 Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs\app-settings.json``
-
-Se o arquivo ainda nao existir, abra o app uma vez (ele cria a pasta e migra o antigo, se houver). Depois ajuste ``ConnectionString`` (PostgreSQL) e ``MysqlConnectionString`` (VSM) nesse arquivo.
 
 Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
 "@

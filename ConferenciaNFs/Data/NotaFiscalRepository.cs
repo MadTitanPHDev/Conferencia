@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.IO;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text;
 using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
@@ -22,7 +25,7 @@ public sealed partial class NotaFiscalRepository
             throw new InvalidOperationException(
                 "ConnectionString do PostgreSQL nao configurada. Edite app-settings.json na pasta do aplicativo.");
 
-        _connectionString = connectionString.Trim();
+        _connectionString = NormalizarConnectionString(connectionString.Trim());
         InicializarBanco();
     }
 
@@ -30,15 +33,95 @@ public sealed partial class NotaFiscalRepository
 
     public void TestarConexao()
     {
-        using var connection = CriarConexao();
-        connection.Open();
+        using var connection = AbrirConexao();
         connection.ExecuteScalar<int>("SELECT 1");
+    }
+
+    private static string NormalizarConnectionString(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        if (HostEhDesteComputador(builder.Host))
+            builder.Host = "127.0.0.1";
+
+        if (builder.Timeout < 60)
+            builder.Timeout = 60;
+        if (builder.CommandTimeout < 120)
+            builder.CommandTimeout = 120;
+
+        builder.SslMode = SslMode.Disable;
+        builder.KeepAlive = 0;
+        return builder.ConnectionString;
+    }
+
+    private static bool HostEhDesteComputador(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            return true;
+
+        if (host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("::1", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        try
+        {
+            if (!IPAddress.TryParse(host, out var informado))
+            {
+                return Dns.GetHostAddresses(host)
+                    .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork)
+                    .Any(HostEhEnderecoLocal);
+            }
+
+            return HostEhEnderecoLocal(informado);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HostEhEnderecoLocal(IPAddress ip)
+    {
+        if (IPAddress.IsLoopback(ip))
+            return true;
+
+        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            foreach (var endereco in nic.GetIPProperties().UnicastAddresses)
+            {
+                if (endereco.Address.Equals(ip))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private NpgsqlConnection AbrirConexao()
+    {
+        Exception? ultima = null;
+        for (var tentativa = 0; tentativa < 3; tentativa++)
+        {
+            try
+            {
+                var connection = CriarConexao();
+                connection.Open();
+                return connection;
+            }
+            catch (Exception ex)
+            {
+                ultima = ex;
+                NpgsqlConnection.ClearAllPools();
+                Thread.Sleep(400 * (tentativa + 1));
+            }
+        }
+
+        throw ultima ?? new InvalidOperationException("Nao foi possivel abrir a conexao com o PostgreSQL.");
     }
 
     private void InicializarBanco()
     {
-        using var connection = CriarConexao();
-        connection.Open();
+        using var connection = AbrirConexao();
 
         connection.Execute("""
             CREATE TABLE IF NOT EXISTS NotasFiscais (

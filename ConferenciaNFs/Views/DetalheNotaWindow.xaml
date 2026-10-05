@@ -83,7 +83,7 @@
                         VerticalAlignment="Top">
                 <controls:ThemeToggle Margin="0,0,6,0"/>
                 <controls:PinWindowToggle Margin="0,0,6,0"/>
-                <Button Content="Buscar preco"
+                <Button Content="Buscar preço"
                         Command="{Binding CompararPrecosCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Padding="12,6"
