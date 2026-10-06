@@ -24,7 +24,7 @@
             <Border DockPanel.Dock="Left"
                     Width="36" Height="36"
                     CornerRadius="8"
-                    Background="#0B0B0B"
+                    Background="{DynamicResource Brush.Brand}"
                     Padding="4"
                     Margin="0,0,10,0"
                     VerticalAlignment="Top">

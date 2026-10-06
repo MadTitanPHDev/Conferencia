@@ -150,7 +150,7 @@
   <div class="wrap">
 
     <header class="hero">
-      <div class="eyebrow">Documento interno · v1.0.9 · set/2026</div>
+      <div class="eyebrow">Documento interno · v1.0.17 · out/2026</div>
       <h1>ConferenciaNFs — funções, bancos e expansão</h1>
       <p>
         Inventário do que o app faz hoje, das tabelas que enxergamos
@@ -159,17 +159,18 @@
         Compradores e Devolução — sem gravar no sistema da farmácia.
       </p>
       <div class="hero-meta">
-        <span class="chip ok">Etapas 0–2 feitas</span>
-        <span class="chip next">Próximo: item na devolução / compradores</span>
+        <span class="chip ok">Produção 1.0.17</span>
+        <span class="chip ok">Pré-nota e snapshot de itens feitos</span>
+        <span class="chip next">Próximo de negócio: compradores</span>
+        <span class="chip wait">Retry Postgres (stream) adiado</span>
         <span class="chip wait">Pedido↔NF e SEFAZ em espera</span>
-        <span class="chip">VSM só leitura</span>
-        <span class="chip">Postgres guarda a conferência</span>
       </div>
     </header>
 
     <p class="print-hint">Para imprimir ou salvar em PDF: <strong>Ctrl+P</strong> no navegador.</p>
 
     <nav class="toc">
+      <a href="#situacao">Onde estamos</a>
       <a href="#arquitetura">Arquitetura</a>
       <a href="#funcoes">Funções atuais</a>
       <a href="#atalhos">Atalhos</a>
@@ -181,6 +182,34 @@
       <a href="#planejado">Planejado</a>
       <a href="#expandir">Como expandir</a>
     </nav>
+
+    <section class="card" id="situacao">
+      <h2>Onde estamos (out/2026)</h2>
+      <p class="lead">
+        Versão em produção: <strong>1.0.17</strong>.
+        A conferência do dia a dia está no ar. O objetivo estratégico não mudou.
+      </p>
+      <div class="grid-2">
+        <div class="plain-box">
+          <h3>Já no chão de loja</h3>
+          <p>
+            Sync VSM (com progresso; automático só hoje/ontem), intervalo De/Até,
+            conferência e devoluções na janela principal (☰ + seta), pré-nota em dois passos,
+            snapshot de itens no Postgres, andamento da fila, histórico de observações,
+            paleta navy/ouro, interruptor de tema e Copiar/Abrir nota, Velopack no GitHub.
+          </p>
+        </div>
+        <div class="plain-box">
+          <h3>Objetivo</h3>
+          <p>
+            Núcleo Postgres compartilhado: Conferência (este app), Devolução (esta tela, já com itens)
+            e Compradores (app novo). VSM só leitura. Pedido↔NF e SEFAZ continuam em espera.
+            Retry nas gravações quando o Postgres corta a conexão fica para um ajuste técnico depois —
+            não bloqueia o próximo passo de negócio (compradores).
+          </p>
+        </div>
+      </div>
+    </section>
 
     <!-- ========== ARQUITETURA ========== -->
     <section class="card" id="arquitetura">
@@ -205,7 +234,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         </div>
         <div class="plain-box">
           <h3>Dia da conferência</h3>
-          <p>É a <strong>data de entrada no VSM</strong> (<code>DATACOMPRA</code>), não a emissão da NF. Cada nota continua no dia em que entrou. O app abre com intervalo <strong>ontem–ontem</strong> (um dia). Na segunda, alargue para sábado–segunda. Sync ao abrir o intervalo, no botão e a cada 30 min (todos os dias do período). Máximo 7 dias.</p>
+          <p>É a <strong>data de entrada no VSM</strong> (<code>DATACOMPRA</code>), não a emissão da NF. Cada nota continua no dia em que entrou. O app abre com intervalo <strong>ontem–ontem</strong> (um dia). Na segunda, alargue para sábado–segunda. Sync ao abrir o intervalo e no botão (todos os dias do período). Timer de 30 min: só hoje e ontem. Máximo 7 dias.</p>
         </div>
       </div>
     </section>
@@ -213,20 +242,20 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
     <!-- ========== FUNÇÕES ========== -->
     <section class="card" id="funcoes">
       <h2>Funções atuais (todas as telas)</h2>
-      <p class="lead">Versão em produção: <strong>1.0.9</strong>. App desktop WPF .NET 8, várias máquinas no mesmo banco.</p>
+      <p class="lead">Versão em produção: <strong>1.0.17</strong>. App desktop WPF .NET 8, várias máquinas no mesmo banco. Conferência e devoluções abrem na janela principal.</p>
 
       <h3>1. Tela inicial (lojas do dia)</h3>
       <ul>
         <li><strong>Intervalo De / Até</strong> — escolhe um ou vários <code>DATACOMPRA</code>; padrão = ontem até ontem. Se a data inicial passar da final, o app alinha as duas. Teto: 7 dias.</li>
-        <li><strong>Cards de loja</strong> — lojas com nota em qualquer dia do intervalo; pendência = Branco + Amarelo. Clique abre a conferência da loja (lista unificada, cada nota no seu dia).</li>
+        <li><strong>Cards de loja</strong> — lojas com nota em qualquer dia do intervalo; pendência = Branco + Amarelo. Clique abre a conferência da loja na mesma janela (lista unificada, cada nota no seu dia).</li>
         <li><strong>Título</strong> — <em>Conferencia (data ou de–até) — N com pendências. Total de notas novas (primeira vez) — Total de notas</em>.</li>
-        <li><strong>Sincronizar VSM</strong> — puxa <code>compras</code> de cada <code>DATACOMPRA</code> do intervalo. Também roda ao abrir o período e a cada 30 min.</li>
+        <li><strong>Sincronizar VSM</strong> — puxa <code>compras</code> de cada <code>DATACOMPRA</code> do intervalo, com barra de progresso. Também roda ao abrir o período. O timer de 30 min cobre só hoje e ontem.</li>
         <li><strong>Importar CSV</strong> — plano B se o MySQL falhar (7 linhas de lixo, cabeçalho na 8). Todas as linhas vão para a <strong>data final</strong> do intervalo.</li>
         <li><strong>Exportar tudo</strong> — Excel de todas as lojas do intervalo, com coluna Dia e cor de status.</li>
         <li><strong>Atualizar</strong> — recarrega lojas e totais.</li>
-        <li>Menu: Gerenciar lojas, Distribuidoras, Devoluções, Pesquisar nota, Pesquisar produto.</li>
-        <li>Menu ☰: herdar status, recalcular herdados do dia, migrar SQLite antigo.</li>
-        <li><strong>Tema</strong> claro/escuro e <strong>fixar janela</strong> no topo (valem em todas as janelas).</li>
+        <li>Na lista de lojas o menu fica à esquerda. Na conferência some: <strong>☰</strong> abre o painel flutuante; a seta volta às lojas. Layout compacto em janela pequena.</li>
+        <li>Menu ☰: herdar status, recalcular herdados, migrar SQLite antigo, buscar atualização.</li>
+        <li><strong>Tema</strong> claro/escuro (paleta navy e ouro, interruptor sol/lua) e <strong>fixar janela</strong> no topo.</li>
       </ul>
 
       <h3>2. Conferência da loja</h3>
@@ -239,13 +268,13 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         <li><strong>Duplo clique</strong> — abre os itens <em>ou</em> copia o número. <strong>F12</strong> (ou o botão no topo) alterna o modo; a escolha fica salva.</li>
         <li>Ctrl+C e menu: copiar número / abrir itens (sempre disponíveis).</li>
         <li>Exportar Excel só da loja atual.</li>
-        <li>Vermelho cria/atualiza item na fila de <strong>Devoluções</strong>. Sair do Vermelho remove da fila se ainda estiver pendente.</li>
+        <li>Vermelho abre a <strong>pré-nota</strong> (itens, quantidade, motivo, classe) em dois passos e entra na fila de <strong>Devoluções</strong>. Sair do Vermelho remove da fila se ainda estiver pendente.</li>
       </ul>
 
       <h3>3. Itens da nota</h3>
       <ul>
         <li>Abre a partir da conferência (duplo clique ou menu) ou da pesquisa por EAN.</li>
-        <li>Lê <code>itens_compra</code> no VSM pelo <code>CODCOMPRA</code> — não grava no ERP.</li>
+        <li>Lê <code>itens_compra</code> no VSM e pode gravar snapshot em <code>ItensNota</code> — não grava no ERP.</li>
         <li>Colunas: código, EAN, produto, qtd, custo, lote, validade, conferida, devolvida.</li>
         <li>Duplo clique no item copia o <strong>EAN</strong> (não o código interno).</li>
         <li>Notas só de CSV (sem código VSM) não têm itens até o dia ser sincronizado.</li>
@@ -271,7 +300,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         <li>Marcar <strong>Devolvida</strong> ou <strong>Perdeu o prazo</strong>; observação própria da fila.</li>
         <li>Data mínima de rastreio (por emissão) — recorta o histórico antigo.</li>
         <li>Duplo clique / Ctrl+C copiam o número da NF.</li>
-        <li>Hoje a devolução é <strong>por nota</strong>, não por produto. A pré-nota item a item é etapa futura.</li>
+        <li>Hoje a devolução tem <strong>pré-nota por item</strong> (marcar produtos, aplicar motivo/classe, gravar no Postgres). Andamento da fila, Absorvido e histórico de observações já existem. O VSM continua intocado.</li>
       </ul>
 
       <h3>7. Gerenciar lojas</h3>
@@ -314,7 +343,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
           <tr><td>Ctrl+C</td><td>Copiar número da NF</td></tr>
           <tr><td>F12</td><td>Alternar duplo clique: itens ↔ copiar número</td></tr>
           <tr><td>Scroll</td><td>Nota seguinte / anterior</td></tr>
-          <tr><td>Esc</td><td>Fechar a janela</td></tr>
+          <tr><td>Esc</td><td>Voltar às lojas (janela principal)</td></tr>
         </tbody>
       </table>
     </section>
@@ -327,7 +356,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         <tbody>
           <tr><td>Pendente</td><td>Não conferido</td><td><span class="swatch" style="background:#fff"></span> branco</td></tr>
           <tr><td>Verde</td><td>Nota correta</td><td><span class="swatch" style="background:#92D050"></span> #92D050</td></tr>
-          <tr><td>Amarelo</td><td>Advertência (continua pendência no card)</td><td><span class="swatch" style="background:#FFFF00"></span> #FFFF00</td></tr>
+          <tr><td>Amarelo</td><td>Advertência (continua pendência no card; letra navy na grade)</td><td><span class="swatch" style="background:#FFFF00"></span> #FFFF00</td></tr>
           <tr><td>Vermelho</td><td>Devolvida — gera fila</td><td><span class="swatch" style="background:#FF0000"></span> #FF0000</td></tr>
           <tr><td>Laranja</td><td>Outro dia</td><td><span class="swatch" style="background:#FFC000"></span> #FFC000</td></tr>
           <tr><td>Azul</td><td>Absorver</td><td><span class="swatch" style="background:#2F75B5"></span> #2F75B5</td></tr>
@@ -370,7 +399,10 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       </table>
 
       <h3>Devolucoes</h3>
-      <p>Uma fila por nota Vermelho. Status: <code>Pendente</code>, <code>Devolvida</code>, <code>PerdeuPrazo</code>.</p>
+      <p>Uma fila por nota Vermelho (e, no recorte vigente, uma fila por NF de negócio + Laranja quando couber). Status: <code>Pendente</code>, <code>Devolvida</code>, <code>PerdeuPrazo</code>, <code>Absorvido</code>. Campo <code>Andamento</code> (aguardar loja/dist., XML, etc.).</p>
+
+      <h3>ItensNota / DevolucaoItens / DevolucaoObservacoes / MotivosDevolucao</h3>
+      <p>Snapshot dos itens da NF; linhas da pré-nota (produto, qtd, motivo, classe); histórico de observações da fila; cadastro de motivos.</p>
 
       <h3>Distribuidoras</h3>
       <p>CNPJ, nome, prazo em dias, se o prazo é rastreado. Alimentada pelas notas; vocês só ajustam prazo e o interruptor.</p>
@@ -437,7 +469,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
     <!-- ========== CONFIG ========== -->
     <section class="card" id="config">
       <h2>Configuração da máquina e atualização</h2>
-      <p><code>app-settings.json</code> fica na pasta do executável (não vai no Git com senha de produção).</p>
+      <p><code>app-settings.json</code> fica em <code>%AppData%\ConferenciaNFs\</code> (não vai no Git com senha de produção). Host local é forçado para <code>127.0.0.1</code> com SSL desligado.</p>
       <table>
         <thead><tr><th>Campo</th><th>Função</th></tr></thead>
         <tbody>
@@ -450,7 +482,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       <p>
         Quem instalou pelo Setup Velopack recebe aviso de nova versão no GitHub
         (<a href="https://github.com/MadTitanPHDev/Conferencia/releases">releases</a>).
-        O <code>app-settings.json</code> local é preservado na atualização.
+        O arquivo em AppData sobrevive à atualização.
       </p>
     </section>
 
@@ -492,6 +524,24 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         <h4>Intervalo De/Até + copiar nota na pesquisa de produto</h4>
         <p>Filtro manual de vários DATACOMPRA sem misturar o dia da nota. Pesquisa por EAN: duplo clique/Ctrl+C copiam o número.</p>
       </div>
+      <div class="phase done">
+        <div class="when">v1.0.10–1.0.14</div>
+        <h4>Settings em AppData, fila, pré-nota, andamento</h4>
+        <p>
+          Configuração fora da pasta Velopack. Snapshot <code>ItensNota</code>, pré-nota em dois passos,
+          andamento e Absorvido na fila, histórico de observações, uma fila por NF de negócio no recorte vigente.
+        </p>
+      </div>
+      <div class="phase done">
+        <div class="when">v1.0.15–1.0.17</div>
+        <h4>Janela única, UX e paleta</h4>
+        <p>
+          Conferência e devoluções na MainWindow, menu ☰ flutuante, layout compacto, progresso do sync,
+          interruptor Copiar/Abrir nota, tema navy/ouro (sol/lua), texto navy nas linhas amarelas.
+          Pré-nota: pesquisa por nome/EAN e selecionar todos. Fila: excluir, Excel uma linha por nota.
+          Release Velopack em <a href="https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.17">v1.0.17</a>.
+        </p>
+      </div>
     </section>
 
     <!-- ========== PLANEJADO ========== -->
@@ -499,7 +549,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       <h2>O que está planejado (objetivo final)</h2>
       <p class="lead">
         Meta: um <strong>núcleo Postgres</strong> e três frentes — Conferência (já existe),
-        Compradores (app novo) e Devolução (evoluir a tela atual) — lendo o VSM só quando preciso.
+        Compradores (app novo) e Devolução (esta tela, já com pré-nota) — lendo o VSM só quando preciso.
       </p>
       <pre class="arch">                    MySQL VSM (somente leitura)
                               │
@@ -511,20 +561,18 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
                  ▼            ▼            ▼
            Conferência    Compradores    Devolução
            (este app)     (app novo)     (esta tela,
-                                          mais itens)</pre>
+                                          já com itens)</pre>
 
-      <div class="phase">
-        <div class="when">Etapa 3 · próxima de negócio</div>
+      <div class="phase done">
+        <div class="when">Etapa 3 · feita (1.0.10–1.0.17)</div>
         <h4>Devolução por produto (pré-nota)</h4>
         <p>
-          Hoje Vermelho = a nota inteira. O alvo: ao devolver, abrir os itens,
-          marcar produto(s), quantidade e motivo, e gravar isso no <em>nosso</em> banco.
-          A fila de Devoluções passa a trabalhar essa pré-nota. O VSM continua intocado;
-          a equipe usa o que o app gerou para lançar no ERP se quiser.
+          Ao marcar Vermelho abre os itens, marca produto(s), quantidade e motivo/classe, grava no Postgres.
+          A fila trabalha essa pré-nota (andamento, Absorvido, histórico). O VSM continua intocado.
         </p>
       </div>
       <div class="phase">
-        <div class="when">Etapa 4</div>
+        <div class="when">Etapa 4 · próxima de negócio</div>
         <h4>App dos compradores</h4>
         <p>
           Na conferência, Amarelo deixa de ser só cor: escolhe-se o(s) item(ns) e envia
@@ -571,6 +619,15 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
           ou notas que o ERP não tem.
         </p>
       </div>
+      <div class="phase wait">
+        <div class="when">Ajuste técnico · depois</div>
+        <h4>Retry nas gravações Postgres</h4>
+        <p>
+          <code>Exception while reading from stream</code> ao atualizar status: conexão ociosa do pool.
+          Retry hoje só no Open. Combinado deixar para depois (retry na operação + keepalive).
+          PC dedicado com Postgres local ajuda, mas não substitui o retry.
+        </p>
+      </div>
       <div class="phase">
         <div class="when">Etapas 8–10 · médio/longo prazo</div>
         <h4>Fabricante, estoque, automação</h4>
@@ -591,24 +648,24 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       <ol>
         <li><strong>VSM só leitura.</strong> Toda decisão (status, pré-nota, resposta do comprador) mora no Postgres.</li>
         <li><strong>Uma identidade de nota.</strong> Continuar com loja + número + CNPJ + dia, mais <code>CodCompra</code> e chave NFe quando existirem.</li>
-        <li><strong>Itens sob demanda no começo, cópia depois.</strong> Hoje os itens são lidos na hora no MySQL. Para devolução/compradores, o próximo passo natural é <em>copiar</em> os itens da nota para tabelas nossas no momento do envio (snapshot), para a fila não depender da rede do VSM.</li>
+        <li><strong>Itens copiados quando a pré-nota precisa.</strong> Snapshot em <code>ItensNota</code> / <code>DevolucaoItens</code>. Detalhe ainda pode ler o VSM na hora.</li>
         <li><strong>Três apps, um banco.</strong> Conferência evolui este WPF. Devolução pode continuar neste exe (nova tela/aba) ou virar exe irmão. Compradores = app novo apontando para o mesmo Postgres.</li>
         <li><strong>CSV permanece plano B</strong> até o sync estar inquestionável na rotina.</li>
       </ol>
 
       <h3>Ordem prática de construção</h3>
       <div class="flow-mini">
-        <p><strong>1. Snapshot de itens no Postgres</strong> — tabela <code>ItensNota</code> (CodCompra, EAN, qtd, custo, lote…). Preenchida ao abrir o detalhe ou ao marcar Vermelho/Amarelo. Sem isso, pré-nota e comprador quebram offline.</p>
-        <p><strong>2. Pré-nota de devolução</strong> — ao marcar Vermelho, tela de itens com seleção/qtd/motivo; <code>Devolucoes</code> ganha linhas por item. A tela Devoluções já existente só passa a listar esses itens.</p>
-        <p><strong>3. Pendência de comprador</strong> — ao marcar Amarelo, mesma tela de itens + destino (grupo/comprador). Tabelas <code>Compradores</code>, <code>PendenciasCompra</code>. App novo só lê/grava essas tabelas e devolve o status.</p>
+        <p><strong>1. Snapshot de itens no Postgres — feito.</strong> Tabela <code>ItensNota</code>.</p>
+        <p><strong>2. Pré-nota de devolução — feito.</strong> Vermelho abre itens; <code>DevolucaoItens</code> na fila.</p>
+        <p><strong>3. Pendência de comprador</strong> — próximo passo de negócio. Amarelo deixa de ser só cor: itens + destino. Tabelas <code>Compradores</code>, <code>PendenciasCompra</code>. App novo.</p>
         <p><strong>4. Usuários</strong> — login simples no Postgres antes do app dos compradores ir para 10 pessoas. Auditoria: usuário, app, ação, antes/depois, data.</p>
-        <p><strong>5. Depois, se fizer falta</strong> — cruzamento pedido↔NF (leitura de <code>pedido</code>/<code>pedidoitens</code>), fabricante para roteamento automático, SEFAZ.</p>
+        <p><strong>5. Técnico (depois)</strong> — retry/keepalive no Postgres. Pedido↔NF e SEFAZ só se você pedir.</p>
       </div>
 
       <h3>O que já está pronto para encaixar</h3>
       <ul>
-        <li>Leitura de itens e EAN (<code>VsmComprasReader</code>).</li>
-        <li>Fila de devolução por nota (gancho do Vermelho).</li>
+        <li>Leitura de itens e EAN (<code>VsmComprasReader</code>) e snapshot <code>ItensNota</code>.</li>
+        <li>Fila de devolução com pré-nota por item.</li>
         <li>Amarelo já conta como pendência no dashboard.</li>
         <li>Distribuidoras com prazo.</li>
         <li>Mapa estável de lojas e CNPJ.</li>
@@ -617,14 +674,14 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
 
       <div class="callout ok">
         <strong>Resumo:</strong> o objetivo final não exige outro “sistema de conferência”.
-        Exige copiar itens para o nosso banco, transformar Vermelho e Amarelo em
-        fluxos <em>por produto</em>, e um app irmão para o comprador responder.
-        Pedido↔NF e SEFAZ ficam de fora até você mandar retomar.
+        Snapshot e pré-nota já existem. Falta transformar o Amarelo em fluxo
+        <em>por produto</em> para o comprador, e o app irmão para ele responder.
+        Retry do Postgres, pedido↔NF e SEFAZ ficam de fora até você mandar retomar.
       </div>
     </section>
 
     <p class="footer">
-      ConferenciaNFs · Documentação interna · v1.0.9 · set/2026 · Criado para a equipe de conferência
+      ConferenciaNFs · Documentação interna · v1.0.17 · out/2026 · Criado para a equipe de conferência
     </p>
   </div>
 </body>

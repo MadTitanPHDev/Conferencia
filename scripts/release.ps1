@@ -114,9 +114,11 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Conferência e devoluções abrem na janela principal. Na loja, o menu lateral some: o botão ☰ abre o painel flutuante e a seta volta às lojas. Layout compacto para janela pequena.
+Pré-nota: pesquisar item por nome, código ou código de barras; marcar ou desmarcar todos os itens visíveis.
 
-Pré-nota em dois passos (marcar itens, aplicar motivo/classe aos marcados). Duplo clique e F12 abrem os itens. A sincronização do VSM mostra progresso. A conexão local com o PostgreSQL usa 127.0.0.1 sem SSL e tenta de novo se a primeira leitura falhar.
+Fila de devoluções: excluir da fila, exportar Excel com uma linha por nota (só concluídas), limpeza do recorte anterior a 01/10/2026.
+
+Tema escuro: ComboBox e DatePicker legíveis. Paleta navy/ouro, conferência e devoluções na janela principal, menu ☰, pré-nota em dois passos.
 
 ### Configuracao (app-settings.json)
 

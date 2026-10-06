@@ -41,7 +41,8 @@
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="12,6"
                         FontSize="12"
-                        Margin="0,0,6,4"/>
+                        Margin="0,0,6,4"
+                        ToolTip="Exporta só as devoluções concluídas (devolvida ao dist., absorvido, perdeu o prazo), independentemente do filtro da lista."/>
                 <Button Content="Atualizar"
                         Command="{Binding AtualizarCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
@@ -73,12 +74,12 @@
                                 Height="28"
                                 Margin="0,2,10,2"
                                 VerticalAlignment="Center"/>
-                    <CheckBox Content="Remover pendências anteriores"
+                    <CheckBox Content="Remover da fila o que for anterior"
                               IsChecked="{Binding RemoverPendentesAnteriores, Mode=TwoWay}"
                               FontSize="12"
                               VerticalAlignment="Center"
                               Margin="0,2,10,2"
-                              ToolTip="Pendências usam a data em que entrou na fila. Concluídas permanecem visíveis."/>
+                              ToolTip="Apaga pendentes e concluídas com data de fila anterior à data mínima. Itens e recados daqueles registros saem junto."/>
                     <Button Content="Salvar"
                             Command="{Binding SalvarPeriodoCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
@@ -403,7 +404,14 @@
                             Command="{Binding MarcarPerdeuPrazoCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Padding="12,5"
-                            FontSize="12"/>
+                            FontSize="12"
+                            Margin="0,0,6,0"/>
+                    <Button Content="Excluir da fila"
+                            Command="{Binding ExcluirDaFilaCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,5"
+                            FontSize="12"
+                            ToolTip="Tira a nota da fila (pendente ou concluída). Não altera o status na conferência."/>
                 </WrapPanel>
             </Grid>
         </Border>

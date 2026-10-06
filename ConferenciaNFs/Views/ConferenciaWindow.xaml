@@ -24,7 +24,7 @@
         <KeyBinding Key="F9" Command="{Binding DefinirObservacaoBonificacaoCommand}"/>
         <KeyBinding Key="F11" Command="{Binding DefinirObservacaoEncomendaCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SalvarObservacaoCommand}"/>
-        <KeyBinding Key="F12" Command="{Binding AbrirItensCommand}"/>
+        <KeyBinding Key="F12" Command="{Binding AlternarDuploCliqueCommand}"/>
     </UserControl.InputBindings>
 
     <Grid Margin="0">
@@ -40,14 +40,18 @@
                 Margin="0,0,0,4">
             <StackPanel>
                 <DockPanel LastChildFill="True" Margin="0,0,0,4">
-                    <Button DockPanel.Dock="Right"
-                            Content="Exportar"
-                            Command="{Binding ExportarConferenciaCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="8,3"
-                            FontSize="11"
-                            VerticalAlignment="Center"
-                            Margin="8,0,0,0"/>
+                    <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
+                        <ToggleButton IsChecked="{Binding DuploCliqueCopiaNumero, Mode=TwoWay}"
+                                      Style="{StaticResource DuploCliqueSwitchStyle}"
+                                      Margin="0,0,12,0"
+                                      VerticalAlignment="Center"
+                                      ToolTip="{Binding DicaDuploClique}"/>
+                        <Button Content="Exportar"
+                                Command="{Binding ExportarConferenciaCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="8,3"
+                                FontSize="11"/>
+                    </WrapPanel>
                     <StackPanel>
                         <TextBlock Text="{Binding TituloConferencia}"
                                    Style="{StaticResource PageTitleStyle}"
@@ -275,6 +279,78 @@
                         </Style.Triggers>
                     </Style>
                 </DataGrid.RowStyle>
+
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding StatusConferencia}" Value="Verde">
+                                <Setter Property="Foreground" Value="#1B5E20"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding StatusConferencia}" Value="Amarelo">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloForeground}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding StatusConferencia}" Value="Vermelho">
+                                <Setter Property="Foreground" Value="White"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding StatusConferencia}" Value="Laranja">
+                                <Setter Property="Foreground" Value="#7A4F00"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding StatusConferencia}" Value="Azul">
+                                <Setter Property="Foreground" Value="White"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Pendente"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="{DynamicResource Brush.SelectionBackground}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.SelectionForeground}"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Verde"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#6FBF3A"/>
+                                <Setter Property="Foreground" Value="#102910"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Amarelo"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#E6E600"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloSelectedForeground}"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Vermelho"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#CC0000"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Laranja"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#E0A800"/>
+                                <Setter Property="Foreground" Value="#4A3000"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding StatusConferencia}" Value="Azul"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#245F94"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
 
                 <DataGrid.ContextMenu>
                     <ContextMenu>

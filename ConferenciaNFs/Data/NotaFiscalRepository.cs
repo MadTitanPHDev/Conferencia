@@ -173,6 +173,7 @@ public sealed partial class NotaFiscalRepository
         InicializarTabelaDevolucaoItens(connection);
         InicializarTabelaDevolucaoObservacoes(connection);
         AplicarCorteFilaDevolucoesPorAcao(connection);
+        AplicarLimpezaDevolucoesAnterioresAoCorte(connection);
         InicializarTabelaPrecos(connection);
         CorrigirNotasLojasVsm2a5(connection);
     }
@@ -200,6 +201,7 @@ public sealed partial class NotaFiscalRepository
 
     private const string ConfigDevolucoesDataMinima = "DevolucoesDataMinima";
     private const string ConfigCorteFilaDevolucoesAcao = "CorteFilaDevolucoesAcao_2026-10-01";
+    private const string ConfigLimpezaDevolucoesAntesCorte = "LimpezaDevolucoesAntes_2026-10-01";
     private static readonly DateTime InicioFilaDevolucoesPorAcao = new(2026, 10, 1);
     private const string ConfigHerancaStatusImportacao = "HerancaStatusImportacao";
     private const string ConfigCorrecaoLojasVsm2a5 = "CorrecaoLojasVsm2a5";
@@ -319,6 +321,73 @@ public sealed partial class NotaFiscalRepository
             VALUES (@Chave, '1')
             ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
             """, new { Chave = ConfigCorteFilaDevolucoesAcao });
+    }
+
+    /// <summary>
+    /// O corte de 01/10/2026 apagou so pendentes. Concluidas antigas continuavam
+    /// na lista. Remove da fila qualquer registro com data de marcacao/conclusao
+    /// (ou dia da conferencia) anterior a 01/10/2026.
+    /// </summary>
+    private static void AplicarLimpezaDevolucoesAnterioresAoCorte(NpgsqlConnection connection)
+    {
+        var jaAplicou = connection.ExecuteScalar<string?>("""
+            SELECT Valor
+            FROM AppConfig
+            WHERE Chave = @Chave
+            """, new { Chave = ConfigLimpezaDevolucoesAntesCorte });
+
+        if (string.Equals(jaAplicou?.Trim(), "1", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var inicio = DataCompraParser.Formatar(InicioFilaDevolucoesPorAcao);
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, @Valor)
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new
+        {
+            Chave = ConfigDevolucoesDataMinima,
+            Valor = inicio
+        });
+
+        RemoverDevolucoesForaDoPeriodo(connection, transaction: null, InicioFilaDevolucoesPorAcao);
+
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, '1')
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new { Chave = ConfigLimpezaDevolucoesAntesCorte });
+    }
+
+    private static void RemoverDevolucoesForaDoPeriodo(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        DateTime dataMinima)
+    {
+        var registros = connection.Query<DevolucaoItem>("""
+            SELECT
+                d.Id,
+                d.NotaFiscalId,
+                n.DiaConferencia,
+                d.StatusDevolucao,
+                d.DataMarcada,
+                d.DataConclusao
+            FROM Devolucoes d
+            INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
+            """, transaction: transaction).ToList();
+
+        var idsRemover = registros
+            .Where(d => !DevolucaoVisivelNoPeriodo(d, dataMinima))
+            .Select(d => d.Id)
+            .ToArray();
+
+        if (idsRemover.Length == 0)
+            return;
+
+        connection.Execute("""
+            DELETE FROM Devolucoes
+            WHERE Id = ANY(@Ids)
+            """, new { Ids = idsRemover }, transaction);
     }
 
     private static void InicializarTabelaDistribuidoras(NpgsqlConnection connection)
@@ -2172,9 +2241,6 @@ public sealed partial class NotaFiscalRepository
 
     private static bool DevolucaoVisivelNoPeriodo(DevolucaoItem item, DateTime? dataMinima)
     {
-        if (item.StatusDevolucao != StatusDevolucaoValues.Pendente)
-            return true;
-
         if (!dataMinima.HasValue)
             return true;
 
@@ -2312,44 +2378,7 @@ public sealed partial class NotaFiscalRepository
         }, transaction);
 
         if (removerPendentesAnteriores && dataMinima.HasValue)
-        {
-            var pendentes = (await connection.QueryAsync<DevolucaoItem>($"""
-                SELECT
-                    d.Id,
-                    d.NotaFiscalId,
-                    n.ApelidoLoja,
-                    n.NumNota,
-                    n.NomeForn,
-                    n.CnpjForn,
-                    n.ValorNota,
-                    n.DataEmissao,
-                    n.DiaConferencia,
-                    d.StatusDevolucao,
-                    COALESCE(NULLIF(TRIM(d.Andamento), ''), 'AguardandoLoja') AS Andamento,
-                    d.DataMarcada,
-                    d.DataConclusao,
-                    d.Observacao,
-                    dist.PrazoDevolucaoDias,
-                    COALESCE(dist.RastrearPrazo, FALSE) AS RastrearPrazo
-                FROM Devolucoes d
-                INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
-                {SqlJoinDistribuidoraPorCnpj}
-                WHERE d.StatusDevolucao = @StatusPendente
-                """, new { StatusPendente = StatusDevolucaoValues.Pendente }, transaction)).ToList();
-
-            var idsRemover = pendentes
-                .Where(d => !DevolucaoVisivelNoPeriodo(d, dataMinima))
-                .Select(d => d.Id)
-                .ToList();
-
-            if (idsRemover.Count > 0)
-            {
-                await connection.ExecuteAsync("""
-                    DELETE FROM Devolucoes
-                    WHERE Id = ANY(@Ids)
-                    """, new { Ids = idsRemover.ToArray() }, transaction);
-            }
-        }
+            RemoverDevolucoesForaDoPeriodo(connection, transaction, dataMinima.Value.Date);
 
         await transaction.CommitAsync(cancellationToken);
     }
@@ -2404,6 +2433,24 @@ public sealed partial class NotaFiscalRepository
             StatusDevolucao = statusDevolucao,
             DataConclusaoNova = dataConclusaoNova
         });
+
+        if (linhas == 0)
+            throw new InvalidOperationException($"Devolucao com Id {devolucaoId} nao encontrada.");
+    }
+
+    public async Task ExcluirDevolucaoAsync(
+        long devolucaoId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.ExecuteAsync(new CommandDefinition("""
+            DELETE FROM Devolucoes
+            WHERE Id = @Id
+            """,
+            new { Id = devolucaoId },
+            cancellationToken: cancellationToken));
 
         if (linhas == 0)
             throw new InvalidOperationException($"Devolucao com Id {devolucaoId} nao encontrada.");

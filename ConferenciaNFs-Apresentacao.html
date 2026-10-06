@@ -239,11 +239,11 @@
 <body>
   <main class="page">
     <header class="section" style="gap: 8px;">
-      <span class="pill info">ConferenciaNFs · Apresentação técnica</span>
+      <span class="pill info">ConferenciaNFs · Apresentação técnica · v1.0.17</span>
       <h1>Conferência de Notas Fiscais</h1>
       <p class="muted">
         Aplicativo desktop WPF (.NET 8) para conferência diária de NFs por
-        loja, com banco PostgreSQL compartilhado na rede local.
+        loja. Notas vêm do VSM (MySQL, só leitura); decisões ficam no PostgreSQL compartilhado.
       </p>
     </header>
 
@@ -257,9 +257,9 @@
     <aside class="callout">
       <div class="title">Em uma frase</div>
       <p>
-        Cliente MVVM que importa CSV do dia, permite colorir e anotar notas por
-        loja, exporta Excel colorido e compartilha o estado via PostgreSQL na
-        LAN — com migrador SQLite único e zip self-contained para distribuição.
+        Cliente MVVM que sincroniza o VSM (MySQL só leitura), colora e anota
+        notas por loja, gera pré-nota de devolução e Excel, e compartilha o estado
+        via PostgreSQL — instalação e update pelo Velopack no GitHub.
       </p>
     </aside>
 
@@ -306,6 +306,8 @@
           <tr><td>CsvHelper</td><td>33.0.1</td><td>Importação da planilha CSV diária</td></tr>
           <tr><td>Dapper</td><td>2.1.35</td><td>Acesso SQL leve sobre Npgsql / Sqlite</td></tr>
           <tr><td>Npgsql</td><td>8.0.6</td><td>Driver PostgreSQL (banco principal)</td></tr>
+          <tr><td>Velopack</td><td>1.2.0</td><td>Instalador e atualização via GitHub Releases</td></tr>
+          <tr><td>MySqlConnector</td><td>2.3.7</td><td>VSM (somente leitura)</td></tr>
           <tr><td>Microsoft.Data.Sqlite</td><td>8.0.11</td><td>Somente migração única SQLite → Postgres</td></tr>
         </tbody>
       </table>
@@ -321,12 +323,17 @@
           <tr>
             <td>Dashboard</td>
             <td>MainWindow + DashboardViewModel</td>
-            <td>Calendário, cards de lojas, import/export, migrar</td>
+            <td>De/Até, cards, sync com progresso, CSV, Excel, ☰, tema, pin</td>
           </tr>
           <tr>
             <td>Conferência</td>
-            <td>ConferenciaWindow + ConferenciaViewModel</td>
-            <td>Grade de notas, status, observação, atalhos</td>
+            <td>ConferenciaWindow (UserControl) + ConferenciaViewModel</td>
+            <td>Grade, status, observação, F12, pré-nota no Vermelho</td>
+          </tr>
+          <tr>
+            <td>Devoluções</td>
+            <td>DevolucoesWindow (UserControl) + DevolucoesViewModel</td>
+            <td>Fila, andamento, prazo, itens da pré-nota</td>
           </tr>
           <tr>
             <td>Gerenciar lojas</td>
@@ -349,9 +356,8 @@
           <div class="card-header">Importar <span class="pill">1</span></div>
           <div class="card-body">
             <p class="small">
-              CSV diário (pula 7 linhas de metadados). Todas as notas ficam
-              ligadas ao <code>DiaConferencia</code> escolhido no calendário
-              (padrão: ontem).
+              Sync VSM (compras do DATACOMPRA). CSV é plano B: notas na
+              data final do intervalo.
             </p>
           </div>
         </article>
@@ -428,9 +434,11 @@
         <div class="card-header">PostgreSQL compartilhado</div>
         <div class="card-body">
           <p>
-            Tabelas principais: <code>NotasFiscais</code> e
-            <code>LojaOrdem</code>. Connection string em
-            <code>app-settings.json</code> ao lado do executável.
+            Tabelas principais: <code>NotasFiscais</code>, <code>Devolucoes</code>,
+            <code>ItensNota</code>, <code>DevolucaoItens</code>, <code>LojaOrdem</code>.
+            Connection string em
+            <code>%AppData%\ConferenciaNFs\app-settings.json</code>.
+            Host deste PC vira <code>127.0.0.1</code>; SSL desligado.
           </p>
           <div class="pills">
             <span class="pill">Host local: 127.0.0.1</span>
@@ -457,7 +465,7 @@
           <tr><td>1 / F1 … 5 / F8</td><td>Verde, Amarelo, Vermelho, Laranja, Azul</td></tr>
           <tr><td>F5 / F6 / F7</td><td>Observação PBM / USO E CONSUMO / CONVENIÊNCIA</td></tr>
           <tr><td>Ctrl+S</td><td>Salvar texto livre de observação</td></tr>
-          <tr><td>Ctrl+C / duplo clique</td><td>Copia só o número da nota</td></tr>
+          <tr><td>Ctrl+C / F12 / duplo clique</td><td>Copiar número ou abrir itens (F12 alterna; salvo nas settings)</td></tr>
           <tr><td>Scroll do mouse</td><td>Troca nota anterior / próxima</td></tr>
         </tbody>
       </table>
@@ -496,9 +504,8 @@
             do colega não precisa instalar .NET.
           </p>
           <p class="muted small">
-            Pasta <code>dist/</code> e zip
-            <code>ConferenciaNFs-Distribuicao.zip</code>. Colegas abrem o exe
-            com ConnectionString apontando para o servidor.
+            Script <code>scripts\release.ps1</code> + GitHub Releases (Setup Velopack).
+            Settings em <code>%AppData%\ConferenciaNFs</code>. Produção atual: 1.0.17.
           </p>
         </div>
       </article>

@@ -15,7 +15,8 @@ public static class DevolucoesExportador
 
         var cabecalhos = new[]
         {
-            "ID", "Loja", "Nota", "Data", "Valor", "Valor item", "Motivo", "Classe", "Fornecedor", "Observações"
+            "ID", "Loja", "Nota", "Status", "Data conclusao", "Data emissao",
+            "Valor", "Valor item", "Motivo", "Classe", "Fornecedor", "Observações"
         };
 
         for (var col = 0; col < cabecalhos.Length; col++)
@@ -24,15 +25,8 @@ public static class DevolucoesExportador
         var linha = 2;
         foreach (var nota in notas)
         {
-            if (itensPorDevolucao.TryGetValue(nota.Id, out var lista) && lista.Count > 0)
-            {
-                foreach (var item in lista)
-                    linha = EscreverLinha(planilha, linha, nota, item);
-            }
-            else
-            {
-                linha = EscreverLinha(planilha, linha, nota, null);
-            }
+            itensPorDevolucao.TryGetValue(nota.Id, out var lista);
+            linha = EscreverLinha(planilha, linha, nota, lista);
         }
 
         planilha.Columns(1, cabecalhos.Length).AdjustToContents();
@@ -43,26 +37,30 @@ public static class DevolucoesExportador
         IXLWorksheet planilha,
         int linha,
         DevolucaoItem nota,
-        DevolucaoItemPreNota? item)
+        IReadOnlyList<DevolucaoItemPreNota>? itens)
     {
         planilha.Cell(linha, 1).Value = nota.Id;
         planilha.Cell(linha, 2).Value = nota.ApelidoLoja;
         planilha.Cell(linha, 3).Value = nota.NumNota;
-        planilha.Cell(linha, 4).Value = nota.DataEmissao;
+        planilha.Cell(linha, 4).Value = nota.StatusRotulo;
+        planilha.Cell(linha, 5).Value = nota.DataConclusao ?? "";
+        planilha.Cell(linha, 6).Value = nota.DataEmissao;
 
-        planilha.Cell(linha, 5).Value = (double)nota.ValorNota;
-        planilha.Cell(linha, 5).Style.NumberFormat.Format = "R$ #,##0.00";
+        planilha.Cell(linha, 7).Value = (double)nota.ValorNota;
+        planilha.Cell(linha, 7).Style.NumberFormat.Format = "R$ #,##0.00";
 
-        if (item is not null)
+        if (itens is { Count: > 0 })
         {
-            planilha.Cell(linha, 6).Value = (double)(item.Quantidade * item.CustoNota);
-            planilha.Cell(linha, 6).Style.NumberFormat.Format = "R$ #,##0.00";
-            planilha.Cell(linha, 7).Value = item.Motivo;
-            planilha.Cell(linha, 8).Value = item.Classe;
+            planilha.Cell(linha, 8).Value = (double)itens.Sum(i => i.Quantidade * i.CustoNota);
+            planilha.Cell(linha, 8).Style.NumberFormat.Format = "R$ #,##0.00";
+            planilha.Cell(linha, 9).Value = string.Join("; ",
+                itens.Select(i => i.Motivo).Where(m => !string.IsNullOrWhiteSpace(m)).Distinct());
+            planilha.Cell(linha, 10).Value = string.Join("; ",
+                itens.Select(i => i.Classe).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct());
         }
 
-        planilha.Cell(linha, 9).Value = nota.NomeForn;
-        planilha.Cell(linha, 10).Value = nota.Observacao;
+        planilha.Cell(linha, 11).Value = nota.NomeForn;
+        planilha.Cell(linha, 12).Value = nota.Observacao;
         return linha + 1;
     }
 }

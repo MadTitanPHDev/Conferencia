@@ -4,7 +4,9 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.15**
+Versão atual: **1.0.17** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.17))
+
+**Onde estamos:** a conferência do dia a dia (sync VSM, status, pré-nota ao devolver, fila de devoluções com andamento, Excel) está em produção. O objetivo maior continua o mesmo: um núcleo Postgres nosso, sem gravar no VSM, e mais tarde um app de compradores. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`).
 
 ---
 
@@ -113,7 +115,9 @@ As tabelas do PostgreSQL são criadas automaticamente na primeira conexão. Não
 
 O sync roda ao abrir o intervalo, no botão **Sincronizar VSM** e automaticamente **a cada 30 minutos** enquanto o app estiver aberto. Ele nunca apaga notas — só insere e atualiza.
 
-O sync automático revê apenas **hoje e ontem**: como `DATACOMPRA` é a data em que a nota entrou no VSM, dia passado não recebe nota nova. Trocar o intervalo ou clicar em **Sincronizar VSM** cobre o período inteiro.
+O sync automático revê apenas **hoje e ontem**: como `DATACOMPRA` é a data em que a nota entrou no VSM, dia passado não recebe nota nova. Trocar o intervalo ou clicar em **Sincronizar VSM** cobre o período inteiro. Enquanto sincroniza, a barra de progresso na tela inicial mostra o andamento.
+
+Na loja, conferência e devoluções abrem **na mesma janela**. O menu lateral some: **☰** abre o painel flutuante e a seta volta às lojas. Em janela pequena o layout fica compacto.
 
 **Importar CSV** é o plano B para quando o MySQL estiver fora. Todas as linhas do arquivo entram na **data final** do intervalo.
 
@@ -125,7 +129,7 @@ O sync automático revê apenas **hoje e ontem**: como `DATACOMPRA` é a data em
 |---|---|---|
 | Pendente | Branco | Ainda não conferida |
 | Verde | Verde | Nota correta |
-| Amarelo | Amarelo | Nota com advertência |
+| Amarelo | Amarelo | Nota com advertência (texto navy na grade, para leitura) |
 | Vermelho | Vermelho | Nota devolvida — entra na fila de devoluções |
 | Laranja | Laranja | Nota de outro dia |
 | Azul | Azul | Nota absorvida |
@@ -171,7 +175,7 @@ A identidade da nota é buscada por `CodCompra`, chave da NFe, ou pela combinaç
 | `Enter` | Salvar a observação (dentro do campo de texto) |
 | `Ctrl+C` | Copiar o número da nota |
 | `F12` | Alternar o que o duplo clique faz |
-| `Esc` | Fechar a janela |
+| `Esc` | Voltar às lojas (na janela principal) |
 
 Mouse: **duplo clique** copia o número ou abre os itens (conforme F12), **scroll** troca a nota selecionada, **botão direito** abre o menu com todas as ações.
 
@@ -191,14 +195,16 @@ Mouse: **duplo clique** copia o número ou abre os itens (conforme F12), **scrol
 
 | Tela | O que faz |
 |---|---|
-| **Dashboard** | Intervalo De/Até, cards das lojas com pendências, sincronizar, importar CSV, exportar tudo. |
-| **Conferência da loja** | Grade das notas do intervalo, colorida por status. Marcar status, observações, filtros, exportar Excel da loja. |
-| **Itens da nota** | Itens vindos do VSM: produto, EAN, quantidade, custo, lote, validade. |
-| **Devoluções** | Fila das notas Vermelho: pendentes, vencidas, a vencer, concluídas. Prazo = emissão + dias da distribuidora. |
+| **Dashboard** | Intervalo De/Até, cards das lojas com pendências, sincronizar (com progresso), importar CSV, exportar tudo. Tema claro/escuro (paleta navy/ouro) e pin no topo. |
+| **Conferência da loja** | Abre embutida na janela principal. Grade colorida por status, observações, filtros, exportar Excel da loja. Interruptor Copiar / Abrir nota (F12). |
+| **Itens da nota** | Itens do VSM (e snapshot no Postgres quando já gravados): produto, EAN, quantidade, custo, lote, validade. |
+| **Pré-nota** | Ao marcar Vermelho: dois passos (marcar itens, aplicar motivo/classe aos marcados) e gravação no nosso banco. |
+| **Devoluções** | Fila das notas Vermelho, na mesma janela. Andamento (aguardar loja/dist., XML, absorvido…), prazo = emissão + dias da distribuidora. |
 | **Pesquisar nota** | Busca por número e mostra o status da primeira conferência daquela NF. |
 | **Pesquisar produto** | Busca por EAN no VSM a partir de uma data, com custo mínimo opcional. |
 | **Gerenciar lojas** | Ordem e nome de exibição dos cards. |
 | **Distribuidoras** | Prazo de devolução por CNPJ e se o prazo é rastreado. |
+| **Motivos / tabelas de preço** | Cadastro de motivos de devolução e consulta de preços. |
 
 ---
 
@@ -249,7 +255,7 @@ ConferenciaNFs/
 ├── Infrastructure/         Serviços, parsers, regras, converters
 ├── Models/                 Entidades e constantes de domínio
 ├── ViewModels/             Estado e comandos das telas
-├── Views/                  Janelas secundárias
+├── Views/                  Telas (várias como UserControl na MainWindow)
 ├── Controls/               ThemeToggle, PinWindowToggle
 ├── Themes/                 Cores claro/escuro e estilos
 └── Assets/                 Ícones e logos
@@ -280,6 +286,10 @@ PostgreSQL, criado automaticamente pelo app.
 | `LojaVsmMap` | `CODLOJA` do VSM → apelido da loja. |
 | `Distribuidoras` | CNPJ, prazo de devolução, rastrear prazo. |
 | `AppConfig` | Chave/valor: herança ligada, data mínima de devoluções, correções aplicadas. |
+| `ItensNota` | Snapshot dos itens da NF no nosso banco (pré-nota e detalhe offline). |
+| `DevolucaoItens` | Itens, quantidades, motivo e classe da pré-nota. |
+| `DevolucaoObservacoes` | Histórico de observações da fila. |
+| `MotivosDevolucao` | Cadastro de motivos. |
 
 O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca por EAN, incluindo `BARRAS_EANTRIB`).
 
@@ -292,17 +302,17 @@ O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca po
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.10
+.\scripts\release.ps1 -Version 1.0.17
 ```
 
 4. Publique a release com os arquivos de `artifacts\Releases\`:
 
 ```powershell
-gh release create v1.0.10 (Get-ChildItem artifacts\Releases -File).FullName `
-  --title "ConferenciaNFs 1.0.10" --notes "..."
+gh release create v1.0.17 (Get-ChildItem artifacts\Releases -File).FullName `
+  --title "ConferenciaNFs 1.0.17" --notes "..."
 ```
 
-Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.10 -CreateGitHubRelease`.
+Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.17 -CreateGitHubRelease`.
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.
 
@@ -316,11 +326,12 @@ O script publica self-contained win-x64, empacota com Velopack e leva no pacote 
 - **Release manual.** Não há CI; os pacotes saem da máquina de quem publica.
 - **`ImportacaoCsvTests` depende de arquivos locais** em `c:\Users\User\Desktop\...`. Dois testes estão com `Skip`; o de detecção de delimitador falha em outras máquinas.
 - **Código morto no repositório**: `ResolverChaveDataCompraAsync`, `LimparNotasDoDiaAtualAsync` e as sobrecargas de dia único de `ObterResumoDiaAsync`, `ObterNotasPorLojaAsync` e `ObterTodasNotasPorDataAsync` ficaram sem chamador depois do intervalo De/Até.
+- **`Exception while reading from stream` ao atualizar status.** O Npgsql reaproveita um soquete morto do pool (rede, idle do Postgres). Há retry só na abertura da conexão, não na gravação. Fica para um ajuste posterior (retry na operação + keepalive). Um PC com o Postgres local em `127.0.0.1` reduz a frequência; não elimina sozinho.
 
 ---
 
 ## Documentação complementar
 
-- `ConferenciaNFs-Documentacao.html` — documentação funcional detalhada para a equipe.
-- `ConferenciaNFs-Apresentacao.html` — visão técnica.
-- `ConferenciaNFs-Planejamento-Ecossistema.html` — planejamento antigo, desatualizado.
+- `ConferenciaNFs-Documentacao.html` — documentação interna da equipe: o que o app faz, o que já foi entregue, objetivo e o que está em espera.
+- `ConferenciaNFs-Apresentacao.html` — visão técnica (arquitetura, telas, pacotes).
+- `ConferenciaNFs-Planejamento-Ecossistema.html` — rascunho antigo do ecossistema; o estado atual está na documentação acima.

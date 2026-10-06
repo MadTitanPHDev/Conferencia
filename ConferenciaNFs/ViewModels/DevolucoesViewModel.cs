@@ -54,6 +54,9 @@ public sealed class DevolucoesViewModel : ViewModelBase
         MarcarAbsorvidoCommand = new AsyncRelayCommand(
             _ => ConcluirAsync(StatusDevolucaoValues.Absorvido),
             _ => Selecionada?.PodeConcluir == true);
+        ExcluirDaFilaCommand = new AsyncRelayCommand(
+            _ => ExcluirDaFilaAsync(),
+            _ => Selecionada is not null);
         SalvarObservacaoCommand = new AsyncRelayCommand(
             _ => SalvarObservacaoAsync(),
             _ => Selecionada is not null);
@@ -62,7 +65,9 @@ public sealed class DevolucoesViewModel : ViewModelBase
             _ => Selecionada?.PodeConcluir == true);
         SalvarPeriodoCommand = new AsyncRelayCommand(_ => SalvarPeriodoAsync());
         LimparPeriodoCommand = new AsyncRelayCommand(_ => LimparPeriodoAsync());
-        ExportarExcelCommand = new AsyncRelayCommand(_ => ExportarExcelAsync(), _ => Devolucoes.Count > 0);
+        ExportarExcelCommand = new AsyncRelayCommand(
+            _ => ExportarExcelAsync(),
+            _ => _todas.Any(d => StatusDevolucaoValues.EstaConcluido(d.StatusDevolucao)));
 
         _ = CarregarAsync();
     }
@@ -199,7 +204,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
     }
 
     public string TextoPeriodoAtual => DataMinimaRastreio.HasValue
-        ? $"Fila a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)} (marcações novas)"
+        ? $"Fila a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)} (pendentes e concluídas)"
         : "Sem data mínima (rastreia todas as devoluções da fila)";
 
     public DevolucoesPainel Painel
@@ -234,6 +239,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
     public ICommand MarcarDevolvidaCommand { get; }
     public ICommand MarcarAbsorvidoCommand { get; }
     public ICommand MarcarPerdeuPrazoCommand { get; }
+    public ICommand ExcluirDaFilaCommand { get; }
     public ICommand SalvarObservacaoCommand { get; }
     public ICommand SalvarAndamentoCommand { get; }
     public ICommand SalvarPeriodoCommand { get; }
@@ -320,8 +326,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
                       + "A fila só recebe o que for marcado Devolver / pré-nota a partir dessa data. "
                       + "Notas Devolver antigas da conferência não voltam a entrar.\n\n"
                       + (RemoverPendentesAnteriores
-                          ? "Pendências anteriores a essa data serão removidas da fila."
-                          : "Pendências anteriores apenas deixarão de aparecer na lista (permanecem no banco).")
+                          ? "Pendentes e concluídas anteriores a essa data serão removidas da fila."
+                          : "Registros anteriores apenas deixarão de aparecer na lista (permanecem no banco).")
                     : "Nenhuma data selecionada. Use \"Limpar período\" para rastrear todas, ou escolha uma data.",
                 "Período da fila",
                 DataMinimaRastreio.HasValue ? MessageBoxButton.YesNo : MessageBoxButton.OK,
@@ -436,18 +442,25 @@ public sealed class DevolucoesViewModel : ViewModelBase
 
     private async Task ExportarExcelAsync()
     {
-        if (Devolucoes.Count == 0)
+        var notas = _todas
+            .Where(d => StatusDevolucaoValues.EstaConcluido(d.StatusDevolucao))
+            .ToList();
+
+        if (notas.Count == 0)
         {
-            MessageBox.Show("Nao ha notas no filtro atual para exportar.", "Exportar",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(
+                "Nao ha devolucoes concluidas (devolvida ao dist., absorvido ou perdeu o prazo) para exportar.",
+                "Exportar",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             return;
         }
 
         var dialog = new SaveFileDialog
         {
-            Title = "Exportar devolucoes",
+            Title = "Exportar devolucoes concluidas",
             Filter = "Planilha Excel (*.xlsx)|*.xlsx",
-            FileName = $"devolucoes_export_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+            FileName = $"devolucoes_concluidas_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
             DefaultExt = ".xlsx"
         };
 
@@ -457,11 +470,13 @@ public sealed class DevolucoesViewModel : ViewModelBase
         try
         {
             IsCarregando = true;
-            var notas = Devolucoes.ToList();
-            var itens = _itensPorDevolucao;
+            var ids = notas.Select(n => n.Id).ToHashSet();
+            var itens = _itensPorDevolucao
+                .Where(p => ids.Contains(p.Key))
+                .ToDictionary(p => p.Key, p => p.Value);
             var caminho = dialog.FileName;
             await Task.Run(() => DevolucoesExportador.Exportar(caminho, notas, itens));
-            Mensagem = $"Exportacao concluida: {Path.GetFileName(caminho)}";
+            Mensagem = $"Exportacao de {notas.Count} concluida(s): {Path.GetFileName(caminho)}";
             MessageBox.Show($"Arquivo exportado:\n{caminho}", "Exportacao concluida",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -565,6 +580,36 @@ public sealed class DevolucoesViewModel : ViewModelBase
         catch (Exception ex)
         {
             MessageBox.Show($"Erro ao atualizar devolucao:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task ExcluirDaFilaAsync()
+    {
+        if (Selecionada is null)
+            return;
+
+        var confirmar = MessageBox.Show(
+            $"Excluir a nota {Selecionada.NumNota} ({Selecionada.NomeForn}) da fila de devoluções?\n\n"
+            + "Itens da pré-nota e recados deste registro saem junto. "
+            + "O status na conferência não muda — se a nota não for para devolver, altere lá (por exemplo para Verde).",
+            "Excluir da fila",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirmar != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            var numero = Selecionada.NumNota;
+            await _repository.ExcluirDevolucaoAsync(Selecionada.Id);
+            Mensagem = $"Nota {numero}: removida da fila de devoluções.";
+            await CarregarAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao excluir da fila:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

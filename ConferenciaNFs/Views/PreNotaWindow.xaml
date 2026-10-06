@@ -44,7 +44,36 @@
                     Style="{StaticResource SurfaceCardStyle}"
                     Padding="0"
                     Margin="0,0,10,0">
-            <DataGrid ItemsSource="{Binding Linhas}"
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="10,10,10,4">
+                    <TextBlock Text="Pesquisar por nome ou código de barras"
+                               FontSize="12"
+                               Foreground="{DynamicResource Brush.TextSecondary}"
+                               Margin="0,0,0,4"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Content="Limpar"
+                                Command="{Binding LimparFiltroCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="10,6"
+                                Margin="8,0,0,0"
+                                FontSize="12"
+                                Visibility="{Binding TemFiltro, Converter={StaticResource BoolToVisibilityConverter}}"
+                                ToolTip="Mostra todos os itens de novo"/>
+                        <TextBox x:Name="TxtFiltro"
+                                 Text="{Binding FiltroTexto, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Padding="10,6"
+                                 FontSize="13"
+                                 ToolTip="Nome do produto, código interno ou código de barras (EAN)"/>
+                    </DockPanel>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{Binding TextoFiltroItens}"
+                           Style="{StaticResource PageSubtitleStyle}"
+                           FontSize="11"
+                           Margin="12,0,12,8"/>
+            <DataGrid ItemsSource="{Binding LinhasView}"
                       Style="{StaticResource ModernDataGridStyle}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -52,7 +81,15 @@
                       HeadersVisibility="Column"
                       SelectionMode="Single">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="Dev." Width="50">
+                    <DataGridTemplateColumn Width="72">
+                        <DataGridTemplateColumn.Header>
+                            <Button Content="Todos"
+                                    Command="{Binding DataContext.AlternarSelecaoTodosCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Padding="6,2"
+                                    FontSize="11"
+                                    ToolTip="Marca ou desmarca os itens visíveis (respeita a pesquisa)"/>
+                        </DataGridTemplateColumn.Header>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox IsChecked="{Binding Selecionado, UpdateSourceTrigger=PropertyChanged}"
@@ -79,6 +116,7 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
             </Border>
 
             <Border Grid.Column="1"
@@ -107,6 +145,12 @@
                               IsEnabled="{Binding PodeEditar}"
                               IsEditable="False"
                               Margin="0,0,0,12"/>
+                    <Button Content="{Binding TextoSelecionarTodos}"
+                            Command="{Binding AlternarSelecaoTodosCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Padding="12,8"
+                            Margin="0,0,0,10"/>
                     <Button Content="Aplicar aos marcados"
                             Command="{Binding AplicarMotivoClasseMarcadosCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"

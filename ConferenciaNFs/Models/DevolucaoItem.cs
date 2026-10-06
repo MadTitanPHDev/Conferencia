@@ -116,10 +116,11 @@ public sealed class DevolucaoItem : INotifyPropertyChanged
     public DateTime? DataEmissaoParseada => DataCompraParser.TentarConverter(DataEmissao);
 
     /// <summary>
-    /// Corte da fila: data em que a devolucao foi marcada (nao a emissao, nem o historico da conferencia).
+    /// Corte da fila: data em que entrou/encerrou na fila (nao a emissao da NF).
     /// </summary>
     public DateTime? DataReferenciaRastreio =>
         DataCompraParser.TentarConverter(DataMarcada)
+        ?? DataCompraParser.TentarConverter(DataConclusao)
         ?? DataCompraParser.TentarConverter(DiaConferencia);
 
     public DateTime? DataLimite

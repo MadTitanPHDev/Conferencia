@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using ConferenciaNFs.Data;
 using ConferenciaNFs.Infrastructure;
@@ -20,6 +21,7 @@ public sealed class PreNotaViewModel : ViewModelBase
     private bool _confirmou;
     private string _motivoLote = string.Empty;
     private string _classeLote = string.Empty;
+    private string _filtroTexto = string.Empty;
 
     public PreNotaViewModel(
         NotaFiscalRepository repository,
@@ -34,6 +36,8 @@ public sealed class PreNotaViewModel : ViewModelBase
         _modo = modo;
         _devolucao = devolucao;
         Linhas = new ObservableCollection<PreNotaLinha>();
+        LinhasView = CollectionViewSource.GetDefaultView(Linhas);
+        LinhasView.Filter = PassaFiltro;
         Motivos = new ObservableCollection<string>();
         Classes = new ObservableCollection<string>(ClasseDevolucaoValues.Todas);
         ConfirmarCommand = new AsyncRelayCommand(
@@ -42,14 +46,21 @@ public sealed class PreNotaViewModel : ViewModelBase
         AplicarMotivoClasseMarcadosCommand = new RelayCommand(
             _ => AplicarMotivoClasseMarcados(),
             _ => PodeEditar && !IsCarregando);
+        AlternarSelecaoTodosCommand = new RelayCommand(
+            _ => AlternarSelecaoTodos(),
+            _ => PodeEditar && !IsCarregando && LinhasVisiveis.Any());
+        LimparFiltroCommand = new RelayCommand(_ => FiltroTexto = string.Empty, _ => TemFiltro);
         _ = CarregarAsync();
     }
 
     public ObservableCollection<PreNotaLinha> Linhas { get; }
+    public ICollectionView LinhasView { get; }
     public ObservableCollection<string> Motivos { get; }
     public ObservableCollection<string> Classes { get; }
     public ICommand ConfirmarCommand { get; }
     public ICommand AplicarMotivoClasseMarcadosCommand { get; }
+    public ICommand AlternarSelecaoTodosCommand { get; }
+    public ICommand LimparFiltroCommand { get; }
 
     public bool Confirmou => _confirmou;
 
@@ -79,6 +90,35 @@ public sealed class PreNotaViewModel : ViewModelBase
         set => SetProperty(ref _classeLote, value ?? string.Empty);
     }
 
+    public string FiltroTexto
+    {
+        get => _filtroTexto;
+        set
+        {
+            if (!SetProperty(ref _filtroTexto, value ?? string.Empty))
+                return;
+
+            LinhasView.Refresh();
+            NotificarFiltroESelecao();
+        }
+    }
+
+    public bool TemFiltro => !string.IsNullOrWhiteSpace(FiltroTexto);
+
+    public string TextoFiltroItens
+    {
+        get
+        {
+            var visiveis = LinhasVisiveis.Count();
+            if (!TemFiltro)
+                return visiveis == 1 ? "1 item" : $"{visiveis} itens";
+
+            return visiveis == 0
+                ? $"Nenhum item com “{FiltroTexto.Trim()}”"
+                : $"{visiveis} de {Linhas.Count}";
+        }
+    }
+
     public string TextoResumo
     {
         get
@@ -89,6 +129,20 @@ public sealed class PreNotaViewModel : ViewModelBase
             return $"{marcados.Count} marcado(s) · {quantidade:N3} un. · R$ {valor:N2}";
         }
     }
+
+    public bool TodosSelecionados
+    {
+        get
+        {
+            var visiveis = LinhasVisiveis.ToList();
+            return visiveis.Count > 0 && visiveis.All(l => l.Selecionado);
+        }
+    }
+
+    private IEnumerable<PreNotaLinha> LinhasVisiveis => Linhas.Where(LinhaPassaFiltro);
+
+    public string TextoSelecionarTodos =>
+        TodosSelecionados ? "Desmarcar todos" : "Selecionar todos";
 
     public bool IsCarregando
     {
@@ -162,7 +216,9 @@ public sealed class PreNotaViewModel : ViewModelBase
             }
 
             ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
+            LinhasView.Refresh();
             OnPropertyChanged(nameof(TextoResumo));
+            NotificarFiltroESelecao();
 
             if (Linhas.Count == 0)
             {
@@ -180,7 +236,7 @@ public sealed class PreNotaViewModel : ViewModelBase
                 ? "Confira de novo os produtos, quantidades, motivo e classe. Confirmar marca a nota como devolvida."
                 : Motivos.Count == 0
                     ? "Cadastre um motivo em Motivos de devolucao antes de confirmar."
-                    : "Marque os produtos e a quantidade. Depois aplique motivo e classe aos marcados.";
+                    : "Pesquise por nome ou código de barras, marque os produtos (ou use Selecionar todos) e a quantidade. Depois aplique motivo e classe aos marcados.";
         }
         catch (Exception ex)
         {
@@ -205,7 +261,53 @@ public sealed class PreNotaViewModel : ViewModelBase
     {
         if (e.PropertyName is nameof(PreNotaLinha.Selecionado)
             or nameof(PreNotaLinha.QuantidadeDevolver))
+        {
             OnPropertyChanged(nameof(TextoResumo));
+            NotificarFiltroESelecao();
+        }
+    }
+
+    private void AlternarSelecaoTodos()
+    {
+        var marcar = !TodosSelecionados;
+        foreach (var linha in LinhasVisiveis)
+            linha.Selecionado = marcar;
+
+        OnPropertyChanged(nameof(TextoResumo));
+        NotificarFiltroESelecao();
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    private void NotificarFiltroESelecao()
+    {
+        OnPropertyChanged(nameof(TemFiltro));
+        OnPropertyChanged(nameof(TextoFiltroItens));
+        OnPropertyChanged(nameof(TextoSelecionarTodos));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    private bool PassaFiltro(object obj) =>
+        obj is PreNotaLinha linha && LinhaPassaFiltro(linha);
+
+    private bool LinhaPassaFiltro(PreNotaLinha linha)
+    {
+        var termo = FiltroTexto.Trim();
+        if (string.IsNullOrEmpty(termo))
+            return true;
+
+        if (linha.NomeProd.Contains(termo, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (linha.CodProd.ToString().Contains(termo, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var ean = EanNormalizer.Normalizar(linha.BarrasEan);
+        var termoEan = EanNormalizer.Normalizar(termo);
+        if (termoEan.Length > 0 && ean.Contains(termoEan, StringComparison.Ordinal))
+            return true;
+
+        return (linha.BarrasEan ?? string.Empty)
+            .Contains(termo, StringComparison.OrdinalIgnoreCase);
     }
 
     private void AplicarMotivoClasseMarcados()
