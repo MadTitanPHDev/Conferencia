@@ -19,7 +19,7 @@ public partial class DetalheNotaWindow : Window
         InitializeComponent();
         DataContext = new DetalheNotaViewModel(reader, nota, repository);
         Title = ((DetalheNotaViewModel)DataContext).TituloNota;
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
         PreviewKeyDown += DetalheNotaWindow_PreviewKeyDown;
     }
 

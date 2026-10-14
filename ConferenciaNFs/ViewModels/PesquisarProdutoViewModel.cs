@@ -28,7 +28,7 @@ public sealed class PesquisarProdutoViewModel : ViewModelBase
         Resultados = new ObservableCollection<ItemEanPesquisaResultado>();
         PesquisarCommand = new AsyncRelayCommand(_ => PesquisarAsync(), _ => PodePesquisar);
         LimparCommand = new RelayCommand(Limpar);
-        AbrirItensCommand = new RelayCommand(_ => AbrirItensSelecionado(), _ => ItemSelecionado is not null);
+        AbrirItensCommand = new AsyncRelayCommand(_ => AbrirItensSelecionadoAsync(), _ => ItemSelecionado is not null);
         CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => ItemSelecionado is not null);
     }
 
@@ -136,12 +136,18 @@ public sealed class PesquisarProdutoViewModel : ViewModelBase
         }
     }
 
-    public void AbrirItensSelecionado()
+    public Task AbrirItensSelecionado() => AbrirItensSelecionadoAsync();
+
+    private async Task AbrirItensSelecionadoAsync()
     {
         if (ItemSelecionado is null)
             return;
 
-        var nota = new NotaFiscal
+        var nota = ItemSelecionado.CodCompra > 0
+            ? await _repository.ObterPorCodCompraAsync(ItemSelecionado.CodCompra)
+            : null;
+
+        nota ??= new NotaFiscal
         {
             CodCompra = ItemSelecionado.CodCompra,
             NumNota = ItemSelecionado.NumNota,

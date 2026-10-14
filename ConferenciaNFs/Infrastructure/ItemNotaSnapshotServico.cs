@@ -14,7 +14,9 @@ public static class ItemNotaSnapshotServico
         var doVsm = await TentarLerVsmAsync(reader, nota, cancellationToken);
         if (doVsm.Count > 0)
         {
-            await repository.SubstituirItensNotaAsync(nota.Id, doVsm, cancellationToken);
+            if (nota.Id > 0)
+                await repository.SubstituirItensNotaAsync(nota.Id, doVsm, cancellationToken);
+
             return doVsm;
         }
 

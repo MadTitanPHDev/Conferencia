@@ -23,11 +23,8 @@ public partial class PreNotaWindow : Window
             Close();
         };
         DataContext = vm;
-        Loaded += (_, _) =>
-        {
-            WindowPinService.Instance.RegistrarJanela(this);
-            TxtFiltro.Focus();
-        };
+        WindowPinService.Instance.RegistrarJanela(this);
+        Loaded += (_, _) => TxtFiltro.Focus();
     }
 
     public bool Confirmou => DataContext is PreNotaViewModel vm && vm.Confirmou;

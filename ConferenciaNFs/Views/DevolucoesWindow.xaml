@@ -5,7 +5,10 @@
         FontFamily="{StaticResource Font.Primary}"
         Focusable="True">
 
-    <Grid Margin="0">
+    <Grid x:Name="RaizConteudo" Margin="0" Opacity="0">
+        <Grid.RenderTransform>
+            <TranslateTransform X="24"/>
+        </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>

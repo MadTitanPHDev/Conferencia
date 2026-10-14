@@ -113,6 +113,9 @@ public sealed partial class NotaFiscalRepository
         IReadOnlyList<ItemNotaSnapshot> itens,
         CancellationToken cancellationToken = default)
     {
+        if (notaFiscalId <= 0)
+            return;
+
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
         await using var tx = await connection.BeginTransactionAsync(cancellationToken);

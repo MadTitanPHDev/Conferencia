@@ -53,6 +53,7 @@ public sealed class WindowPinService : INotifyPropertyChanged
         _windows.Add(window);
         window.Topmost = IsPinned;
         window.Closed += RemoverJanela;
+        JanelaEntradaAnimacao.AplicarJanela(window);
     }
 
     private void RemoverJanela(object? sender, EventArgs e)

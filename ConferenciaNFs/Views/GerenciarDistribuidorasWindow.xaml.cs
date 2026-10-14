@@ -11,7 +11,7 @@ public partial class GerenciarDistribuidorasWindow : Window
     {
         InitializeComponent();
         DataContext = new GerenciarDistribuidorasViewModel(repository);
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
     }
 
     private void Fechar_Click(object sender, RoutedEventArgs e) => Close();

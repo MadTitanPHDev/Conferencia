@@ -14,7 +14,7 @@ public partial class PesquisarProdutoWindow : Window
     {
         InitializeComponent();
         DataContext = new PesquisarProdutoViewModel(repository, reader);
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
         PreviewKeyDown += PesquisarProdutoWindow_PreviewKeyDown;
     }
 

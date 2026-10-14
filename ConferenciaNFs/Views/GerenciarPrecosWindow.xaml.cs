@@ -11,7 +11,7 @@ public partial class GerenciarPrecosWindow : Window
     {
         InitializeComponent();
         DataContext = new GerenciarPrecosViewModel(repository);
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
     }
 
     private void Fechar_Click(object sender, RoutedEventArgs e) => Close();

@@ -114,11 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Pré-nota: pesquisar item por nome, código ou código de barras; marcar ou desmarcar todos os itens visíveis.
+Corrige o erro ao abrir a nota pela pesquisa de produto (chave estrangeira em ItensNota).
 
-Fila de devoluções: excluir da fila, exportar Excel com uma linha por nota (só concluídas), limpeza do recorte anterior a 01/10/2026.
-
-Tema escuro: ComboBox e DatePicker legíveis. Paleta navy/ouro, conferência e devoluções na janela principal, menu ☰, pré-nota em dois passos.
+Cards de loja: nome uma vez, pendência visível, overlay com observações, layout compacto. Animação de entrada nas janelas e telas.
 
 ### Configuracao (app-settings.json)
 

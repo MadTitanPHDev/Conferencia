@@ -1930,13 +1930,17 @@ public sealed partial class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var resultado = await connection.QueryAsync<LojaPendencia>(new CommandDefinition("""
+        var resultado = (await connection.QueryAsync<LojaPendencia>(new CommandDefinition("""
             SELECT
                 n.ApelidoLoja,
                 SUM(CASE
                     WHEN n.StatusConferencia IN (@StatusPendente, @StatusAmarelo) THEN 1
                     ELSE 0
                 END)::int AS Pendencias,
+                SUM(CASE
+                    WHEN n.StatusConferencia = @StatusAmarelo THEN 1
+                    ELSE 0
+                END)::int AS QtdAmarelo,
                 COALESCE(MAX(l.NumeroOrdem), 9999) AS NumeroOrdem,
                 COALESCE(NULLIF(MAX(l.NomeExibicao), ''), n.ApelidoLoja) AS NomeExibicao
             FROM NotasFiscais n
@@ -1949,9 +1953,89 @@ public sealed partial class NotaFiscalRepository
             StatusPendente = StatusConferenciaValues.Pendente,
             StatusAmarelo = StatusConferenciaValues.Amarelo,
             Dias = diasNormais
-        }, cancellationToken: cancellationToken));
+        }, cancellationToken: cancellationToken))).ToList();
 
-        return resultado.ToList();
+        var amarelos = (await connection.QueryAsync<LojaAmareloDistribuidora>(new CommandDefinition("""
+            SELECT
+                n.ApelidoLoja,
+                COALESCE(
+                    NULLIF(TRIM(n.NomeForn), ''),
+                    NULLIF(TRIM(d.NomeForn), ''),
+                    NULLIF(TRIM(n.CnpjForn), ''),
+                    'Sem nome'
+                ) AS Nome,
+                COUNT(*)::int AS Quantidade
+            FROM NotasFiscais n
+            LEFT JOIN Distribuidoras d
+              ON regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
+               = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+            WHERE n.DiaConferencia = ANY(@Dias)
+              AND n.StatusConferencia = @StatusAmarelo
+            GROUP BY 1, 2
+            """, new
+        {
+            StatusAmarelo = StatusConferenciaValues.Amarelo,
+            Dias = diasNormais
+        }, cancellationToken: cancellationToken))).ToList();
+
+        var porLoja = amarelos
+            .GroupBy(a => a.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<LojaAmareloDistribuidora>)g
+                    .OrderByDescending(x => x.Quantidade)
+                    .ThenBy(x => x.Nome, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var notasPendentes = (await connection.QueryAsync<LojaPendenciaNota>(new CommandDefinition("""
+            SELECT
+                n.ApelidoLoja,
+                n.NumNota,
+                COALESCE(
+                    NULLIF(TRIM(n.NomeForn), ''),
+                    NULLIF(TRIM(d.NomeForn), ''),
+                    'Sem nome'
+                ) AS NomeForn,
+                n.StatusConferencia,
+                TRIM(COALESCE(n.Observacao, '')) AS Observacao
+            FROM NotasFiscais n
+            LEFT JOIN Distribuidoras d
+              ON regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
+               = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
+            WHERE n.DiaConferencia = ANY(@Dias)
+              AND n.StatusConferencia IN (@StatusPendente, @StatusAmarelo)
+            """, new
+        {
+            StatusPendente = StatusConferenciaValues.Pendente,
+            StatusAmarelo = StatusConferenciaValues.Amarelo,
+            Dias = diasNormais
+        }, cancellationToken: cancellationToken))).ToList();
+
+        var notasPorLoja = notasPendentes
+            .GroupBy(n => n.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .OrderByDescending(n => !string.IsNullOrWhiteSpace(n.Observacao))
+                    .ThenByDescending(n => n.StatusConferencia == StatusConferenciaValues.Amarelo)
+                    .ThenBy(n => n.NumNota, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var loja in resultado)
+        {
+            if (porLoja.TryGetValue(loja.ApelidoLoja, out var lista))
+                loja.AmarelosPorDistribuidora = lista;
+
+            if (!notasPorLoja.TryGetValue(loja.ApelidoLoja, out var notas))
+                continue;
+
+            loja.NotasPendentesOcultas = Math.Max(0, notas.Count - LojaPendencia.LimiteNotasHover);
+            loja.NotasPendentes = notas.Take(LojaPendencia.LimiteNotasHover).ToList();
+        }
+
+        return resultado;
     }
 
     public Task<ResumoDiaConferencia> ObterResumoDiaAsync(
@@ -2005,6 +2089,28 @@ public sealed partial class NotaFiscalRepository
         public string ApelidoLoja { get; set; } = string.Empty;
         public string NomeForn { get; set; } = string.Empty;
         public string StatusConferencia { get; set; } = string.Empty;
+    }
+
+    public async Task<NotaFiscal?> ObterPorCodCompraAsync(
+        int codCompra,
+        CancellationToken cancellationToken = default)
+    {
+        if (codCompra <= 0)
+            return null;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var notas = (await connection.QueryAsync<NotaFiscal>(new CommandDefinition("""
+            SELECT *
+            FROM NotasFiscais
+            WHERE CodCompra = @CodCompra
+            """, new { CodCompra = codCompra }, cancellationToken: cancellationToken))).ToList();
+
+        return notas
+            .OrderBy(n => n, Comparer<NotaFiscal>.Create((a, b) =>
+                DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia)))
+            .LastOrDefault();
     }
 
     public async Task<IReadOnlyDictionary<int, (string ApelidoLoja, string NomeForn, string StatusConferencia)>> ObterResumoPorCodCompraAsync(

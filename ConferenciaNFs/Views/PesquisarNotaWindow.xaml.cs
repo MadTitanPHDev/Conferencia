@@ -11,7 +11,7 @@ public partial class PesquisarNotaWindow : Window
     {
         InitializeComponent();
         DataContext = new PesquisarNotaViewModel(repository);
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
     }
 
     private void Fechar_Click(object sender, RoutedEventArgs e) => Close();

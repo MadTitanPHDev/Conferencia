@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.ViewModels;
 
 namespace ConferenciaNFs.Views;
@@ -12,10 +13,13 @@ public partial class DevolucoesWindow : UserControl
     {
         InitializeComponent();
         Loaded += (_, _) => Focus();
-        IsVisibleChanged += (_, _) =>
+        IsVisibleChanged += (_, e) =>
         {
-            if (IsVisible)
-                Focus();
+            if (e.NewValue is not true)
+                return;
+
+            Focus();
+            JanelaEntradaAnimacao.AplicarPainel(RaizConteudo);
         };
     }
 

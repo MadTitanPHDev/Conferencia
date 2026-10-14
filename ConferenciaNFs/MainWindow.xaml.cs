@@ -8,6 +8,8 @@ namespace ConferenciaNFs;
 
 public partial class MainWindow : Window
 {
+    private bool _pularPrimeiraAnimacaoHoje = true;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -54,9 +56,30 @@ public partial class MainWindow : Window
             return;
         }
 
-        Loaded += (_, _) => WindowPinService.Instance.RegistrarJanela(this);
+        WindowPinService.Instance.RegistrarJanela(this);
+        Loaded += (_, _) =>
+        {
+            if (PainelLojas is not null)
+            {
+                PainelLojas.IsVisibleChanged += PainelLojas_IsVisibleChanged;
+            }
+        };
         Closed += (_, _) => (DataContext as IDisposable)?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+    }
+
+    private void PainelLojas_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is not true)
+            return;
+
+        if (_pularPrimeiraAnimacaoHoje)
+        {
+            _pularPrimeiraAnimacaoHoje = false;
+            return;
+        }
+
+        JanelaEntradaAnimacao.AplicarPainel(PainelLojas);
     }
 
     private void ToggleMenuAvancado_Click(object sender, RoutedEventArgs e)
