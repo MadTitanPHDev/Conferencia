@@ -44,7 +44,7 @@ public sealed class LojaPendenciaNota
 public sealed class LojaPendencia
 {
     private const int LimitePreviaAmarelo = 3;
-    public const int LimiteNotasHover = 4;
+    public const int LimiteNotasHover = 2;
 
     public string ApelidoLoja { get; set; } = string.Empty;
     public int Pendencias { get; set; }

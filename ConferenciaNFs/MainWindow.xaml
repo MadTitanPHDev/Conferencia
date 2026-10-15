@@ -4,6 +4,7 @@
         xmlns:models="clr-namespace:ConferenciaNFs.Models"
         xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
         xmlns:views="clr-namespace:ConferenciaNFs.Views"
+        xmlns:infra="clr-namespace:ConferenciaNFs.Infrastructure"
         Title="Conferência de Notas Fiscais"
         Height="820"
         Width="1280"
@@ -184,13 +185,17 @@
                             <TextBlock Text="De" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
                             <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         Language="pt-BR"
-                                        Width="148"/>
+                                        Width="148"
+                                        infra:CalendarRange.Start="{Binding DataInicio}"
+                                        infra:CalendarRange.End="{Binding DataFim}"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,12,8">
                             <TextBlock Text="Até" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
                             <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         Language="pt-BR"
-                                        Width="148"/>
+                                        Width="148"
+                                        infra:CalendarRange.Start="{Binding DataInicio}"
+                                        infra:CalendarRange.End="{Binding DataFim}"/>
                         </StackPanel>
                         <Button Content="Ontem"
                                 Command="{Binding PresetOntemCommand}"
@@ -227,13 +232,17 @@
                         <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     Language="pt-BR"
                                     Width="148"
-                                    Margin="0,0,0,8"/>
+                                    Margin="0,0,0,8"
+                                    infra:CalendarRange.Start="{Binding DataInicio}"
+                                    infra:CalendarRange.End="{Binding DataFim}"/>
                         <TextBlock Text="Até"
                                    Style="{StaticResource SectionTitleStyle}"
                                    Margin="0,0,0,4"/>
                         <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     Language="pt-BR"
-                                    Width="148"/>
+                                    Width="148"
+                                    infra:CalendarRange.Start="{Binding DataInicio}"
+                                    infra:CalendarRange.End="{Binding DataFim}"/>
 
                         <TextBlock Text="Atalhos"
                                    Style="{StaticResource SectionTitleStyle}"
@@ -319,7 +328,8 @@
                                             Style="{StaticResource LojaCardButtonStyle}"
                                             ToolTip="{Binding TextoToolTipCard}"
                                             Margin="0,0,12,12">
-                                        <Border MinHeight="188"
+                                        <Border Height="148"
+                                                MaxHeight="148"
                                                 SnapsToDevicePixels="True"
                                                 RenderTransformOrigin="0.5,0.5">
                                             <Border.RenderTransform>
@@ -464,34 +474,32 @@
                                                     </Border.Style>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding TextoHoverResumo}"
-                                                                   FontSize="13"
+                                                                   FontSize="12"
                                                                    FontWeight="SemiBold"
                                                                    Foreground="{DynamicResource Brush.TextPrimary}"
-                                                                   TextWrapping="Wrap"/>
+                                                                   TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding TextoAmareloDistribuidoras}"
                                                                    FontSize="11"
                                                                    Foreground="{DynamicResource Brush.TextSecondary}"
-                                                                   TextWrapping="Wrap"
-                                                                   Margin="0,4,0,0"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,3,0,0"
                                                                    Visibility="{Binding TemPreviaAmarelo, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                         <ItemsControl ItemsSource="{Binding NotasPendentes}"
-                                                                      Margin="0,8,0,0"
+                                                                      Margin="0,6,0,0"
                                                                       Visibility="{Binding TemNotasPendentes, Converter={StaticResource BoolToVisibilityConverter}}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate DataType="{x:Type models:LojaPendenciaNota}">
-                                                                    <StackPanel Margin="0,0,0,6">
-                                                                        <TextBlock Text="{Binding TextoTitulo}"
-                                                                                   FontSize="11"
-                                                                                   FontWeight="SemiBold"
-                                                                                   Foreground="{DynamicResource Brush.TextPrimary}"
-                                                                                   TextTrimming="CharacterEllipsis"/>
-                                                                        <TextBlock Text="{Binding TextoObservacao}"
-                                                                                   FontSize="11"
-                                                                                   Foreground="{DynamicResource Brush.TextSecondary}"
-                                                                                   TextWrapping="Wrap"
-                                                                                   TextTrimming="CharacterEllipsis"
-                                                                                   MaxHeight="32"/>
-                                                                    </StackPanel>
+                                                                    <TextBlock Margin="0,0,0,3"
+                                                                               FontSize="11"
+                                                                               TextTrimming="CharacterEllipsis">
+                                                                        <Run Text="{Binding TextoTitulo, Mode=OneWay}"
+                                                                             FontWeight="SemiBold"
+                                                                             Foreground="{DynamicResource Brush.TextPrimary}"/>
+                                                                        <Run Text=" — "
+                                                                             Foreground="{DynamicResource Brush.TextSecondary}"/>
+                                                                        <Run Text="{Binding TextoObservacao, Mode=OneWay}"
+                                                                             Foreground="{DynamicResource Brush.TextSecondary}"/>
+                                                                    </TextBlock>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>

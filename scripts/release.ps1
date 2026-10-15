@@ -114,9 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Corrige o erro ao abrir a nota pela pesquisa de produto (chave estrangeira em ItensNota).
+Cards de loja mais compactos. Botões com relevo e clique. Calendários De/Até com intervalo destacado.
 
-Cards de loja: nome uma vez, pendência visível, overlay com observações, layout compacto. Animação de entrada nas janelas e telas.
+Comparação de preço: EAN da NF casa com a planilha mesmo com zeros à esquerda. Contraste, foco de teclado e cores de status alinhados à paleta.
 
 ### Configuracao (app-settings.json)
 

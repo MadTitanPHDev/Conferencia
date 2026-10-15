@@ -1,6 +1,7 @@
 <UserControl x:Class="ConferenciaNFs.Views.DevolucoesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:infra="clr-namespace:ConferenciaNFs.Infrastructure"
         Background="{DynamicResource Brush.Background}"
         FontFamily="{StaticResource Font.Primary}"
         Focusable="True">
@@ -76,7 +77,10 @@
                                 Width="130"
                                 Height="28"
                                 Margin="0,2,10,2"
-                                VerticalAlignment="Center"/>
+                                VerticalAlignment="Center"
+                                Language="pt-BR"
+                                infra:CalendarRange.Start="{Binding DataMinimaRastreio}"
+                                infra:CalendarRange.End="{Binding DataMinimaRastreio}"/>
                     <CheckBox Content="Remover da fila o que for anterior"
                               IsChecked="{Binding RemoverPendentesAnteriores, Mode=TwoWay}"
                               FontSize="12"

@@ -4,7 +4,7 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.18** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.18))
+Versão atual: **1.0.19** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.19))
 
 **Onde estamos:** a conferência do dia a dia (sync VSM, status, pré-nota ao devolver, fila de devoluções com andamento, Excel) está em produção. O objetivo maior continua o mesmo: um núcleo Postgres nosso, sem gravar no VSM, e mais tarde um app de compradores. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`).
 
@@ -302,17 +302,17 @@ O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca po
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.18
+.\scripts\release.ps1 -Version 1.0.19
 ```
 
 4. Publique a release com os arquivos de `artifacts\Releases\`:
 
 ```powershell
-gh release create v1.0.18 (Get-ChildItem artifacts\Releases -File).FullName `
-  --title "ConferenciaNFs 1.0.18" --notes "..."
+gh release create v1.0.19 (Get-ChildItem artifacts\Releases -File).FullName `
+  --title "ConferenciaNFs 1.0.19" --notes "..."
 ```
 
-Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.18 -CreateGitHubRelease`.
+Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.19 -CreateGitHubRelease`.
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.
 

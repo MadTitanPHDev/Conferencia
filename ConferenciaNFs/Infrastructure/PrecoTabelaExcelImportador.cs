@@ -20,13 +20,17 @@ public static class PrecoTabelaExcelImportador
             if (!EanNormalizer.EhValido(ean))
                 continue;
 
+            var chave = EanNormalizer.ChaveComparacao(ean);
+            if (chave.Length == 0)
+                continue;
+
             var preco1 = LerPreco(row, 3);
             if (!preco1.HasValue || preco1.Value <= 0)
                 continue;
 
-            if (!vistos.Add(ean))
+            if (!vistos.Add(chave))
             {
-                var existente = itens.First(i => i.Ean == ean);
+                var existente = itens.First(i => EanNormalizer.SaoEquivalentes(i.Ean, ean));
                 existente.NomeProd = CelulaTexto(row, 2);
                 existente.PrecoPrimario = preco1.Value;
                 existente.PrecoSecundario = LerPreco(row, 4);

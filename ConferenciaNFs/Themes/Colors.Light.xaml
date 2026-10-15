@@ -7,19 +7,43 @@
     <SolidColorBrush x:Key="Brush.SurfaceMuted" Color="#F0F2F5"/>
     <SolidColorBrush x:Key="Brush.Border" Color="#D4D8DE"/>
     <SolidColorBrush x:Key="Brush.TextPrimary" Color="#0B1F3F"/>
-    <SolidColorBrush x:Key="Brush.TextSecondary" Color="#6E788A"/>
+    <SolidColorBrush x:Key="Brush.TextSecondary" Color="#4A5568"/>
     <SolidColorBrush x:Key="Brush.Accent" Color="#E8C465"/>
-    <SolidColorBrush x:Key="Brush.AccentHover" Color="#D4B054"/>
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="#F0D078"/>
+    <SolidColorBrush x:Key="Brush.AccentPressed" Color="#D4B054"/>
+    <SolidColorBrush x:Key="Brush.AccentEdge" Color="#C4A048"/>
     <SolidColorBrush x:Key="Brush.AccentSoft" Color="#F6EACB"/>
+    <SolidColorBrush x:Key="Brush.SurfaceEdge" Color="#D0D4DA"/>
+    <Color x:Key="Color.NeumorphAccentShadow">#C9A54A</Color>
+    <Color x:Key="Color.NeumorphNeutralShadow">#1F2937</Color>
     <SolidColorBrush x:Key="Brush.OnAccent" Color="#0B1F3F"/>
     <SolidColorBrush x:Key="Brush.Brand" Color="#1F2937"/>
     <SolidColorBrush x:Key="Brush.Sidebar" Color="#0B1F3F"/>
     <SolidColorBrush x:Key="Brush.SidebarText" Color="#F9FAFC"/>
-    <SolidColorBrush x:Key="Brush.SidebarTextMuted" Color="#6E788A"/>
+    <SolidColorBrush x:Key="Brush.SidebarTextMuted" Color="#C5CDD8"/>
     <SolidColorBrush x:Key="Brush.SidebarHover" Color="#1F2937"/>
     <SolidColorBrush x:Key="Brush.SidebarActiveText" Color="#0B1F3F"/>
-    <SolidColorBrush x:Key="Brush.Danger" Color="#EF4444"/>
+    <SolidColorBrush x:Key="Brush.Danger" Color="#B91C1C"/>
     <SolidColorBrush x:Key="Brush.DangerSoft" Color="#FEE2E2"/>
+    <SolidColorBrush x:Key="Brush.CompareVerdeBg" Color="#86C232"/>
+    <SolidColorBrush x:Key="Brush.CompareVerdeFg" Color="#14320A"/>
+    <SolidColorBrush x:Key="Brush.CompareAzulBg" Color="#7EB6DB"/>
+    <SolidColorBrush x:Key="Brush.CompareAzulFg" Color="#0B2740"/>
+    <SolidColorBrush x:Key="Brush.CompareVermelhoBg" Color="#E35D5D"/>
+    <SolidColorBrush x:Key="Brush.CompareVermelhoFg" Color="#3B0000"/>
+    <SolidColorBrush x:Key="Brush.CompareCinzaBg" Color="#C8CDD3"/>
+    <SolidColorBrush x:Key="Brush.CompareCinzaFg" Color="#1F2937"/>
+    <SolidColorBrush x:Key="Brush.CompareAmbarBg" Color="#E6B800"/>
+    <SolidColorBrush x:Key="Brush.CompareAmbarFg" Color="#3D2E00"/>
+    <SolidColorBrush x:Key="Brush.StatusVerdeBg" Color="#86C232"/>
+    <SolidColorBrush x:Key="Brush.StatusVerdeFg" Color="#14320A"/>
+    <SolidColorBrush x:Key="Brush.StatusAmareloBg" Color="#E6C200"/>
+    <SolidColorBrush x:Key="Brush.StatusVermelhoBg" Color="#C62828"/>
+    <SolidColorBrush x:Key="Brush.StatusVermelhoFg" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.StatusLaranjaBg" Color="#E6A800"/>
+    <SolidColorBrush x:Key="Brush.StatusLaranjaFg" Color="#3D2E00"/>
+    <SolidColorBrush x:Key="Brush.StatusAzulBg" Color="#1D4F91"/>
+    <SolidColorBrush x:Key="Brush.StatusAzulFg" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Brush.InputBackground" Color="#F9FAFC"/>
     <SolidColorBrush x:Key="Brush.InputFocused" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Brush.Hover" Color="#F0F2F5"/>
@@ -41,6 +65,6 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0B1F3F"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0B1F3F"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#0B1F3F"/>
-    <SolidColorBrush x:Key="{x:Static SystemColors.GrayTextBrushKey}" Color="#6E788A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.GrayTextBrushKey}" Color="#4A5568"/>
 
 </ResourceDictionary>

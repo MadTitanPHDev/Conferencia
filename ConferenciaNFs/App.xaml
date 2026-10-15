@@ -18,6 +18,7 @@
             <infra:HexToBrushConverter x:Key="HexToBrushConverter"/>
             <infra:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVisibilityConverter"/>
             <infra:BoolToSimNaoConverter x:Key="BoolToSimNaoConverter"/>
+            <infra:CalendarDayKindConverter x:Key="CalendarDayKindConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

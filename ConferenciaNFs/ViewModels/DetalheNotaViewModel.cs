@@ -151,7 +151,7 @@ public sealed class DetalheNotaViewModel : ViewModelBase
                     continue;
                 }
 
-                if (!mapa.TryGetValue(linha.EanParaCruzar, out var tabela))
+                if (!mapa.TryGetValue(EanNormalizer.ChaveComparacao(linha.EanParaCruzar), out var tabela))
                 {
                     linha.AplicarForaDaPlanilha();
                     cinza++;

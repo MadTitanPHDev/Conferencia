@@ -40,4 +40,16 @@ public class ComparacaoPrecoTabelaTests
         Assert.Equal("7891234567890", EanNormalizer.Normalizar(" 789 1234567890 "));
         Assert.False(EanNormalizer.EhValido("123"));
     }
+
+    [Fact]
+    public void EanNormalizer_IgnoraZerosAEsquerdaNaComparacao()
+    {
+        Assert.Equal("70341368572", EanNormalizer.ChaveComparacao("070341368572"));
+        Assert.Equal("70341368572", EanNormalizer.ChaveComparacao("70341368572"));
+        Assert.Equal("70341369111", EanNormalizer.ChaveComparacao("0070341369111"));
+        Assert.Equal("70341369111", EanNormalizer.ChaveComparacao("70341369111"));
+        Assert.True(EanNormalizer.SaoEquivalentes("070341368572", "70341368572"));
+        Assert.True(EanNormalizer.SaoEquivalentes("0070341369111", "70341369111"));
+        Assert.False(EanNormalizer.SaoEquivalentes("070341368572", "0070341369111"));
+    }
 }

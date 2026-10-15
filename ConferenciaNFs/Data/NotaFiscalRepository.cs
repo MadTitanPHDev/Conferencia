@@ -2847,13 +2847,14 @@ public sealed partial class NotaFiscalRepository
         CancellationToken cancellationToken = default)
     {
         var ids = importacaoIds.Distinct().ToArray();
-        var codigos = eans
-            .Select(EanNormalizer.Normalizar)
+        var chaves = eans
             .Where(EanNormalizer.EhValido)
-            .Distinct()
+            .Select(EanNormalizer.ChaveComparacao)
+            .Where(c => c.Length > 0)
+            .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        if (ids.Length == 0 || codigos.Length == 0)
+        if (ids.Length == 0 || chaves.Length == 0)
             return new Dictionary<string, PrecoTabelaItem>(StringComparer.Ordinal);
 
         await using var connection = CriarConexao();
@@ -2861,7 +2862,7 @@ public sealed partial class NotaFiscalRepository
 
         var linhas = await connection.QueryAsync<PrecoTabelaItem>(new CommandDefinition(
             """
-            SELECT DISTINCT ON (p.Ean)
+            SELECT DISTINCT ON (ltrim(p.Ean, '0'))
                 p.Ean,
                 p.NomeProd,
                 p.PrecoPrimario,
@@ -2870,13 +2871,17 @@ public sealed partial class NotaFiscalRepository
             FROM PrecosItens p
             INNER JOIN PrecosImportacoes i ON i.Id = p.ImportacaoId
             WHERE p.ImportacaoId = ANY(@Ids)
-              AND p.Ean = ANY(@Eans)
-            ORDER BY p.Ean, p.PrecoPrimario ASC, i.Id DESC
+              AND ltrim(p.Ean, '0') = ANY(@Chaves)
+            ORDER BY ltrim(p.Ean, '0'), p.PrecoPrimario ASC, i.Id DESC
             """,
-            new { Ids = ids, Eans = codigos },
+            new { Ids = ids, Chaves = chaves },
             cancellationToken: cancellationToken));
 
-        return linhas.ToDictionary(l => l.Ean, StringComparer.Ordinal);
+        return linhas
+            .Select(l => (Chave: EanNormalizer.ChaveComparacao(l.Ean), Item: l))
+            .Where(x => x.Chave.Length > 0)
+            .GroupBy(x => x.Chave, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Item, StringComparer.Ordinal);
     }
 
     private NpgsqlConnection CriarConexao() => new(_connectionString);
