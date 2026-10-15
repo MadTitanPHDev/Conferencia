@@ -104,6 +104,8 @@
                     <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="*" MinWidth="160" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="70" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Custo" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="90" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="140" MinWidth="100" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Classe" Binding="{Binding Classe}" Width="100" IsReadOnly="True"/>
                     <DataGridTemplateColumn Header="Qtd devolver" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

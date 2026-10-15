@@ -173,11 +173,6 @@ public sealed class PreNotaViewModel : ViewModelBase
             foreach (var motivo in motivos)
                 Motivos.Add(motivo.Descricao);
 
-            if (Motivos.Count > 0 && string.IsNullOrWhiteSpace(MotivoLote))
-                MotivoLote = Motivos[0];
-            if (Classes.Count > 0 && string.IsNullOrWhiteSpace(ClasseLote))
-                ClasseLote = Classes[0];
-
             IReadOnlyList<ItemNotaSnapshot> itens =
                 await ItemNotaSnapshotServico.GarantirAsync(_repository, _reader, _nota);
             var preNota = _devolucao is null
@@ -214,6 +209,8 @@ public sealed class PreNotaViewModel : ViewModelBase
                 linha.PropertyChanged += OnLinhaPropertyChanged;
                 Linhas.Add(linha);
             }
+
+            PreencherLoteComValoresJaGravados();
 
             ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
             LinhasView.Refresh();
@@ -308,6 +305,51 @@ public sealed class PreNotaViewModel : ViewModelBase
 
         return (linha.BarrasEan ?? string.Empty)
             .Contains(termo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PreencherLoteComValoresJaGravados()
+    {
+        var marcados = Linhas
+            .Where(l => l.Selecionado && !string.IsNullOrWhiteSpace(l.Motivo))
+            .ToList();
+
+        if (marcados.Count > 0)
+        {
+            var motivo = marcados
+                .GroupBy(l => l.Motivo.Trim(), StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count())
+                .First()
+                .Key;
+            var classe = marcados
+                .GroupBy(l => l.Classe.Trim(), StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))
+                ?? string.Empty;
+
+            GarantirMotivoNaLista(motivo);
+            MotivoLote = Motivos.FirstOrDefault(m =>
+                string.Equals(m, motivo, StringComparison.OrdinalIgnoreCase)) ?? motivo;
+
+            var classeLista = Classes.FirstOrDefault(c =>
+                string.Equals(c, classe, StringComparison.OrdinalIgnoreCase));
+            if (classeLista is not null)
+                ClasseLote = classeLista;
+        }
+
+        if (string.IsNullOrWhiteSpace(MotivoLote) && Motivos.Count > 0)
+            MotivoLote = Motivos[0];
+        if (string.IsNullOrWhiteSpace(ClasseLote) && Classes.Count > 0)
+            ClasseLote = Classes[0];
+    }
+
+    private void GarantirMotivoNaLista(string motivo)
+    {
+        if (string.IsNullOrWhiteSpace(motivo))
+            return;
+        if (Motivos.Any(m => string.Equals(m, motivo, StringComparison.OrdinalIgnoreCase)))
+            return;
+        Motivos.Insert(0, motivo);
     }
 
     private void AplicarMotivoClasseMarcados()

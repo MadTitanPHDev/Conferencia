@@ -114,9 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Cards de loja mais compactos. Botões com relevo e clique. Calendários De/Até com intervalo destacado.
-
-Comparação de preço: EAN da NF casa com a planilha mesmo com zeros à esquerda. Contraste, foco de teclado e cores de status alinhados à paleta.
+Ao reabrir a pré-nota na fila de devoluções, motivo e classe voltam aos valores já gravados (não mais o primeiro da lista). A grade mostra Motivo e Classe em cada item.
 
 ### Configuracao (app-settings.json)
 
