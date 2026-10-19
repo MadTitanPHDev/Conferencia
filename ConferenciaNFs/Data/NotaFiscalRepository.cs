@@ -724,7 +724,9 @@ public sealed partial class NotaFiscalRepository
         string destApelido,
         string destChave,
         int? codCompra,
-        string? nfeChaveAcesso)
+        string? nfeChaveAcesso,
+        string? destDiaConferencia = null,
+        string? destDataCompra = null)
     {
         var destId = connection.ExecuteScalar<long?>("""
             SELECT Id
@@ -735,19 +737,49 @@ public sealed partial class NotaFiscalRepository
 
         if (destId is long idDestino && idDestino != origemId)
         {
+            var origem = connection.QuerySingle<(string StatusConferencia, string Observacao)>("""
+                SELECT StatusConferencia, Observacao
+                FROM NotasFiscais
+                WHERE Id = @Id
+                """, new { Id = origemId }, transaction);
+            var destino = connection.QuerySingle<(string StatusConferencia, string Observacao)>("""
+                SELECT StatusConferencia, Observacao
+                FROM NotasFiscais
+                WHERE Id = @Id
+                """, new { Id = idDestino }, transaction);
+            var (status, observacao) = RelocacaoNotaVsm.StatusAposMesclar(
+                destino.StatusConferencia,
+                destino.Observacao,
+                origem.StatusConferencia,
+                origem.Observacao);
+
             connection.Execute("""
                 UPDATE NotasFiscais
                 SET CodCompra = COALESCE(CodCompra, @CodCompra),
                     NfeChaveAcesso = CASE
                         WHEN TRIM(COALESCE(NfeChaveAcesso, '')) = '' THEN @NfeChaveAcesso
                         ELSE NfeChaveAcesso
-                    END
+                    END,
+                    DiaConferencia = CASE
+                        WHEN @DiaConferencia <> '' THEN @DiaConferencia
+                        ELSE DiaConferencia
+                    END,
+                    DataCompra = CASE
+                        WHEN @DataCompra <> '' THEN @DataCompra
+                        ELSE DataCompra
+                    END,
+                    StatusConferencia = @StatusConferencia,
+                    Observacao = @Observacao
                 WHERE Id = @Id
                 """, new
             {
                 Id = idDestino,
                 CodCompra = codCompra,
-                NfeChaveAcesso = nfeChaveAcesso ?? string.Empty
+                NfeChaveAcesso = nfeChaveAcesso ?? string.Empty,
+                DiaConferencia = destDiaConferencia?.Trim() ?? string.Empty,
+                DataCompra = destDataCompra?.Trim() ?? string.Empty,
+                StatusConferencia = status,
+                Observacao = observacao
             }, transaction);
 
             connection.Execute("""
@@ -759,6 +791,12 @@ public sealed partial class NotaFiscalRepository
                       FROM Devolucoes d2
                       WHERE d2.NotaFiscalId = @DestId
                   )
+                """, new { DestId = idDestino, OrigemId = origemId }, transaction);
+
+            connection.Execute("""
+                UPDATE DevolucaoItens
+                SET NotaFiscalId = @DestId
+                WHERE NotaFiscalId = @OrigemId
                 """, new { DestId = idDestino, OrigemId = origemId }, transaction);
 
             connection.Execute("""
@@ -777,13 +815,23 @@ public sealed partial class NotaFiscalRepository
         connection.Execute("""
             UPDATE NotasFiscais
             SET ApelidoLoja = @ApelidoLoja,
-                ChaveUnica = @ChaveUnica
+                ChaveUnica = @ChaveUnica,
+                DiaConferencia = CASE
+                    WHEN @DiaConferencia <> '' THEN @DiaConferencia
+                    ELSE DiaConferencia
+                END,
+                DataCompra = CASE
+                    WHEN @DataCompra <> '' THEN @DataCompra
+                    ELSE DataCompra
+                END
             WHERE Id = @Id
             """, new
         {
             Id = origemId,
             ApelidoLoja = destApelido,
-            ChaveUnica = destChave
+            ChaveUnica = destChave,
+            DiaConferencia = destDiaConferencia?.Trim() ?? string.Empty,
+            DataCompra = destDataCompra?.Trim() ?? string.Empty
         }, transaction);
 
         return origemId;
@@ -1260,27 +1308,24 @@ public sealed partial class NotaFiscalRepository
             FROM NotasFiscais
             WHERE CodCompra = @CodCompra
               AND ChaveUnica <> @ChaveUnica
-              AND DiaConferencia = @DiaConferencia
             """, new
         {
             CodCompra = codCompra,
-            destino.ChaveUnica,
-            DiaConferencia = destino.DiaConferencia
+            destino.ChaveUnica
         }, transaction).ToList();
 
-        // Outro dia de conferencia: a linha de origem permanece.
-        // So realoca no mesmo dia (loja/chave errada).
-        var doMesmoDia = deslocadas
-            .Where(d => MesmoDiaConferencia(d.DiaConferencia, destino.DiaConferencia))
-            .ToList();
-
-        if (doMesmoDia.Count == 0)
+        if (deslocadas.Count == 0)
             return (false, null);
 
         long? idRecalcular = null;
+        var soEntreDias = true;
 
-        foreach (var deslocada in doMesmoDia)
+        foreach (var deslocada in deslocadas)
         {
+            var mesmoDia = MesmoDiaConferencia(deslocada.DiaConferencia, destino.DiaConferencia);
+            if (mesmoDia)
+                soEntreDias = false;
+
             var id = RelocarOuMesclarNotaVsm(
                 connection,
                 transaction,
@@ -1288,13 +1333,17 @@ public sealed partial class NotaFiscalRepository
                 destino.ApelidoLoja,
                 destino.ChaveUnica,
                 destino.CodCompra,
-                destino.NfeChaveAcesso);
+                destino.NfeChaveAcesso,
+                mesmoDia ? null : destino.DiaConferencia,
+                mesmoDia ? null : destino.DataCompra);
 
-            if (id.HasValue)
+            // Heranca so no recadastro de loja/chave no mesmo dia.
+            // Mudanca de DATACOMPRA no VSM deve preservar o status ja conferido.
+            if (mesmoDia && id.HasValue)
                 idRecalcular = id;
         }
 
-        return (true, idRecalcular);
+        return (true, soEntreDias ? null : idRecalcular);
     }
 
     private static bool MesmoDiaConferencia(string? a, string? b)
@@ -2181,47 +2230,164 @@ public sealed partial class NotaFiscalRepository
         return string.Compare(a.NumNota, b.NumNota, StringComparison.OrdinalIgnoreCase);
     }
 
-    public async Task<IReadOnlyList<NotaPesquisaResultado>> PesquisarPrimeiraConferenciaPorNumNotaAsync(
+    public Task<IReadOnlyList<NotaPesquisaResultado>> PesquisarPrimeiraConferenciaPorNumNotaAsync(
         string numNota,
         CancellationToken cancellationToken = default)
+        => PesquisarNotasAsync(new NotaPesquisaFiltro { Termo = numNota }, cancellationToken);
+
+    public async Task<IReadOnlyList<NotaPesquisaResultado>> PesquisarNotasAsync(
+        NotaPesquisaFiltro filtro,
+        CancellationToken cancellationToken = default)
     {
-        var termo = numNota.Trim();
-        if (string.IsNullOrWhiteSpace(termo))
+        ArgumentNullException.ThrowIfNull(filtro);
+
+        var termo = filtro.Termo?.Trim() ?? string.Empty;
+        var loja = filtro.ApelidoLoja?.Trim() ?? string.Empty;
+        var status = filtro.StatusConferencia?.Trim() ?? string.Empty;
+        if (string.Equals(status, "Todos", StringComparison.OrdinalIgnoreCase))
+            status = string.Empty;
+
+        IReadOnlyList<string>? dias = null;
+        if (filtro.DataInicio.HasValue && filtro.DataFim.HasValue)
+        {
+            var inicio = filtro.DataInicio.Value.Date;
+            var fim = filtro.DataFim.Value.Date;
+            if (fim < inicio)
+                (inicio, fim) = (fim, inicio);
+
+            var datas = DataCompraParser.EnumerarDias(inicio, fim, maxDias: 366);
+            dias = DataCompraParser.VariantesTextuais(datas);
+        }
+
+        var temCriterio = termo.Length > 0
+            || dias is not null
+            || status.Length > 0
+            || loja.Length > 0;
+        if (!temCriterio)
             return [];
+
+        var limite = filtro.Limite <= 0 ? 200 : Math.Min(filtro.Limite, 500);
+        var parametros = new DynamicParameters();
+        parametros.Add("Limite", limite);
+
+        var clausulas = new List<string>();
+        if (termo.Length > 0)
+        {
+            parametros.Add("Termo", termo);
+            parametros.Add("TermoNormalizado", NumNotaNormalizer.Normalizar(termo));
+            clausulas.Add("""
+                (
+                    strpos(lower(n.NumNota), lower(@Termo)) > 0
+                    OR strpos(COALESCE(NULLIF(ltrim(trim(n.NumNota), '0'), ''), '0'), @TermoNormalizado) > 0
+                    OR strpos(lower(n.ApelidoLoja), lower(@Termo)) > 0
+                    OR strpos(lower(n.NomeForn), lower(@Termo)) > 0
+                )
+                """);
+        }
+
+        if (dias is not null)
+        {
+            parametros.Add("Dias", dias);
+            clausulas.Add("n.DiaConferencia = ANY(@Dias)");
+        }
+
+        if (status.Length > 0)
+        {
+            parametros.Add("Status", status);
+            clausulas.Add("n.StatusConferencia = @Status");
+        }
+
+        if (loja.Length > 0)
+        {
+            parametros.Add("Loja", loja);
+            clausulas.Add("strpos(lower(n.ApelidoLoja), lower(@Loja)) > 0");
+        }
+
+        var sql = $"""
+            SELECT
+                n.Id,
+                n.NumNota,
+                n.ApelidoLoja,
+                n.NomeForn,
+                n.CnpjForn,
+                n.DiaConferencia,
+                n.DataEmissao,
+                n.StatusConferencia,
+                n.Observacao,
+                d.Id AS DevolucaoId,
+                d.StatusDevolucao,
+                d.Andamento AS AndamentoDevolucao
+            FROM NotasFiscais n
+            LEFT JOIN Devolucoes d ON d.NotaFiscalId = n.Id
+            WHERE {string.Join(" AND ", clausulas)}
+            ORDER BY n.Id DESC
+            LIMIT @Limite
+            """;
 
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var notas = (await connection.QueryAsync<NotaFiscal>("""
-            SELECT *
-            FROM NotasFiscais
-            WHERE LOWER(TRIM(NumNota)) = LOWER(TRIM(@Termo))
-            """, new { Termo = termo })).ToList();
+        var linhas = (await connection.QueryAsync<NotaPesquisaLinha>(
+            new CommandDefinition(sql, parametros, cancellationToken: cancellationToken))).ToList();
 
-        return notas
-            .GroupBy(n => $"{n.NumNota}|{n.CnpjForn}", StringComparer.OrdinalIgnoreCase)
-            .Select(grupo =>
+        var totaisPorGrupo = linhas
+            .GroupBy(ChaveGrupoPesquisa, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var primeiraPorGrupo = linhas
+            .GroupBy(ChaveGrupoPesquisa, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(l => l.DiaConferencia ?? string.Empty, Comparer<string>.Create(DataCompraParser.CompararAscendente))
+                    .First()
+                    .Id,
+                StringComparer.OrdinalIgnoreCase);
+
+        return linhas
+            .OrderByDescending(l => l.DiaConferencia ?? string.Empty, Comparer<string>.Create(DataCompraParser.CompararAscendente))
+            .ThenBy(l => l.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(l => l.NomeForn, StringComparer.OrdinalIgnoreCase)
+            .Select(l =>
             {
-                var ordenadas = grupo
-                    .OrderBy(n => n, Comparer<NotaFiscal>.Create((a, b) =>
-                        DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia)))
-                    .ToList();
-
-                var primeira = ordenadas[0];
+                var chave = ChaveGrupoPesquisa(l);
                 return new NotaPesquisaResultado
                 {
-                    NumNota = primeira.NumNota,
-                    ApelidoLoja = primeira.ApelidoLoja,
-                    NomeForn = primeira.NomeForn,
-                    DataPrimeiraConferencia = primeira.DiaConferencia,
-                    StatusConferencia = primeira.StatusConferencia,
-                    Observacao = primeira.Observacao,
-                    OcorrenciasTotais = ordenadas.Count
+                    Id = l.Id,
+                    DevolucaoId = l.DevolucaoId,
+                    NumNota = l.NumNota ?? string.Empty,
+                    ApelidoLoja = l.ApelidoLoja ?? string.Empty,
+                    NomeForn = l.NomeForn ?? string.Empty,
+                    CnpjForn = l.CnpjForn ?? string.Empty,
+                    DiaConferencia = l.DiaConferencia ?? string.Empty,
+                    DataEmissao = l.DataEmissao ?? string.Empty,
+                    StatusConferencia = l.StatusConferencia ?? string.Empty,
+                    Observacao = l.Observacao ?? string.Empty,
+                    StatusDevolucao = l.StatusDevolucao ?? string.Empty,
+                    AndamentoDevolucao = l.AndamentoDevolucao ?? string.Empty,
+                    OcorrenciasTotais = totaisPorGrupo.GetValueOrDefault(chave, 1),
+                    EhPrimeiraOcorrencia = primeiraPorGrupo.GetValueOrDefault(chave) == l.Id
                 };
             })
-            .OrderBy(r => r.NomeForn, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(r => r.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static string ChaveGrupoPesquisa(NotaPesquisaLinha linha)
+        => $"{NumNotaNormalizer.Normalizar(linha.NumNota)}|{linha.CnpjForn}";
+
+    private sealed class NotaPesquisaLinha
+    {
+        public long Id { get; set; }
+        public long? DevolucaoId { get; set; }
+        public string? NumNota { get; set; }
+        public string? ApelidoLoja { get; set; }
+        public string? NomeForn { get; set; }
+        public string? CnpjForn { get; set; }
+        public string? DiaConferencia { get; set; }
+        public string? DataEmissao { get; set; }
+        public string? StatusConferencia { get; set; }
+        public string? Observacao { get; set; }
+        public string? StatusDevolucao { get; set; }
+        public string? AndamentoDevolucao { get; set; }
     }
 
     public Task<IReadOnlyList<NotaFiscal>> ObterTodasNotasPorDataAsync(

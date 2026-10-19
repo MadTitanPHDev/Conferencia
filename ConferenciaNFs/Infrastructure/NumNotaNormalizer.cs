@@ -16,4 +16,16 @@ public static class NumNotaNormalizer
 
     public static bool SaoEquivalentes(string? a, string? b)
         => string.Equals(Normalizar(a), Normalizar(b), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Busca parcial ignorando zeros a esquerda (ex.: "0123" encontra "123" e "00123").
+    /// </summary>
+    public static bool Contem(string? numNota, string? termo)
+    {
+        var trecho = Normalizar(termo);
+        if (trecho.Length == 0)
+            return string.IsNullOrWhiteSpace(termo);
+
+        return Normalizar(numNota).Contains(trecho, StringComparison.OrdinalIgnoreCase);
+    }
 }

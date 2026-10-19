@@ -70,4 +70,14 @@ public class NumNotaNormalizerTests
     {
         Assert.Equal(esperado, NumNotaNormalizer.Normalizar(entrada));
     }
+
+    [Theory]
+    [InlineData("00123", "123", true)]
+    [InlineData("123", "0123", true)]
+    [InlineData("51234", "123", true)]
+    [InlineData("51234", "99", false)]
+    public void Contem_IgnoraZerosEAceitaTrecho(string numNota, string termo, bool esperado)
+    {
+        Assert.Equal(esperado, NumNotaNormalizer.Contem(numNota, termo));
+    }
 }

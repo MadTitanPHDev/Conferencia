@@ -26,10 +26,17 @@ public sealed class DevolucoesViewModel : ViewModelBase
     private bool _isCarregando;
     private DateTime? _dataMinimaRastreio;
     private bool _removerPendentesAnteriores = true;
+    private readonly long? _destacarDevolucaoId;
+    private readonly long? _destacarNotaFiscalId;
 
-    public DevolucoesViewModel(NotaFiscalRepository repository)
+    public DevolucoesViewModel(
+        NotaFiscalRepository repository,
+        long? destacarDevolucaoId = null,
+        long? destacarNotaFiscalId = null)
     {
         _repository = repository;
+        _destacarDevolucaoId = destacarDevolucaoId;
+        _destacarNotaFiscalId = destacarNotaFiscalId;
         Devolucoes = new ObservableCollection<DevolucaoItem>();
         FiltrosModo = new ObservableCollection<string>(
         [
@@ -69,7 +76,33 @@ public sealed class DevolucoesViewModel : ViewModelBase
             _ => ExportarExcelAsync(),
             _ => _todas.Any(d => StatusDevolucaoValues.EstaConcluido(d.StatusDevolucao)));
 
-        _ = CarregarAsync();
+        _ = IniciarAsync();
+    }
+
+    private async Task IniciarAsync()
+    {
+        await CarregarAsync();
+        DestacarDaPesquisa();
+    }
+
+    private void DestacarDaPesquisa()
+    {
+        if (_destacarDevolucaoId is null && _destacarNotaFiscalId is null)
+            return;
+
+        var item = _todas.FirstOrDefault(d => _destacarDevolucaoId is long id && d.Id == id)
+            ?? _todas.FirstOrDefault(d => _destacarNotaFiscalId is long nid && d.NotaFiscalId == nid);
+
+        if (item is null)
+        {
+            Mensagem = "Esta nota nao esta mais na fila de devolucoes.";
+            return;
+        }
+
+        FiltroAndamento = AndamentoDevolucaoValues.FiltroTodos;
+        FiltroModo = "Todas";
+        FiltroTexto = item.NumNota;
+        Selecionada = Devolucoes.FirstOrDefault(d => d.Id == item.Id);
     }
 
     public Action? AoFechar { get; set; }

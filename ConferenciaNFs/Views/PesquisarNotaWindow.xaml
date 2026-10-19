@@ -4,10 +4,10 @@
         xmlns:models="clr-namespace:ConferenciaNFs.Models"
         xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
         Title="Pesquisar nota fiscal"
-        Height="720"
-        Width="920"
+        Height="760"
+        Width="980"
         MinHeight="520"
-        MinWidth="640"
+        MinWidth="680"
         Icon="pack://application:,,,/Assets/app.ico"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Background}"
@@ -64,46 +64,73 @@
                 Padding="16,14"
                 Margin="0,0,0,14">
             <WrapPanel VerticalAlignment="Center">
-                <Border Background="{DynamicResource Brush.AccentSoft}"
-                        CornerRadius="10"
-                        Padding="10,8"
-                        Margin="0,4,14,4"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="Numero"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush.Accent}"/>
-                </Border>
+                <StackPanel Margin="0,4,12,4" VerticalAlignment="Center">
+                    <TextBlock Text="Número, loja ou fornecedor"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,4"/>
+                    <TextBox Width="240"
+                             MinWidth="180"
+                             Text="{Binding TermoPesquisa, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ModernTextBoxStyle}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding PesquisarCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </StackPanel>
 
-                <TextBox Width="220"
-                         MinWidth="160"
-                         Text="{Binding NumNotaPesquisa, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource ModernTextBoxStyle}"
-                         Margin="0,4,8,4"
-                         VerticalAlignment="Center">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Enter" Command="{Binding PesquisarCommand}"/>
-                    </TextBox.InputBindings>
-                </TextBox>
+                <StackPanel Margin="0,4,12,4" VerticalAlignment="Center">
+                    <TextBlock Text="Loja"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,4"/>
+                    <TextBox Width="140"
+                             Text="{Binding FiltroLoja, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ModernTextBoxStyle}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding PesquisarCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,12,4" VerticalAlignment="Center">
+                    <TextBlock Text="Status"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,4"/>
+                    <ComboBox Width="220"
+                              ItemsSource="{Binding StatusOpcoes}"
+                              SelectedItem="{Binding StatusSelecionado}"
+                              DisplayMemberPath="Rotulo"
+                              Style="{StaticResource ModernComboBoxStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,12,4" VerticalAlignment="Center">
+                    <TextBlock Text="De"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Language="pt-BR"
+                                Width="148"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,12,4" VerticalAlignment="Center">
+                    <TextBlock Text="Até"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Language="pt-BR"
+                                Width="148"/>
+                </StackPanel>
 
                 <Button Content="Pesquisar"
                         Command="{Binding PesquisarCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
-                        Margin="0,4,8,4"
+                        Margin="0,22,8,4"
                         VerticalAlignment="Center"/>
 
                 <Button Content="Limpar"
                         Command="{Binding LimparCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
-                        Margin="0,4,12,4"
+                        Margin="0,22,0,4"
                         VerticalAlignment="Center"/>
-
-                <TextBlock Text="Retorna o status da primeira conferencia, mesmo quando a nota se repete em outros dias."
-                           Style="{StaticResource PageSubtitleStyle}"
-                           FontSize="12"
-                           Margin="0,4,0,4"
-                           MaxWidth="320"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Center"/>
             </WrapPanel>
         </Border>
 
@@ -115,11 +142,16 @@
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Visibility="{Binding PesquisaRealizada, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                    <TextBlock Text="Digite o numero da nota e clique em Pesquisar"
+                    <TextBlock Text="Informe um filtro e clique em Pesquisar"
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Brush.TextPrimary}"
                                HorizontalAlignment="Center"/>
+                    <TextBlock Text="Zeros a esquerda e trechos do numero tambem encontram a nota."
+                               Style="{StaticResource PageSubtitleStyle}"
+                               Margin="0,8,0,0"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -131,10 +163,16 @@
                                         Padding="14"
                                         Margin="0,0,0,10"
                                         Background="{DynamicResource Brush.SurfaceMuted}">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftDoubleClick"
+                                                      Command="{Binding DataContext.AbrirConferenciaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <Border Grid.Column="0"
@@ -168,17 +206,56 @@
                                                 <Run Text=" · "/><Run Text="{Binding NomeForn}"/>
                                             </TextBlock>
                                             <TextBlock Margin="0,6,0,0" Style="{StaticResource PageSubtitleStyle}">
-                                                <Run Text="Primeira conferencia em "/><Run Text="{Binding DataPrimeiraConferencia}"/>
+                                                <Run Text="Conferencia em "/><Run Text="{Binding DiaConferencia}"/>
                                                 <Run Text=" · Loja "/><Run Text="{Binding ApelidoLoja}"/>
                                             </TextBlock>
-                                            <TextBlock Margin="0,4,0,0" Style="{StaticResource PageSubtitleStyle}">
-                                                <Run Text="Repeticoes no historico: "/><Run Text="{Binding OcorrenciasTotais}"/>
-                                            </TextBlock>
+                                            <TextBlock Margin="0,4,0,0"
+                                                       Style="{StaticResource PageSubtitleStyle}"
+                                                       Text="{Binding TextoOcorrencias}"/>
+                                            <WrapPanel Margin="0,8,0,0">
+                                                <Border Background="{DynamicResource Brush.AccentSoft}"
+                                                        CornerRadius="8"
+                                                        Padding="8,4"
+                                                        Margin="0,0,8,4"
+                                                        Visibility="{Binding EhPrimeiraOcorrencia, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock Text="Primeira conferencia"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource Brush.Accent}"/>
+                                                </Border>
+                                                <Border Background="{DynamicResource Brush.AccentSoft}"
+                                                        CornerRadius="8"
+                                                        Padding="8,4"
+                                                        Margin="0,0,8,4"
+                                                        Visibility="{Binding EstaNaFila, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock Text="{Binding TextoFila, StringFormat='Fila: {0}'}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource Brush.Accent}"/>
+                                                </Border>
+                                            </WrapPanel>
                                             <TextBlock Margin="0,4,0,0"
                                                        Style="{StaticResource PageSubtitleStyle}"
                                                        Text="{Binding Observacao, StringFormat='Observacao: {0}'}"
                                                        TextWrapping="Wrap"
                                                        Visibility="{Binding Observacao, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2"
+                                                    VerticalAlignment="Center"
+                                                    Margin="12,0,0,0">
+                                            <Button Content="Abrir conferência"
+                                                    Command="{Binding DataContext.AbrirConferenciaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Margin="0,0,0,8"
+                                                    HorizontalAlignment="Stretch"/>
+                                            <Button Content="Ir para a fila"
+                                                    Command="{Binding DataContext.AbrirFilaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource SecondaryButtonStyle}"
+                                                    Visibility="{Binding EstaNaFila, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    HorizontalAlignment="Stretch"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

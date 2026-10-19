@@ -114,7 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Ao reabrir a pré-nota na fila de devoluções, motivo e classe voltam aos valores já gravados (não mais o primeiro da lista). A grade mostra Motivo e Classe em cada item.
+Notas cuja DATACOMPRA muda no VSM (ex.: sábado para segunda) deixam de duplicar: a mesma CodCompra vai para o dia novo e o status conferido é mantido, em todas as lojas. Sincronize o intervalo para limpar as linhas antigas.
+
+Na loja 29 (Nova Esperança/PR) o custo comparado com a planilha inclui ICMS-ST e FCP-ST.
 
 ### Configuracao (app-settings.json)
 

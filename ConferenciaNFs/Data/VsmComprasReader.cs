@@ -139,27 +139,31 @@ public sealed class VsmComprasReader
 
         const string sql = """
             SELECT
-                CODCOMPRA        AS CodCompra,
-                SEQUENCIA        AS Sequencia,
-                NUMNOTA          AS NumNota,
-                CODPROD          AS CodProd,
-                NOMEPROD         AS NomeProd,
-                QUANTITEMCOMPRA  AS QuantItemCompra,
-                VALORITEMCOMPRA  AS ValorItemCompra,
-                VALORITEMFABRICA AS ValorItemFabrica,
-                DESCONTO         AS Desconto,
-                CUSTOUNIT        AS CustoUnit,
-                PRECOVENDANOVO   AS PrecoVendaNovo,
-                QUANTDEVOL       AS QuantDevol,
-                QUANTCONFERIDA   AS QuantConferida,
-                CODPRODDISTR     AS CodProdDistr,
-                BARRAS_EAN       AS BarrasEan,
-                BARRAS_EANTRIB   AS BarrasEanTrib,
-                NUMLOTE          AS NumLote,
-                DATAVALIDADE     AS DataValidade
-            FROM itens_compra
-            WHERE CODCOMPRA = @CodCompra
-            ORDER BY SEQUENCIA
+                i.CODCOMPRA        AS CodCompra,
+                c.CODLOJA          AS CodLoja,
+                i.SEQUENCIA        AS Sequencia,
+                i.NUMNOTA          AS NumNota,
+                i.CODPROD          AS CodProd,
+                i.NOMEPROD         AS NomeProd,
+                i.QUANTITEMCOMPRA  AS QuantItemCompra,
+                i.VALORITEMCOMPRA  AS ValorItemCompra,
+                i.VALORITEMFABRICA AS ValorItemFabrica,
+                i.DESCONTO         AS Desconto,
+                IFNULL(i.CUSTO_VALORST, 0)    AS CustoValorSt,
+                IFNULL(i.CUSTO_VALORFCPST, 0) AS CustoValorFcpSt,
+                i.CUSTOUNIT        AS CustoUnit,
+                i.PRECOVENDANOVO   AS PrecoVendaNovo,
+                i.QUANTDEVOL       AS QuantDevol,
+                i.QUANTCONFERIDA   AS QuantConferida,
+                i.CODPRODDISTR     AS CodProdDistr,
+                i.BARRAS_EAN       AS BarrasEan,
+                i.BARRAS_EANTRIB   AS BarrasEanTrib,
+                i.NUMLOTE          AS NumLote,
+                i.DATAVALIDADE     AS DataValidade
+            FROM itens_compra i
+            LEFT JOIN compras c ON c.CODCOMPRA = i.CODCOMPRA
+            WHERE i.CODCOMPRA = @CodCompra
+            ORDER BY i.SEQUENCIA
             """;
 
         await using var connection = CriarConexao();
@@ -175,6 +179,13 @@ public sealed class VsmComprasReader
 
     public const int LimiteBuscaEan = 400;
 
+    private static readonly string SqlCustoEntrada = $"""
+        (i.VALORITEMCOMPRA - IFNULL(i.DESCONTO, 0)
+         + CASE WHEN c.CODLOJA = {CustoItemNota.CodLojaParana}
+                THEN IFNULL(i.CUSTO_VALORST, 0) + IFNULL(i.CUSTO_VALORFCPST, 0)
+                ELSE 0 END)
+        """;
+
     /// <summary>
     /// Notas em que o EAN aparece, a partir de uma data de compra. Nao grava nada no ERP.
     /// </summary>
@@ -188,7 +199,7 @@ public sealed class VsmComprasReader
         if (eanNormalizado.Length < 8)
             return [];
 
-        const string sql = """
+        var sql = $"""
             SELECT
                 i.CODCOMPRA        AS CodCompra,
                 c.CODLOJA          AS CodLoja,
@@ -199,13 +210,13 @@ public sealed class VsmComprasReader
                 i.CODPROD          AS CodProd,
                 i.NOMEPROD         AS NomeProd,
                 i.QUANTITEMCOMPRA  AS QuantItemCompra,
-                (i.VALORITEMCOMPRA - IFNULL(i.DESCONTO, 0)) AS CustoUnit,
+                {SqlCustoEntrada} AS CustoUnit,
                 i.BARRAS_EAN       AS BarrasEan
             FROM itens_compra i
             INNER JOIN compras c ON c.CODCOMPRA = i.CODCOMPRA
             WHERE (i.BARRAS_EAN = @Ean OR i.BARRAS_EANTRIB = @Ean)
               AND c.DATACOMPRA >= @DataInicio
-              AND (@CustoMinimo IS NULL OR (i.VALORITEMCOMPRA - IFNULL(i.DESCONTO, 0)) > @CustoMinimo)
+              AND (@CustoMinimo IS NULL OR {SqlCustoEntrada} > @CustoMinimo)
             ORDER BY c.DATACOMPRA DESC, i.CODCOMPRA DESC
             LIMIT @Limite
             """;

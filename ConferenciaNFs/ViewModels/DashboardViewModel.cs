@@ -932,12 +932,87 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     private void PesquisarNota(object? parameter)
     {
-        var janela = new PesquisarNotaWindow(_repository)
+        try
         {
-            Owner = Application.Current.MainWindow
-        };
+            NotaPesquisaResultado? abrirConferencia = null;
+            NotaPesquisaResultado? abrirFila = null;
+            PesquisarNotaWindow? janela = null;
+            janela = new PesquisarNotaWindow(
+                _repository,
+                resultado =>
+                {
+                    abrirConferencia = resultado;
+                    janela?.Close();
+                },
+                resultado =>
+                {
+                    abrirFila = resultado;
+                    janela?.Close();
+                })
+            {
+                Owner = Application.Current.MainWindow
+            };
 
-        janela.ShowDialog();
+            janela.ShowDialog();
+
+            if (abrirConferencia is not null)
+                AbrirConferenciaDaPesquisa(abrirConferencia);
+            else if (abrirFila is not null)
+                AbrirFilaDaPesquisa(abrirFila);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao abrir a pesquisa de notas:\n{ex.Message}", "Pesquisar nota",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void AbrirConferenciaDaPesquisa(NotaPesquisaResultado resultado)
+    {
+        var dia = DataCompraParser.TentarConverter(resultado.DiaConferencia);
+        if (dia is null)
+        {
+            MessageBox.Show(
+                "Nao foi possivel identificar o dia desta conferencia.",
+                "Pesquisar nota",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var chave = DataCompraParser.Formatar(dia.Value);
+        _suspenderCarregamento = true;
+        DefinirIntervalo(dia.Value, dia.Value);
+        _suspenderCarregamento = false;
+        _diasAtivos = [chave];
+        SalvarIntervaloEscolhido();
+
+        DevolucoesAtual = null;
+        ConferenciaAtual = new ConferenciaViewModel(
+            _repository,
+            resultado.ApelidoLoja,
+            _diasAtivos,
+            _syncVsm?.Reader,
+            resultado.Id)
+        {
+            AoFechar = () => VoltarHoje()
+        };
+        _pagina = PaginaAtiva.Conferencia;
+        NotificarPagina();
+    }
+
+    private void AbrirFilaDaPesquisa(NotaPesquisaResultado resultado)
+    {
+        ConferenciaAtual = null;
+        DevolucoesAtual = new DevolucoesViewModel(
+            _repository,
+            resultado.DevolucaoId,
+            resultado.Id)
+        {
+            AoFechar = () => VoltarHoje()
+        };
+        _pagina = PaginaAtiva.Devolucoes;
+        NotificarPagina();
     }
 
     private void PesquisarProduto(object? parameter)

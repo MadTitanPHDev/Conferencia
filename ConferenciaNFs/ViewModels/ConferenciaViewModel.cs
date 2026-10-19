@@ -23,15 +23,18 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _atualizandoFiltro;
     private bool _duploCliqueCopiaNumero;
     private string _textoBuscaNota = string.Empty;
+    private long? _notaIdParaSelecionar;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
         string apelidoLoja,
         IReadOnlyList<string> diasConferencia,
-        VsmComprasReader? vsmReader = null)
+        VsmComprasReader? vsmReader = null,
+        long? notaIdParaSelecionar = null)
     {
         _repository = repository;
         _vsmReader = vsmReader;
+        _notaIdParaSelecionar = notaIdParaSelecionar;
         ApelidoLoja = apelidoLoja;
         DiasConferencia = NormalizarDias(diasConferencia);
         DataCompra = FormatarPeriodo(DiasConferencia);
@@ -268,6 +271,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 Notas.Add(nota);
 
             AplicarFiltroNotas();
+            SelecionarNotaDaPesquisa();
             MensagemStatus = $"{Notas.Count} nota(s) carregada(s) em {DataCompra}.";
         }
         catch (Exception ex)
@@ -325,6 +329,23 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 ? $"Nenhuma nota com '{TextoBuscaNota.Trim()}' nesta loja."
                 : $"{NotasVisiveis.Count} nota(s) com '{TextoBuscaNota.Trim()}' nesta loja.";
         }
+    }
+
+    private void SelecionarNotaDaPesquisa()
+    {
+        if (_notaIdParaSelecionar is not long idAlvo)
+            return;
+
+        var alvo = Notas.FirstOrDefault(n => n.Id == idAlvo);
+        _notaIdParaSelecionar = null;
+        if (alvo is null)
+            return;
+
+        if (!NotasVisiveis.Contains(alvo))
+            NotasVisiveis.Insert(0, alvo);
+
+        NotaSelecionada = alvo;
+        MensagemStatus = $"Nota {alvo.NumNota} aberta a partir da pesquisa.";
     }
 
     private static bool NotaCorrespondeBusca(NotaFiscal nota, string busca)

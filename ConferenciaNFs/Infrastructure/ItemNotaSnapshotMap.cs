@@ -37,6 +37,7 @@ public static class ItemNotaSnapshotMap
             QuantItemCompra = item.QuantItemCompra,
             ValorItemCompra = item.ValorItemCompra,
             Desconto = item.Desconto,
+            CustoNotaInformado = item.CustoNota,
             BarrasEan = item.BarrasEan,
             BarrasEanTrib = item.BarrasEanTrib,
             NumLote = item.NumLote,
