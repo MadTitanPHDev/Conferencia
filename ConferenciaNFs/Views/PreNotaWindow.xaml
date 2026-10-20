@@ -79,7 +79,10 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       HeadersVisibility="Column"
-                      SelectionMode="Single">
+                      SelectionMode="Single"
+                      EnableRowVirtualization="False"
+                      EnableColumnVirtualization="False"
+                      VirtualizingPanel.IsVirtualizing="False">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Width="72">
                         <DataGridTemplateColumn.Header>

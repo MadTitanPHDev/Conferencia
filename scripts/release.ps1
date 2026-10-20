@@ -114,7 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Uma nota que o VSM mostrar de novo em outro dia permanece no dia original e também entra no dia novo. Verde, azul ou laranja ficam laranja; vermelho sem devolução registrada continua vermelho; pendente continua pendente. A linha antiga não é apagada. Um status já marcado no dia novo não é reescrito.
+Na pré-nota, rolar a lista não marca mais itens, motivo ou classe de outra linha. A marcação fica só onde foi clicada.
 
 ### Configuracao (app-settings.json)
 
