@@ -1220,16 +1220,13 @@ public sealed partial class NotaFiscalRepository
                     SET StatusConferencia = @StatusConferencia,
                         Observacao = @Observacao
                     WHERE ChaveUnica = @ChaveUnica
-                      AND StatusConferencia IN (@StatusPendente, @StatusVerde, @StatusVermelho, @StatusAzul)
+                      AND StatusConferencia = @StatusPendente
                     """, new
                 {
                     nota.ChaveUnica,
                     nota.StatusConferencia,
                     nota.Observacao,
-                    StatusPendente = StatusConferenciaValues.Pendente,
-                    StatusVerde = StatusConferenciaValues.Verde,
-                    StatusVermelho = StatusConferenciaValues.Vermelho,
-                    StatusAzul = StatusConferenciaValues.Azul
+                    StatusPendente = StatusConferenciaValues.Pendente
                 }, transaction);
             }
 
@@ -1462,14 +1459,7 @@ public sealed partial class NotaFiscalRepository
 
             if (heranca.HasValue)
             {
-                var copiadaDeOutroDia =
-                    heranca.Value.Status == StatusConferenciaValues.Laranja
-                    && nota.StatusConferencia is StatusConferenciaValues.Verde
-                        or StatusConferenciaValues.Vermelho
-                        or StatusConferenciaValues.Azul;
-
-                if (!copiadaDeOutroDia
-                    && StatusHerancaImportacao.TemStatusConferido(nota.StatusConferencia)
+                if (StatusHerancaImportacao.TemStatusConferido(nota.StatusConferencia)
                     && nota.StatusConferencia != StatusConferenciaValues.Laranja)
                     continue;
             }
@@ -1731,12 +1721,7 @@ public sealed partial class NotaFiscalRepository
             .Last();
 
         if (!StatusHerancaImportacao.TemStatusConferido(ultima.StatusConferencia))
-        {
-            return StatusHerancaImportacao.Calcular(
-                ultima.StatusConferencia,
-                ultima.Observacao,
-                devolucaoJaRegistrada: false);
-        }
+            return null;
 
         var devolucaoJaRegistrada = connection.ExecuteScalar<bool>("""
             SELECT EXISTS (

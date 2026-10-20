@@ -114,9 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Na pré-nota, a mesma devolução pode ter motivos diferentes. Marque um grupo, aplique motivo e classe (esses itens desmarcam) e repita com o próximo motivo. Um item também pode ser corrigido direto na linha. A confirmação grava todo item que já tem motivo e classe.
-
-Uma nota que o VSM mostrar de novo em outro dia permanece no dia original e também entra no dia novo: já conferida fica laranja; se ainda estava pendente, fica amarela. A linha antiga não é apagada.
+Uma nota que o VSM mostrar de novo em outro dia permanece no dia original e também entra no dia novo. Verde, azul ou laranja ficam laranja; vermelho sem devolução registrada continua vermelho; pendente continua pendente. A linha antiga não é apagada. Um status já marcado no dia novo não é reescrito.
 
 ### Configuracao (app-settings.json)
 

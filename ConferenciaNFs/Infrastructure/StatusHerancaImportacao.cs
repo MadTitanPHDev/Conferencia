@@ -9,23 +9,27 @@ public static class StatusHerancaImportacao
         string? observacaoAnterior,
         bool devolucaoJaRegistrada)
     {
-        _ = devolucaoJaRegistrada;
-
         var status = string.IsNullOrWhiteSpace(statusAnterior)
             ? StatusConferenciaValues.Pendente
             : statusAnterior.Trim();
         var observacao = observacaoAnterior?.Trim() ?? string.Empty;
 
-        // Reentrada de outro dia: ja conferida vira laranja; ainda pendente vira amarelo.
+        if (status == StatusConferenciaValues.Vermelho)
+        {
+            return devolucaoJaRegistrada
+                ? (StatusConferenciaValues.Laranja, observacao)
+                : (StatusConferenciaValues.Vermelho, observacao);
+        }
+
+        // Reentrada de outro dia. A linha antiga permanece. Pendente nao vira outra cor.
         var herdado = status switch
         {
             StatusConferenciaValues.Amarelo => StatusConferenciaValues.Amarelo,
             StatusConferenciaValues.Verde => StatusConferenciaValues.Laranja,
-            StatusConferenciaValues.Vermelho => StatusConferenciaValues.Laranja,
             StatusConferenciaValues.Azul => StatusConferenciaValues.Laranja,
             StatusConferenciaValues.Laranja => StatusConferenciaValues.Laranja,
-            StatusConferenciaValues.Pendente => StatusConferenciaValues.Amarelo,
-            _ => StatusConferenciaValues.Amarelo
+            StatusConferenciaValues.Pendente => StatusConferenciaValues.Pendente,
+            _ => StatusConferenciaValues.Pendente
         };
 
         return (herdado, observacao);
