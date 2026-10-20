@@ -6,6 +6,18 @@ namespace ConferenciaNFs.Tests;
 
 public class RelocacaoNotaVsmTests
 {
+    [Theory]
+    [InlineData("20/10/2026", "20/10/2026", true)]
+    [InlineData("20/10/26", "20/10/2026", true)]
+    [InlineData("19/10/2026", "20/10/2026", false)]
+    public void MesmoDiaConferencia_SoPermiteRealocacaoDentroDoDia(
+        string origem,
+        string destino,
+        bool esperado)
+    {
+        Assert.Equal(esperado, RelocacaoNotaVsm.MesmoDiaConferencia(origem, destino));
+    }
+
     [Fact]
     public void StatusAposMesclar_DestinoPendente_LevaStatusDoDiaAnterior()
     {

@@ -4,7 +4,7 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.25** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.25))
+Versão atual: **1.0.26** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.26))
 
 **Onde estamos:** a conferência do dia a dia (sync VSM, status, pré-nota ao devolver, fila de devoluções com andamento, Excel) está em produção. O objetivo maior continua o mesmo: um núcleo Postgres nosso, sem gravar no VSM, e mais tarde um app de compradores. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`).
 
@@ -48,7 +48,7 @@ O app **nunca grava no VSM**.
 
 Cada nota pertence ao dia em que **entrou no VSM** (`DATACOMPRA`), não à data de emissão da NF. Esse é o campo `DiaConferencia`.
 
-Se o VSM **mudar a `DATACOMPRA` da mesma compra** (`CodCompra`), a nota **viaja** para o dia novo e o status já conferido é mantido — não fica duplicada no intervalo. Se o VSM criar um **código de compra novo** para a mesma NF, aí sim vira linha nova na segunda, com o status herdado.
+Se a mesma compra aparecer novamente em outro dia, a linha anterior **permanece no dia em que foi conferida**. O dia novo recebe uma linha própria, com o status herdado conforme as regras abaixo. Uma correção de loja ou chave só pode realocar a nota dentro do mesmo dia.
 
 ### Intervalo de datas
 
@@ -145,7 +145,7 @@ Quando o VSM traz de novo uma nota já conferida em um dia anterior, a linha do 
 | Verde ou Azul | Laranja |
 | Laranja | Laranja |
 | Amarelo | Amarelo |
-| Vermelho | Vermelho (ou Laranja, se a devolução já foi concluída) |
+| Vermelho | Vermelho (ou Laranja, se a devolução já estiver registrada) |
 | Pendente | Pendente |
 
 Nota nova, sem essa identidade em outro dia, **permanece em branco**. Laranja não é mais aplicado só porque a emissão é antiga.
@@ -302,17 +302,17 @@ O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca po
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.25
+.\scripts\release.ps1 -Version 1.0.26
 ```
 
 4. Publique a release com os arquivos de `artifacts\Releases\`:
 
 ```powershell
-gh release create v1.0.25 (Get-ChildItem artifacts\Releases -File).FullName `
-  --title "ConferenciaNFs 1.0.25" --notes "..."
+gh release create v1.0.26 (Get-ChildItem artifacts\Releases -File).FullName `
+  --title "ConferenciaNFs 1.0.26" --notes "..."
 ```
 
-Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.25 -CreateGitHubRelease`.
+Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.26 -CreateGitHubRelease`.
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.
 

@@ -21,6 +21,8 @@ public static class StatusHerancaImportacao
                 : (StatusConferenciaValues.Vermelho, observacao);
         }
 
+        // Reentrada em outro dia: a linha anterior permanece e a nova recebe
+        // somente a cor definida pelas regras de heranca.
         var herdado = status switch
         {
             StatusConferenciaValues.Amarelo => StatusConferenciaValues.Amarelo,

@@ -3,11 +3,21 @@ using ConferenciaNFs.Models;
 namespace ConferenciaNFs.Infrastructure;
 
 /// <summary>
-/// Mesma compra VSM (<c>CodCompra</c>) que muda de dia: a linha antiga
-/// deve ir para o dia novo, sem criar duplicata nem reaplicar herança.
+/// Corrige duplicidades da mesma compra VSM (<c>CodCompra</c>) apenas dentro
+/// do mesmo dia. Registros de dias anteriores permanecem como historico.
 /// </summary>
 public static class RelocacaoNotaVsm
 {
+    public static bool MesmoDiaConferencia(string? a, string? b)
+    {
+        var dataA = DataCompraParser.TentarConverter(a);
+        var dataB = DataCompraParser.TentarConverter(b);
+        if (dataA.HasValue && dataB.HasValue)
+            return dataA.Value.Date == dataB.Value.Date;
+
+        return string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
     public static (string Status, string Observacao) StatusAposMesclar(
         string? statusDestino,
         string? observacaoDestino,
