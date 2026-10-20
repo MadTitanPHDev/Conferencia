@@ -114,7 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Na pré-nota, rolar a lista não marca mais itens, motivo ou classe de outra linha. A marcação fica só onde foi clicada.
+Volta o acompanhamento da 1.0.21. Quando a DATACOMPRA muda no VSM, a mesma CodCompra vai para o dia novo e o status já conferido é mantido. Sincronize o dia para as notas do VSM aparecerem na data atual.
+
+Na loja 29 (Nova Esperança/PR) o custo comparado com a planilha inclui ICMS-ST e FCP-ST.
 
 ### Configuracao (app-settings.json)
 

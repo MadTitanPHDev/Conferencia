@@ -5,15 +5,11 @@ namespace ConferenciaNFs.Infrastructure;
 
 public static class PreNotaValidador
 {
-    public static bool ItemInformado(PreNotaLinha linha) =>
-        !string.IsNullOrWhiteSpace(linha.Motivo)
-        || !string.IsNullOrWhiteSpace(linha.Classe);
-
     public static string? Validar(IEnumerable<PreNotaLinha> linhas)
     {
-        var escolhidas = linhas.Where(ItemInformado).ToList();
+        var escolhidas = linhas.Where(l => l.Selecionado).ToList();
         if (escolhidas.Count == 0)
-            return "Aplique motivo e classe em ao menos um produto.";
+            return "Selecione ao menos um produto, com quantidade, motivo e classe.";
 
         foreach (var linha in escolhidas)
         {

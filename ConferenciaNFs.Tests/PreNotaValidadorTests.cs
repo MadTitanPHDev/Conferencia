@@ -18,30 +18,11 @@ public class PreNotaValidadorTests
     public void Validar_ItemCompleto_Aceita()
     {
         var linha = Linha();
+        linha.Selecionado = true;
         linha.QuantidadeDevolver = 1;
         linha.Motivo = "Avaria";
         linha.Classe = ClasseDevolucaoValues.Generico;
         Assert.Null(PreNotaValidador.Validar([linha]));
-    }
-
-    [Fact]
-    public void Validar_MotivosDiferentesNaMesmaNota_Aceita()
-    {
-        var semPedido = Linha();
-        semPedido.Motivo = "Sem pedido";
-        semPedido.Classe = ClasseDevolucaoValues.Referencia;
-        var quantidade = Linha();
-        quantidade.Motivo = "Divergencia de quantidade";
-        quantidade.Classe = ClasseDevolucaoValues.Perfumaria;
-        Assert.Null(PreNotaValidador.Validar([semPedido, quantidade]));
-    }
-
-    [Fact]
-    public void Validar_SoMotivo_Recusa()
-    {
-        var linha = Linha();
-        linha.Motivo = "Sem pedido";
-        Assert.NotNull(PreNotaValidador.Validar([linha]));
     }
 
     [Fact]

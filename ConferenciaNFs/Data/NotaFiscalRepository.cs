@@ -724,7 +724,9 @@ public sealed partial class NotaFiscalRepository
         string destApelido,
         string destChave,
         int? codCompra,
-        string? nfeChaveAcesso)
+        string? nfeChaveAcesso,
+        string? destDiaConferencia = null,
+        string? destDataCompra = null)
     {
         var destId = connection.ExecuteScalar<long?>("""
             SELECT Id
@@ -735,19 +737,49 @@ public sealed partial class NotaFiscalRepository
 
         if (destId is long idDestino && idDestino != origemId)
         {
+            var origem = connection.QuerySingle<(string StatusConferencia, string Observacao)>("""
+                SELECT StatusConferencia, Observacao
+                FROM NotasFiscais
+                WHERE Id = @Id
+                """, new { Id = origemId }, transaction);
+            var destino = connection.QuerySingle<(string StatusConferencia, string Observacao)>("""
+                SELECT StatusConferencia, Observacao
+                FROM NotasFiscais
+                WHERE Id = @Id
+                """, new { Id = idDestino }, transaction);
+            var (status, observacao) = RelocacaoNotaVsm.StatusAposMesclar(
+                destino.StatusConferencia,
+                destino.Observacao,
+                origem.StatusConferencia,
+                origem.Observacao);
+
             connection.Execute("""
                 UPDATE NotasFiscais
                 SET CodCompra = COALESCE(CodCompra, @CodCompra),
                     NfeChaveAcesso = CASE
                         WHEN TRIM(COALESCE(NfeChaveAcesso, '')) = '' THEN @NfeChaveAcesso
                         ELSE NfeChaveAcesso
-                    END
+                    END,
+                    DiaConferencia = CASE
+                        WHEN @DiaConferencia <> '' THEN @DiaConferencia
+                        ELSE DiaConferencia
+                    END,
+                    DataCompra = CASE
+                        WHEN @DataCompra <> '' THEN @DataCompra
+                        ELSE DataCompra
+                    END,
+                    StatusConferencia = @StatusConferencia,
+                    Observacao = @Observacao
                 WHERE Id = @Id
                 """, new
             {
                 Id = idDestino,
                 CodCompra = codCompra,
-                NfeChaveAcesso = nfeChaveAcesso ?? string.Empty
+                NfeChaveAcesso = nfeChaveAcesso ?? string.Empty,
+                DiaConferencia = destDiaConferencia?.Trim() ?? string.Empty,
+                DataCompra = destDataCompra?.Trim() ?? string.Empty,
+                StatusConferencia = status,
+                Observacao = observacao
             }, transaction);
 
             connection.Execute("""
@@ -759,6 +791,12 @@ public sealed partial class NotaFiscalRepository
                       FROM Devolucoes d2
                       WHERE d2.NotaFiscalId = @DestId
                   )
+                """, new { DestId = idDestino, OrigemId = origemId }, transaction);
+
+            connection.Execute("""
+                UPDATE DevolucaoItens
+                SET NotaFiscalId = @DestId
+                WHERE NotaFiscalId = @OrigemId
                 """, new { DestId = idDestino, OrigemId = origemId }, transaction);
 
             connection.Execute("""
@@ -777,13 +815,23 @@ public sealed partial class NotaFiscalRepository
         connection.Execute("""
             UPDATE NotasFiscais
             SET ApelidoLoja = @ApelidoLoja,
-                ChaveUnica = @ChaveUnica
+                ChaveUnica = @ChaveUnica,
+                DiaConferencia = CASE
+                    WHEN @DiaConferencia <> '' THEN @DiaConferencia
+                    ELSE DiaConferencia
+                END,
+                DataCompra = CASE
+                    WHEN @DataCompra <> '' THEN @DataCompra
+                    ELSE DataCompra
+                END
             WHERE Id = @Id
             """, new
         {
             Id = origemId,
             ApelidoLoja = destApelido,
-            ChaveUnica = destChave
+            ChaveUnica = destChave,
+            DiaConferencia = destDiaConferencia?.Trim() ?? string.Empty,
+            DataCompra = destDataCompra?.Trim() ?? string.Empty
         }, transaction);
 
         return origemId;
@@ -1260,27 +1308,24 @@ public sealed partial class NotaFiscalRepository
             FROM NotasFiscais
             WHERE CodCompra = @CodCompra
               AND ChaveUnica <> @ChaveUnica
-              AND DiaConferencia = @DiaConferencia
             """, new
         {
             CodCompra = codCompra,
-            destino.ChaveUnica,
-            DiaConferencia = destino.DiaConferencia
+            destino.ChaveUnica
         }, transaction).ToList();
 
-        // Outro dia de conferencia: a linha de origem permanece.
-        // So realoca no mesmo dia (loja/chave errada).
-        var doMesmoDia = deslocadas
-            .Where(d => MesmoDiaConferencia(d.DiaConferencia, destino.DiaConferencia))
-            .ToList();
-
-        if (doMesmoDia.Count == 0)
+        if (deslocadas.Count == 0)
             return (false, null);
 
         long? idRecalcular = null;
+        var soEntreDias = true;
 
-        foreach (var deslocada in doMesmoDia)
+        foreach (var deslocada in deslocadas)
         {
+            var mesmoDia = MesmoDiaConferencia(deslocada.DiaConferencia, destino.DiaConferencia);
+            if (mesmoDia)
+                soEntreDias = false;
+
             var id = RelocarOuMesclarNotaVsm(
                 connection,
                 transaction,
@@ -1288,13 +1333,17 @@ public sealed partial class NotaFiscalRepository
                 destino.ApelidoLoja,
                 destino.ChaveUnica,
                 destino.CodCompra,
-                destino.NfeChaveAcesso);
+                destino.NfeChaveAcesso,
+                mesmoDia ? null : destino.DiaConferencia,
+                mesmoDia ? null : destino.DataCompra);
 
-            if (id.HasValue)
+            // Heranca so no recadastro de loja/chave no mesmo dia.
+            // Mudanca de DATACOMPRA no VSM deve preservar o status ja conferido.
+            if (mesmoDia && id.HasValue)
                 idRecalcular = id;
         }
 
-        return (true, idRecalcular);
+        return (true, soEntreDias ? null : idRecalcular);
     }
 
     private static bool MesmoDiaConferencia(string? a, string? b)
@@ -1699,18 +1748,6 @@ public sealed partial class NotaFiscalRepository
             ChaveNfe = chaveNfe,
             CodCompra = cod
         }, transaction).ToList();
-
-        var diaAtual = DataCompraParser.TentarConverter(diaConferenciaAtual);
-        if (diaAtual.HasValue)
-        {
-            historico = historico
-                .Where(h =>
-                {
-                    var dia = DataCompraParser.TentarConverter(h.DiaConferencia);
-                    return dia.HasValue && dia.Value.Date < diaAtual.Value.Date;
-                })
-                .ToList();
-        }
 
         if (historico.Count == 0)
             return null;
