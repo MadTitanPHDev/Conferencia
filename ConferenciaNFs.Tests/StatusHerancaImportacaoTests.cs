@@ -7,7 +7,7 @@ namespace ConferenciaNFs.Tests;
 public class StatusHerancaImportacaoTests
 {
     [Theory]
-    [InlineData(StatusConferenciaValues.Pendente, StatusConferenciaValues.Pendente)]
+    [InlineData(StatusConferenciaValues.Pendente, StatusConferenciaValues.Amarelo)]
     [InlineData(StatusConferenciaValues.Amarelo, StatusConferenciaValues.Amarelo)]
     [InlineData(StatusConferenciaValues.Verde, StatusConferenciaValues.Laranja)]
     [InlineData(StatusConferenciaValues.Azul, StatusConferenciaValues.Laranja)]
@@ -21,14 +21,14 @@ public class StatusHerancaImportacaoTests
     }
 
     [Fact]
-    public void Calcular_VermelhoSemDevolucaoRegistrada_MantemVermelho()
+    public void Calcular_VermelhoDeOutroDia_ViraLaranja()
     {
         var (status, _) = StatusHerancaImportacao.Calcular(
             StatusConferenciaValues.Vermelho,
             string.Empty,
             devolucaoJaRegistrada: false);
 
-        Assert.Equal(StatusConferenciaValues.Vermelho, status);
+        Assert.Equal(StatusConferenciaValues.Laranja, status);
     }
 
     [Fact]

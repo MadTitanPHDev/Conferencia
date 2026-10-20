@@ -104,8 +104,40 @@
                     <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="*" MinWidth="160" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="70" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Custo" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="90" IsReadOnly="True"/>
-                    <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="140" MinWidth="100" IsReadOnly="True"/>
-                    <DataGridTextColumn Header="Classe" Binding="{Binding Classe}" Width="100" IsReadOnly="True"/>
+                    <DataGridTemplateColumn Header="Motivo" Width="160" MinWidth="120">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Setter Property="Padding" Value="4,2"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Motivos, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          SelectedItem="{Binding Motivo, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding DataContext.PodeEditar, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          Style="{StaticResource ModernComboBoxStyle}"
+                                          Padding="8,2"
+                                          VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Classe" Width="120" MinWidth="100">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Setter Property="Padding" Value="4,2"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.Classes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          SelectedItem="{Binding Classe, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding DataContext.PodeEditar, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          Style="{StaticResource ModernComboBoxStyle}"
+                                          Padding="8,2"
+                                          VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTemplateColumn Header="Qtd devolver" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

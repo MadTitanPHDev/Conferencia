@@ -200,7 +200,7 @@ public sealed class PreNotaViewModel : ViewModelBase
                 var linha = new PreNotaLinha(item);
                 if (porSequencia.TryGetValue(item.Sequencia, out var marcado))
                 {
-                    linha.Selecionado = true;
+                    GarantirMotivoNaLista(marcado.Motivo);
                     linha.QuantidadeDevolver = marcado.Quantidade;
                     linha.Motivo = marcado.Motivo;
                     linha.Classe = marcado.Classe;
@@ -233,7 +233,9 @@ public sealed class PreNotaViewModel : ViewModelBase
                 ? "Confira de novo os produtos, quantidades, motivo e classe. Confirmar marca a nota como devolvida."
                 : Motivos.Count == 0
                     ? "Cadastre um motivo em Motivos de devolucao antes de confirmar."
-                    : "Pesquise por nome ou código de barras, marque os produtos (ou use Selecionar todos) e a quantidade. Depois aplique motivo e classe aos marcados.";
+                    : preNota.Count > 0
+                        ? "Itens ja preenchidos entram na confirmacao mesmo desmarcados. Marque so o proximo grupo e aplique."
+                        : "Marque um grupo, aplique motivo e classe. O grupo desmarca. Repita com o proximo motivo. Na linha da para corrigir um item.";
         }
         catch (Exception ex)
         {
@@ -354,11 +356,27 @@ public sealed class PreNotaViewModel : ViewModelBase
 
     private void AplicarMotivoClasseMarcados()
     {
-        foreach (var linha in Linhas.Where(l => l.Selecionado))
+        var marcados = Linhas.Where(l => l.Selecionado).ToList();
+        if (marcados.Count == 0)
+        {
+            Mensagem = "Marque os itens que recebem este motivo.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(MotivoLote) || string.IsNullOrWhiteSpace(ClasseLote))
+        {
+            Mensagem = "Escolha o motivo e a classe antes de aplicar.";
+            return;
+        }
+
+        foreach (var linha in marcados)
         {
             linha.Motivo = MotivoLote;
             linha.Classe = ClasseLote;
+            linha.Selecionado = false;
         }
+
+        Mensagem = $"{marcados.Count} item(ns) com {MotivoLote.Trim()} · {ClasseLote.Trim()}.";
     }
 
     private async Task ConfirmarAsync()
@@ -373,7 +391,7 @@ public sealed class PreNotaViewModel : ViewModelBase
         try
         {
             IsCarregando = true;
-            var escolhidos = Linhas.Where(l => l.Selecionado).Select(l => l.ParaGravacao()).ToList();
+            var escolhidos = Linhas.Where(PreNotaValidador.ItemInformado).Select(l => l.ParaGravacao()).ToList();
             if (_modo == PreNotaModo.ConfirmacaoFila)
             {
                 if (_devolucao is null)

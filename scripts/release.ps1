@@ -114,9 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Notas cuja DATACOMPRA muda no VSM (ex.: sábado para segunda) deixam de duplicar: a mesma CodCompra vai para o dia novo e o status conferido é mantido, em todas as lojas. Sincronize o intervalo para limpar as linhas antigas.
+Na pré-nota, a mesma devolução pode ter motivos diferentes. Marque um grupo, aplique motivo e classe (esses itens desmarcam) e repita com o próximo motivo. Um item também pode ser corrigido direto na linha. A confirmação grava todo item que já tem motivo e classe.
 
-Na loja 29 (Nova Esperança/PR) o custo comparado com a planilha inclui ICMS-ST e FCP-ST.
+Uma nota que o VSM mostrar de novo em outro dia permanece no dia original e também entra no dia novo: já conferida fica laranja; se ainda estava pendente, fica amarela. A linha antiga não é apagada.
 
 ### Configuracao (app-settings.json)
 
