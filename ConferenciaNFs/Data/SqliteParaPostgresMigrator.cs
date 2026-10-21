@@ -131,11 +131,13 @@ public static class SqliteParaPostgresMigrator
                     INSERT INTO NotasFiscais (
                         ApelidoLoja, NumNota, NomeForn, CnpjForn,
                         ValorNota, DataCompra, DataEmissao, DiaConferencia,
-                        Observacao, ChaveUnica, StatusConferencia
+                        Observacao, ChaveUnica, StatusConferencia,
+                        OrigemStatus, StatusHerdadoDeNotaFiscalId, StatusAtualizadoPor
                     ) VALUES (
                         @ApelidoLoja, @NumNota, @NomeForn, @CnpjForn,
                         @ValorNota, @DataCompra, @DataEmissao, @DiaConferencia,
-                        @Observacao, @ChaveUnica, @StatusConferencia
+                        @Observacao, @ChaveUnica, @StatusConferencia,
+                        @OrigemStatus, NULL, @StatusAtualizadoPor
                     )
                     ON CONFLICT (ChaveUnica) DO UPDATE SET
                         ApelidoLoja = EXCLUDED.ApelidoLoja,
@@ -145,8 +147,26 @@ public static class SqliteParaPostgresMigrator
                         DataEmissao = EXCLUDED.DataEmissao,
                         DiaConferencia = EXCLUDED.DiaConferencia,
                         Observacao = EXCLUDED.Observacao,
-                        StatusConferencia = EXCLUDED.StatusConferencia;
-                    """, nota, tx);
+                        StatusConferencia = EXCLUDED.StatusConferencia,
+                        OrigemStatus = EXCLUDED.OrigemStatus,
+                        StatusHerdadoDeNotaFiscalId = NULL,
+                        StatusAtualizadoPor = EXCLUDED.StatusAtualizadoPor;
+                    """, new
+                {
+                    nota.ApelidoLoja,
+                    nota.NumNota,
+                    nota.NomeForn,
+                    nota.CnpjForn,
+                    nota.ValorNota,
+                    nota.DataCompra,
+                    nota.DataEmissao,
+                    nota.DiaConferencia,
+                    nota.Observacao,
+                    nota.ChaveUnica,
+                    nota.StatusConferencia,
+                    OrigemStatus = OrigemStatusValues.Manual,
+                    StatusAtualizadoPor = "Migracao SQLite"
+                }, tx);
 
                 if (jaExistia)
                     notasAtualizadas++;

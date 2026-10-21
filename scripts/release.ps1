@@ -114,7 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-A linha de um dia anterior permanece no dia em que foi conferida. Se a mesma nota voltar hoje, nasce uma linha nova com a cor herdada: verde e azul viram laranja, amarelo continua amarelo, vermelho continua vermelho (ou laranja se a devolução já estiver registrada). Nada é apagado.
+Uma escolha do operador não é desfeita pela sincronização. O dia anterior permanece; se a mesma nota voltar hoje, nasce uma linha nova com a cor herdada. Laranja marcado na mão deixa de voltar para branco.
 
 Na loja 29 (Nova Esperança/PR) o custo comparado com a planilha inclui ICMS-ST e FCP-ST.
 

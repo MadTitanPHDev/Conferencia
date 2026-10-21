@@ -20,6 +20,10 @@ public class NotaFiscal : INotifyPropertyChanged
     public string ChaveUnica { get; set; } = string.Empty;
     public int? CodCompra { get; set; }
     public string NfeChaveAcesso { get; set; } = string.Empty;
+    public string OrigemStatus { get; set; } = OrigemStatusValues.Sistema;
+    public long? StatusHerdadoDeNotaFiscalId { get; set; }
+    public DateTime? StatusAtualizadoEm { get; set; }
+    public string StatusAtualizadoPor { get; set; } = string.Empty;
 
     public string StatusConferencia
     {
@@ -59,6 +63,16 @@ public class NotaFiscal : INotifyPropertyChanged
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}
+
+public static class OrigemStatusValues
+{
+    public const string Sistema = "Sistema";
+    public const string Manual = "Manual";
+    public const string Herdado = "Herdado";
+
+    public static bool PodeSerAlteradoAutomaticamente(string? origem) =>
+        !string.Equals(origem?.Trim(), Manual, StringComparison.OrdinalIgnoreCase);
 }
 
 public static class StatusConferenciaValues

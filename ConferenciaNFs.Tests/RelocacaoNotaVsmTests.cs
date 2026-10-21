@@ -68,3 +68,34 @@ public class RelocacaoNotaVsmTests
         Assert.Equal(StatusConferenciaValues.Laranja, status);
     }
 }
+
+public class StatusAutomaticoProtegidoTests
+{
+    [Theory]
+    [InlineData(StatusConferenciaValues.Verde, StatusConferenciaValues.Laranja)]
+    [InlineData(StatusConferenciaValues.Azul, StatusConferenciaValues.Laranja)]
+    [InlineData(StatusConferenciaValues.Laranja, StatusConferenciaValues.Laranja)]
+    [InlineData(StatusConferenciaValues.Amarelo, StatusConferenciaValues.Amarelo)]
+    [InlineData(StatusConferenciaValues.Vermelho, StatusConferenciaValues.Vermelho)]
+    [InlineData(StatusConferenciaValues.Pendente, StatusConferenciaValues.Pendente)]
+    public void ReentradaEmNovoDia_SegueRegraDeHeranca(string anterior, string esperado)
+    {
+        var (status, _) = StatusHerancaImportacao.Calcular(anterior, "", devolucaoJaRegistrada: false);
+        Assert.Equal(esperado, status);
+    }
+
+    [Fact]
+    public void LaranjaManual_NaoPodeSerLimpoAutomaticamente()
+    {
+        Assert.False(OrigemStatusValues.PodeSerAlteradoAutomaticamente(OrigemStatusValues.Manual));
+        Assert.True(OrigemStatusValues.PodeSerAlteradoAutomaticamente(OrigemStatusValues.Herdado));
+    }
+
+    [Fact]
+    public void SabadoSegundaTerca_NaoSaoOMesmoDia()
+    {
+        Assert.False(RelocacaoNotaVsm.MesmoDiaConferencia("17/10/2026", "19/10/2026"));
+        Assert.False(RelocacaoNotaVsm.MesmoDiaConferencia("19/10/2026", "20/10/2026"));
+        Assert.True(RelocacaoNotaVsm.MesmoDiaConferencia("20/10/2026", "20/10/2026"));
+    }
+}

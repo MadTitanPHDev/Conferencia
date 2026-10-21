@@ -277,9 +277,18 @@ public sealed partial class NotaFiscalRepository
         {
             await connection.ExecuteAsync("""
                 UPDATE NotasFiscais
-                SET StatusConferencia = @Status
+                SET StatusConferencia = @Status,
+                    OrigemStatus = @OrigemStatus,
+                    StatusHerdadoDeNotaFiscalId = NULL,
+                    StatusAtualizadoPor = @StatusAtualizadoPor
                 WHERE Id = @Id
-                """, new { Id = notaFiscalId, Status = StatusConferenciaValues.Vermelho }, tx);
+                """, new
+            {
+                Id = notaFiscalId,
+                Status = StatusConferenciaValues.Vermelho,
+                OrigemStatus = OrigemStatusValues.Manual,
+                StatusAtualizadoPor = "Pre-nota"
+            }, tx);
             await tx.CommitAsync(cancellationToken);
             return;
         }
@@ -291,14 +300,19 @@ public sealed partial class NotaFiscalRepository
 
         await connection.ExecuteAsync("""
             UPDATE NotasFiscais
-            SET StatusConferencia = @Status
+            SET StatusConferencia = @Status,
+                OrigemStatus = @OrigemStatus,
+                StatusHerdadoDeNotaFiscalId = NULL,
+                StatusAtualizadoPor = @StatusAtualizadoPor
             WHERE Id = @Id
             """, new
         {
             Id = notaFiscalId,
             Status = notaDonaId == notaFiscalId
                 ? StatusConferenciaValues.Vermelho
-                : StatusConferenciaValues.Laranja
+                : StatusConferenciaValues.Laranja,
+            OrigemStatus = OrigemStatusValues.Manual,
+            StatusAtualizadoPor = "Pre-nota"
         }, tx);
 
         await connection.ExecuteAsync(

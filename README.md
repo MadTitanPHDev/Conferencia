@@ -4,7 +4,7 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.26** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.26))
+Versão atual: **1.0.27** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.27))
 
 **Onde estamos:** a conferência do dia a dia (sync VSM, status, pré-nota ao devolver, fila de devoluções com andamento, Excel) está em produção. O objetivo maior continua o mesmo: um núcleo Postgres nosso, sem gravar no VSM, e mais tarde um app de compradores. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`).
 
@@ -151,6 +151,8 @@ Quando o VSM traz de novo uma nota já conferida em um dia anterior, a linha do 
 Nota nova, sem essa identidade em outro dia, **permanece em branco**. Laranja não é mais aplicado só porque a emissão é antiga.
 
 A identidade da nota é buscada por `CodCompra`, chave da NFe, ou pela combinação loja + número + CNPJ. O recurso é ligado no menu ☰ (**herdar status**), e há um **recalcular** para reaplicar as regras no intervalo aberto.
+
+Cada status tem origem: **Manual** (operador), **Herdado** (sincronização) ou **Sistema**. A sincronização e o recálculo **não desfazem** uma escolha manual. A linha herdada guarda o `Id` da nota anterior, e toda mudança de status/observação entra em `NotaStatusHistorico`.
 
 ---
 
@@ -302,17 +304,17 @@ O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca po
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.26
+.\scripts\release.ps1 -Version 1.0.27
 ```
 
 4. Publique a release com os arquivos de `artifacts\Releases\`:
 
 ```powershell
-gh release create v1.0.26 (Get-ChildItem artifacts\Releases -File).FullName `
-  --title "ConferenciaNFs 1.0.26" --notes "..."
+gh release create v1.0.27 (Get-ChildItem artifacts\Releases -File).FullName `
+  --title "ConferenciaNFs 1.0.27" --notes "..."
 ```
 
-Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.26 -CreateGitHubRelease`.
+Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.27 -CreateGitHubRelease`.
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.
 
@@ -327,11 +329,13 @@ O script publica self-contained win-x64, empacota com Velopack e leva no pacote 
 - **`ImportacaoCsvTests` depende de arquivos locais** em `c:\Users\User\Desktop\...`. Dois testes estão com `Skip`; o de detecção de delimitador falha em outras máquinas.
 - **Código morto no repositório**: `ResolverChaveDataCompraAsync`, `LimparNotasDoDiaAtualAsync` e as sobrecargas de dia único de `ObterResumoDiaAsync`, `ObterNotasPorLojaAsync` e `ObterTodasNotasPorDataAsync` ficaram sem chamador depois do intervalo De/Até.
 - **`Exception while reading from stream` ao atualizar status.** O Npgsql reaproveita um soquete morto do pool (rede, idle do Postgres). Há retry só na abertura da conexão, não na gravação. Fica para um ajuste posterior (retry na operação + keepalive). Um PC com o Postgres local em `127.0.0.1` reduz a frequência; não elimina sozinho.
+- **Linhas movidas pela 1.0.25 sem backup anterior.** A recuperação automática só restaurou as cinco notas da loja 36 confirmadas pela equipe. As demais possíveis realocações ficam no relatório de dry-run; sem evidência do dia original, não são recriadas.
 
 ---
 
 ## Documentação complementar
 
+- `README-DETALHADO.md` — histórico técnico, incidentes, tentativas de correção, regressões, pendências e objetivo final do ConferenciaNFs.
 - `ConferenciaNFs-Documentacao.html` — documentação interna da equipe: o que o app faz, o que já foi entregue, objetivo e o que está em espera.
 - `ConferenciaNFs-Apresentacao.html` — visão técnica (arquitetura, telas, pacotes).
 - `ConferenciaNFs-Planejamento-Ecossistema.html` — rascunho antigo do ecossistema; o estado atual está na documentação acima.

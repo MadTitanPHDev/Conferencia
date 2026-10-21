@@ -58,6 +58,22 @@ public class StatusHerancaImportacaoTests
     }
 }
 
+public class OrigemStatusValuesTests
+{
+    [Theory]
+    [InlineData(OrigemStatusValues.Manual, false)]
+    [InlineData(" manual ", false)]
+    [InlineData(OrigemStatusValues.Sistema, true)]
+    [InlineData(OrigemStatusValues.Herdado, true)]
+    [InlineData(null, true)]
+    public void PodeSerAlteradoAutomaticamente_ProtegeOrigemManual(
+        string? origem,
+        bool esperado)
+    {
+        Assert.Equal(esperado, OrigemStatusValues.PodeSerAlteradoAutomaticamente(origem));
+    }
+}
+
 public class NumNotaNormalizerTests
 {
     [Theory]
