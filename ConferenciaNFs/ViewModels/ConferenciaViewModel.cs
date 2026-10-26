@@ -24,6 +24,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _duploCliqueCopiaNumero;
     private string _textoBuscaNota = string.Empty;
     private long? _notaIdParaSelecionar;
+    private int _duplicadasUnificadas;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
@@ -272,7 +273,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
             AplicarFiltroNotas();
             SelecionarNotaDaPesquisa();
-            MensagemStatus = $"{Notas.Count} nota(s) carregada(s) em {DataCompra}.";
+            MensagemStatus = _duplicadasUnificadas > 0
+                ? $"{Notas.Count} nota(s) carregada(s) em {DataCompra}. {_duplicadasUnificadas} duplicada(s) unificada(s)."
+                : $"{Notas.Count} nota(s) carregada(s) em {DataCompra}.";
         }
         catch (Exception ex)
         {
@@ -314,12 +317,25 @@ public sealed class ConferenciaViewModel : ViewModelBase
         }
 
         var lista = query.ToList();
+        var unificadas = UnificacaoNotasConferencia.UnificarMesmoStatus(lista);
+        _duplicadasUnificadas = lista.Count - unificadas.Count;
+        lista = unificadas.ToList();
         NotasVisiveis.Clear();
         foreach (var nota in lista)
             NotasVisiveis.Add(nota);
 
         if (selecionadaAntes is not null && NotasVisiveis.Contains(selecionadaAntes))
             NotaSelecionada = selecionadaAntes;
+        else if (selecionadaAntes is not null)
+        {
+            NotaSelecionada = NotasVisiveis.FirstOrDefault(n =>
+                                 UnificacaoNotasConferencia.MesmaIdentidade(selecionadaAntes, n)
+                                 && string.Equals(
+                                     n.StatusConferencia,
+                                     selecionadaAntes.StatusConferencia,
+                                     StringComparison.OrdinalIgnoreCase))
+                             ?? NotasVisiveis.FirstOrDefault();
+        }
         else
             NotaSelecionada = NotasVisiveis.FirstOrDefault();
 
@@ -342,7 +358,18 @@ public sealed class ConferenciaViewModel : ViewModelBase
             return;
 
         if (!NotasVisiveis.Contains(alvo))
-            NotasVisiveis.Insert(0, alvo);
+        {
+            var visivelDoGrupo = NotasVisiveis.FirstOrDefault(n =>
+                UnificacaoNotasConferencia.MesmaIdentidade(alvo, n)
+                && string.Equals(
+                    n.StatusConferencia,
+                    alvo.StatusConferencia,
+                    StringComparison.OrdinalIgnoreCase));
+            if (visivelDoGrupo is not null)
+                alvo = visivelDoGrupo;
+            else
+                NotasVisiveis.Insert(0, alvo);
+        }
 
         NotaSelecionada = alvo;
         MensagemStatus = $"Nota {alvo.NumNota} aberta a partir da pesquisa.";
@@ -403,6 +430,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         if (NotaSelecionada.StatusConferencia == novoStatus)
             return;
 
+        var statusAnterior = NotaSelecionada.StatusConferencia;
         try
         {
             if (novoStatus == StatusConferenciaValues.Vermelho)
@@ -410,8 +438,11 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 if (!await ConfirmarPreNotaAsync())
                     return;
                 NotaSelecionada.StatusConferencia = novoStatus;
-                MensagemStatus =
-                    $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).";
+                NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+                var copiasVermelho = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
+                MensagemStatus = MensagemStatusComCopias(
+                    $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).",
+                    copiasVermelho);
                 AplicarFiltroNotas();
                 return;
             }
@@ -421,9 +452,11 @@ public sealed class ConferenciaViewModel : ViewModelBase
             if (novoStatus == StatusConferenciaValues.Amarelo)
                 await TentarFotografarItensAsync();
             NotaSelecionada.StatusConferencia = novoStatus;
-            MensagemStatus = novoStatus == StatusConferenciaValues.Vermelho
-                ? $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (entrou na fila de devolucoes)."
-                : $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.";
+            NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+            var copias = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
+            MensagemStatus = MensagemStatusComCopias(
+                $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.",
+                copias);
             AplicarFiltroNotas();
         }
         catch (Exception ex)
@@ -481,9 +514,11 @@ public sealed class ConferenciaViewModel : ViewModelBase
             await _repository.AtualizarObservacaoAsync(NotaSelecionada.Id, texto);
             NotaSelecionada.Observacao = texto;
             ObservacaoTexto = texto;
-            MensagemStatus = string.IsNullOrEmpty(texto)
+            var copias = await ReplicarObservacaoNasCopiasAsync(NotaSelecionada, texto);
+            var baseMsg = string.IsNullOrEmpty(texto)
                 ? $"Observacao removida da nota {NotaSelecionada.NumNota}."
                 : $"Nota {NotaSelecionada.NumNota}: observacao \"{texto}\" salva.";
+            MensagemStatus = MensagemStatusComCopias(baseMsg, copias);
         }
         catch (Exception ex)
         {
@@ -503,7 +538,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
         var texto = observacao.Trim();
         var jaTemObservacao = NotaSelecionada.Observacao == texto;
-        var jaEstaVerde = NotaSelecionada.StatusConferencia == StatusConferenciaValues.Verde;
+        var statusAnterior = NotaSelecionada.StatusConferencia;
+        var jaEstaVerde = statusAnterior == StatusConferenciaValues.Verde;
 
         if (jaTemObservacao && jaEstaVerde)
             return;
@@ -515,6 +551,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 await _repository.AtualizarObservacaoAsync(NotaSelecionada.Id, texto);
                 NotaSelecionada.Observacao = texto;
                 ObservacaoTexto = texto;
+                await ReplicarObservacaoNasCopiasAsync(NotaSelecionada, texto);
             }
 
             if (!jaEstaVerde)
@@ -523,6 +560,11 @@ public sealed class ConferenciaViewModel : ViewModelBase
                     NotaSelecionada.Id,
                     StatusConferenciaValues.Verde);
                 NotaSelecionada.StatusConferencia = StatusConferenciaValues.Verde;
+                NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+                await ReplicarStatusNasCopiasAsync(
+                    NotaSelecionada,
+                    statusAnterior,
+                    StatusConferenciaValues.Verde);
             }
 
             MensagemStatus =
@@ -583,6 +625,48 @@ public sealed class ConferenciaViewModel : ViewModelBase
             IsCarregando = false;
         }
     }
+
+    private async Task<int> ReplicarStatusNasCopiasAsync(
+        NotaFiscal origem,
+        string statusAnterior,
+        string novoStatus)
+    {
+        var copias = Notas
+            .Where(n => n.Id != origem.Id
+                        && UnificacaoNotasConferencia.MesmaIdentidade(origem, n)
+                        && string.Equals(
+                            n.StatusConferencia,
+                            statusAnterior,
+                            StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var copia in copias)
+        {
+            await _repository.AtualizarStatusConferenciaAsync(copia.Id, novoStatus);
+            copia.StatusConferencia = novoStatus;
+            copia.OrigemStatus = OrigemStatusValues.Manual;
+        }
+
+        return copias.Count;
+    }
+
+    private async Task<int> ReplicarObservacaoNasCopiasAsync(NotaFiscal origem, string texto)
+    {
+        var copias = UnificacaoNotasConferencia.CopiasComMesmoStatus(origem, Notas);
+        foreach (var copia in copias)
+        {
+            await _repository.AtualizarObservacaoAsync(copia.Id, texto);
+            copia.Observacao = texto;
+            copia.OrigemStatus = OrigemStatusValues.Manual;
+        }
+
+        return copias.Count;
+    }
+
+    private static string MensagemStatusComCopias(string mensagem, int copias)
+        => copias <= 0
+            ? mensagem
+            : $"{mensagem} {copias} copia(s) do intervalo atualizada(s).";
 
     private static IReadOnlyList<string> NormalizarDias(IReadOnlyList<string> dias)
     {
