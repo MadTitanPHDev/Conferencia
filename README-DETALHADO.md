@@ -8,7 +8,7 @@ e o objetivo de longo prazo do ConferenciaNFs.
 Estado de referência deste documento:
 
 - Data: 21/10/2026.
-- Versão publicada: 1.0.27.
+- Versão publicada: 1.0.28.
 - Aplicativo: WPF em .NET 8 para Windows.
 - Banco operacional: PostgreSQL compartilhado.
 - ERP VSM: MySQL em modo somente leitura.

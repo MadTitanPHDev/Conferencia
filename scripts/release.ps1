@@ -114,9 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Uma escolha do operador não é desfeita pela sincronização. O dia anterior permanece; se a mesma nota voltar hoje, nasce uma linha nova com a cor herdada. Laranja marcado na mão deixa de voltar para branco.
-
-Na loja 29 (Nova Esperança/PR) o custo comparado com a planilha inclui ICMS-ST e FCP-ST.
+Na conferencia, a mesma NF em dois dias do intervalo (quando o status e o mesmo) aparece como uma linha. Pintar essa linha replica a cor para a copia ainda em branco. Os totais do dashboard e da conferencia contam a NF visivel, nao a linha duplicada. O dia anterior nao e apagado nem muda de dia.
 
 ### Configuracao (app-settings.json)
 
