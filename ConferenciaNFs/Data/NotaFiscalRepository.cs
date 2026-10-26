@@ -2136,112 +2136,29 @@ public sealed partial class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var resultado = (await connection.QueryAsync<LojaPendencia>(new CommandDefinition("""
+        var notasIntervalo = (await connection.QueryAsync<NotaFiscal>(new CommandDefinition("""
             SELECT
-                n.ApelidoLoja,
-                SUM(CASE
-                    WHEN n.StatusConferencia IN (@StatusPendente, @StatusAmarelo) THEN 1
-                    ELSE 0
-                END)::int AS Pendencias,
-                SUM(CASE
-                    WHEN n.StatusConferencia = @StatusAmarelo THEN 1
-                    ELSE 0
-                END)::int AS QtdAmarelo,
-                COALESCE(MAX(l.NumeroOrdem), 9999) AS NumeroOrdem,
-                COALESCE(NULLIF(MAX(l.NomeExibicao), ''), n.ApelidoLoja) AS NomeExibicao
-            FROM NotasFiscais n
-            LEFT JOIN LojaOrdem l ON l.ApelidoLoja = n.ApelidoLoja
-            WHERE n.DiaConferencia = ANY(@Dias)
-            GROUP BY n.ApelidoLoja
-            ORDER BY NumeroOrdem, n.ApelidoLoja
-            """, new
-        {
-            StatusPendente = StatusConferenciaValues.Pendente,
-            StatusAmarelo = StatusConferenciaValues.Amarelo,
-            Dias = diasNormais
-        }, cancellationToken: cancellationToken))).ToList();
-
-        var amarelos = (await connection.QueryAsync<LojaAmareloDistribuidora>(new CommandDefinition("""
-            SELECT
-                n.ApelidoLoja,
+                n.*,
                 COALESCE(
                     NULLIF(TRIM(n.NomeForn), ''),
                     NULLIF(TRIM(d.NomeForn), ''),
                     NULLIF(TRIM(n.CnpjForn), ''),
                     'Sem nome'
-                ) AS Nome,
-                COUNT(*)::int AS Quantidade
+                ) AS NomeForn
             FROM NotasFiscais n
             LEFT JOIN Distribuidoras d
               ON regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
                = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
             WHERE n.DiaConferencia = ANY(@Dias)
-              AND n.StatusConferencia = @StatusAmarelo
-            GROUP BY 1, 2
-            """, new
-        {
-            StatusAmarelo = StatusConferenciaValues.Amarelo,
-            Dias = diasNormais
-        }, cancellationToken: cancellationToken))).ToList();
+            """, new { Dias = diasNormais }, cancellationToken: cancellationToken))).ToList();
 
-        var porLoja = amarelos
-            .GroupBy(a => a.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                g => g.Key,
-                g => (IReadOnlyList<LojaAmareloDistribuidora>)g
-                    .OrderByDescending(x => x.Quantidade)
-                    .ThenBy(x => x.Nome, StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase);
+        var ordensLoja = (await connection.QueryAsync<LojaOrdem>(new CommandDefinition("""
+            SELECT ApelidoLoja, NumeroOrdem, NomeExibicao
+            FROM LojaOrdem
+            """, cancellationToken: cancellationToken)))
+            .ToDictionary(o => o.ApelidoLoja, StringComparer.OrdinalIgnoreCase);
 
-        var notasPendentes = (await connection.QueryAsync<LojaPendenciaNota>(new CommandDefinition("""
-            SELECT
-                n.ApelidoLoja,
-                n.NumNota,
-                COALESCE(
-                    NULLIF(TRIM(n.NomeForn), ''),
-                    NULLIF(TRIM(d.NomeForn), ''),
-                    'Sem nome'
-                ) AS NomeForn,
-                n.StatusConferencia,
-                TRIM(COALESCE(n.Observacao, '')) AS Observacao
-            FROM NotasFiscais n
-            LEFT JOIN Distribuidoras d
-              ON regexp_replace(COALESCE(d.CnpjForn, ''), '[^0-9]', '', 'g')
-               = regexp_replace(COALESCE(n.CnpjForn, ''), '[^0-9]', '', 'g')
-            WHERE n.DiaConferencia = ANY(@Dias)
-              AND n.StatusConferencia IN (@StatusPendente, @StatusAmarelo)
-            """, new
-        {
-            StatusPendente = StatusConferenciaValues.Pendente,
-            StatusAmarelo = StatusConferenciaValues.Amarelo,
-            Dias = diasNormais
-        }, cancellationToken: cancellationToken))).ToList();
-
-        var notasPorLoja = notasPendentes
-            .GroupBy(n => n.ApelidoLoja, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                g => g.Key,
-                g => g
-                    .OrderByDescending(n => !string.IsNullOrWhiteSpace(n.Observacao))
-                    .ThenByDescending(n => n.StatusConferencia == StatusConferenciaValues.Amarelo)
-                    .ThenBy(n => n.NumNota, StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase);
-
-        foreach (var loja in resultado)
-        {
-            if (porLoja.TryGetValue(loja.ApelidoLoja, out var lista))
-                loja.AmarelosPorDistribuidora = lista;
-
-            if (!notasPorLoja.TryGetValue(loja.ApelidoLoja, out var notas))
-                continue;
-
-            loja.NotasPendentesOcultas = Math.Max(0, notas.Count - LojaPendencia.LimiteNotasHover);
-            loja.NotasPendentes = notas.Take(LojaPendencia.LimiteNotasHover).ToList();
-        }
-
-        return resultado;
+        return UnificacaoNotasConferencia.AgruparPendenciasPorLoja(notasIntervalo, ordensLoja);
     }
 
     public Task<ResumoDiaConferencia> ObterResumoDiaAsync(
@@ -2257,13 +2174,16 @@ public sealed partial class NotaFiscalRepository
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
-        var resumo = await connection.QuerySingleAsync<ResumoDiaConferencia>(new CommandDefinition("""
-            SELECT
-                COALESCE(SUM(CASE
-                    WHEN n.StatusConferencia IN (@StatusPendente, @StatusAmarelo) THEN 1
-                    ELSE 0
-                END), 0)::int AS Pendencias,
-                COALESCE(SUM(CASE
+        var notas = (await connection.QueryAsync<NotaFiscal>(new CommandDefinition("""
+            SELECT *
+            FROM NotasFiscais
+            WHERE DiaConferencia = ANY(@Dias)
+            """, new { Dias = diasNormais }, cancellationToken: cancellationToken))).ToList();
+
+        var (total, pendencias) = UnificacaoNotasConferencia.ContarVisiveis(notas);
+
+        var notasNovas = await connection.QuerySingleAsync<int>(new CommandDefinition("""
+            SELECT COALESCE(SUM(CASE
                     WHEN NOT EXISTS (
                         SELECT 1
                         FROM NotasFiscais h
@@ -2275,18 +2195,17 @@ public sealed partial class NotaFiscalRepository
                           AND h.DiaConferencia <> n.DiaConferencia
                     ) THEN 1
                     ELSE 0
-                END), 0)::int AS NotasNovas,
-                COUNT(*)::int AS TotalNotas
+                END), 0)::int
             FROM NotasFiscais n
             WHERE n.DiaConferencia = ANY(@Dias)
-            """, new
-        {
-            StatusPendente = StatusConferenciaValues.Pendente,
-            StatusAmarelo = StatusConferenciaValues.Amarelo,
-            Dias = diasNormais
-        }, cancellationToken: cancellationToken));
+            """, new { Dias = diasNormais }, cancellationToken: cancellationToken));
 
-        return resumo;
+        return new ResumoDiaConferencia
+        {
+            Pendencias = pendencias,
+            NotasNovas = notasNovas,
+            TotalNotas = total
+        };
     }
 
     private sealed class NotaCodCompraResumoLinha

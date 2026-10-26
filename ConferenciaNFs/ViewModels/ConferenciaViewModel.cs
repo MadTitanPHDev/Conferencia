@@ -24,7 +24,6 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _duploCliqueCopiaNumero;
     private string _textoBuscaNota = string.Empty;
     private long? _notaIdParaSelecionar;
-    private int _duplicadasUnificadas;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
@@ -273,9 +272,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
             AplicarFiltroNotas();
             SelecionarNotaDaPesquisa();
-            MensagemStatus = _duplicadasUnificadas > 0
-                ? $"{Notas.Count} nota(s) carregada(s) em {DataCompra}. {_duplicadasUnificadas} duplicada(s) unificada(s)."
-                : $"{Notas.Count} nota(s) carregada(s) em {DataCompra}.";
+            MensagemStatus = $"{NotasVisiveis.Count} nota(s) em {DataCompra}.";
         }
         catch (Exception ex)
         {
@@ -316,10 +313,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 .ThenBy(n => Notas.IndexOf(n));
         }
 
-        var lista = query.ToList();
-        var unificadas = UnificacaoNotasConferencia.UnificarMesmoStatus(lista);
-        _duplicadasUnificadas = lista.Count - unificadas.Count;
-        lista = unificadas.ToList();
+        var lista = UnificacaoNotasConferencia.UnificarMesmoStatus(query.ToList()).ToList();
         NotasVisiveis.Clear();
         foreach (var nota in lista)
             NotasVisiveis.Add(nota);

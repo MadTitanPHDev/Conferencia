@@ -106,6 +106,47 @@ public class UnificacaoNotasConferenciaTests
     }
 
     [Fact]
+    public void ContarVisiveis_DuasPendente_ContaUma()
+    {
+        var sabado = Nota(1, "1821", "24/10/2026", StatusConferenciaValues.Pendente, 1279122);
+        var segunda = Nota(2, "1821", "26/10/2026", StatusConferenciaValues.Pendente, 1279122);
+        var outra = Nota(3, "999", "26/10/2026", StatusConferenciaValues.Verde, 9);
+
+        var (total, pendencias) = UnificacaoNotasConferencia.ContarVisiveis([sabado, segunda, outra]);
+
+        Assert.Equal(2, total);
+        Assert.Equal(1, pendencias);
+    }
+
+    [Fact]
+    public void AgruparPendenciasPorLoja_NaoDuplicaCardDaLoja()
+    {
+        var sabado = Nota(1, "1821", "24/10/2026", StatusConferenciaValues.Pendente, 1279122);
+        sabado.NomeForn = "S&H";
+        var segunda = Nota(2, "1821", "26/10/2026", StatusConferenciaValues.Pendente, 1279122);
+        segunda.NomeForn = "S&H";
+        var amarela = Nota(3, "300934", "24/10/2026", StatusConferenciaValues.Amarelo, 1279181);
+        amarela.NomeForn = "Santa Cruz";
+        var amarelaCopia = Nota(4, "300934", "26/10/2026", StatusConferenciaValues.Amarelo, 1279181);
+        amarelaCopia.NomeForn = "Santa Cruz";
+
+        var lojas = UnificacaoNotasConferencia.AgruparPendenciasPorLoja(
+            [sabado, segunda, amarela, amarelaCopia],
+            new Dictionary<string, LojaOrdem>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["VELASQUES"] = new() { ApelidoLoja = "VELASQUES", NumeroOrdem = 2, NomeExibicao = "Velasques" }
+            });
+
+        var loja = Assert.Single(lojas);
+        Assert.Equal(2, loja.Pendencias);
+        Assert.Equal(1, loja.QtdAmarelo);
+        Assert.Equal(1, loja.QtdBranco);
+        Assert.Single(loja.AmarelosPorDistribuidora);
+        Assert.Equal(1, loja.AmarelosPorDistribuidora[0].Quantidade);
+        Assert.DoesNotContain(loja.NotasPendentes, n => loja.NotasPendentes.Count(x => x.NumNota == n.NumNota) > 1);
+    }
+
+    [Fact]
     public void MesmaIdentidade_PorChaveNfe()
     {
         var a = Nota(1, "1", "24/10/2026", StatusConferenciaValues.Pendente, codCompra: null, nfe: "ABC");
