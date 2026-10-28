@@ -114,7 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Por padrao nenhum PC puxa notas do VSM. No menu hamburguer, ligue "Puxar notas neste PC" so na maquina que deve sincronizar: o botao Sincronizar VSM aparece nela. Os outros PCs leem o Postgres e continuam com busca de nota e de produto.
+Por padrao nenhum PC puxa notas do VSM. No menu hamburguer, ligue Puxar notas neste PC so na maquina que deve sincronizar: o botao Sincronizar VSM aparece nela. Os outros PCs leem o Postgres e continuam com busca de nota e de produto.
 
 ### Configuracao (app-settings.json)
 
@@ -127,7 +127,9 @@ Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs
 Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
 "@
 
-    gh release create $tag @assets --title "ConferenciaNFs $Version" --notes $notes
+    $notesFile = Join-Path $env:TEMP "conferencia-release-notes-$Version.md"
+    Set-Content -Path $notesFile -Value $notes -Encoding utf8
+    gh release create $tag @assets --title "ConferenciaNFs $Version" --notes-file $notesFile
     if ($LASTEXITCODE -ne 0) { throw "gh release create falhou." }
     Write-Host "Release publicada: https://github.com/MadTitanPHDev/Conferencia/releases/tag/$tag" -ForegroundColor Green
 }
