@@ -745,6 +745,101 @@
         </Setter>
     </Style>
 
+    <!-- Switch Uiverse (gharsh11032000): trilha pílula, knob branco, glow azul ao ligar. -->
+    <Style x:Key="UiverseSwitchToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="60"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource AppFocusVisual}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid Width="60" Height="34" SnapsToDevicePixels="True">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualState x:Name="Unchecked">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTranslate"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="0"
+                                                         Duration="0:0:0.4">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="Glow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0"
+                                                         Duration="0:0:0.4"/>
+                                        <ColorAnimation Storyboard.TargetName="TrackBrush"
+                                                        Storyboard.TargetProperty="Color"
+                                                        To="#414141"
+                                                        Duration="0:0:0.4"/>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbTranslate"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="25"
+                                                         Duration="0:0:0.4">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="Glow"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1"
+                                                         Duration="0:0:0.4"/>
+                                        <ColorAnimation Storyboard.TargetName="TrackBrush"
+                                                        Storyboard.TargetProperty="Color"
+                                                        To="#0974F1"
+                                                        Duration="0:0:0.4"/>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Indeterminate"/>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Border x:Name="Glow"
+                                CornerRadius="17"
+                                BorderBrush="#0974F1"
+                                BorderThickness="2"
+                                Opacity="0"
+                                IsHitTestVisible="False">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#0974F1"
+                                                  BlurRadius="20"
+                                                  ShadowDepth="0"
+                                                  Opacity="0.8"/>
+                            </Border.Effect>
+                        </Border>
+                        <Border x:Name="Track"
+                                CornerRadius="17"
+                                BorderThickness="2"
+                                Background="Transparent">
+                            <Border.BorderBrush>
+                                <SolidColorBrush x:Name="TrackBrush" Color="#414141"/>
+                            </Border.BorderBrush>
+                        </Border>
+                        <Ellipse Width="24"
+                                 Height="24"
+                                 Fill="White"
+                                 HorizontalAlignment="Left"
+                                 VerticalAlignment="Bottom"
+                                 Margin="4,0,0,4"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <TranslateTransform x:Name="ThumbTranslate" X="0"/>
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PillTagButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
         <Setter Property="Padding" Value="12,7"/>
         <Setter Property="FontSize" Value="12"/>

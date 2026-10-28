@@ -166,6 +166,12 @@ public sealed class AppSettings
     public string MysqlConnectionString { get; set; } = string.Empty;
 
     /// <summary>
+    /// Se este PC puxa notas do VSM (abrir, timer e botao). Padrao desligado.
+    /// Local deste computador — nao vai para o Postgres.
+    /// </summary>
+    public bool SincronizarVsm { get; set; }
+
+    /// <summary>
     /// Duplo clique na conferencia: true copia o numero da NF; false abre os itens.
     /// </summary>
     public bool DuploCliqueCopiaNumero { get; set; }

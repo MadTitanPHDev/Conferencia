@@ -1,0 +1,25 @@
+<UserControl x:Class="ConferenciaNFs.Controls.SyncVsmToggle"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel LastChildFill="True"
+               ToolTip="Só este computador busca notas no VSM e grava no banco compartilhado. Deixe desligado nos outros PCs. Busca de nota e de produto continuam.">
+        <ToggleButton DockPanel.Dock="Right"
+                      VerticalAlignment="Center"
+                      Margin="12,0,0,0"
+                      IsChecked="{Binding SincronizarVsmNestePc, Mode=TwoWay}"
+                      Style="{StaticResource UiverseSwitchToggleStyle}"/>
+        <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="Puxar notas neste PC"
+                       FontWeight="SemiBold"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+            <TextBlock Text="Este computador sincroniza o VSM"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,2,0,0"
+                       Opacity="0.75"
+                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+        </StackPanel>
+    </DockPanel>
+</UserControl>

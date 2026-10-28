@@ -164,7 +164,7 @@
                                 Command="{Binding SincronizarVsmCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Margin="0,0,8,0"
-                                Visibility="{Binding SyncVsmDisponivel, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Visibility="{Binding MostrarBotaoSincronizarVsm, Converter={StaticResource BoolToVisibilityConverter}}"
                                 ToolTip="Busca as notas de cada dia do intervalo no VSM e grava no banco da conferencia."/>
                         <Button Content="Importar CSV"
                                 Command="{Binding ImportarCsvCommand}"
@@ -606,6 +606,9 @@
                                     Click="FecharMenuAvancado_Click"/>
                         </Grid>
 
+                        <controls:SyncVsmToggle Foreground="{DynamicResource Brush.TextPrimary}"
+                                                Margin="0,0,0,20"/>
+
                         <TextBlock Text="Herança de status"
                                    FontWeight="SemiBold"
                                    FontSize="12"
@@ -749,6 +752,8 @@
                     <TextBlock Text="FERRAMENTAS"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="6,0,0,8"/>
+                    <controls:SyncVsmToggle Foreground="{DynamicResource Brush.SidebarText}"
+                                            Margin="6,0,0,12"/>
                     <CheckBox Content="Herdar status na importação"
                               IsChecked="{Binding HerancaStatusImportacao, Mode=TwoWay}"
                               FontSize="12"

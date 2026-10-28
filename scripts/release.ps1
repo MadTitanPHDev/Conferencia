@@ -114,7 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-O periodo da fila de devolucoes so filtra a lista: nada e apagado ao salvar a data minima. Pendentes e concluidas anteriores permanecem no banco. A exclusao continua apenas pelo botao de cada linha.
+Por padrao nenhum PC puxa notas do VSM. No menu hamburguer, ligue "Puxar notas neste PC" so na maquina que deve sincronizar: o botao Sincronizar VSM aparece nela. Os outros PCs leem o Postgres e continuam com busca de nota e de produto.
 
 ### Configuracao (app-settings.json)
 

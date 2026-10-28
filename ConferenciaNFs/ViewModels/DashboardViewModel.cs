@@ -229,6 +229,35 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
     public bool SyncVsmDisponivel => _syncVsm is not null;
 
+    public bool MostrarBotaoSincronizarVsm =>
+        PoliticaSyncVsm.DeveSincronizar(SyncVsmDisponivel, SincronizarVsmNestePc);
+
+    public bool SincronizarVsmNestePc
+    {
+        get => AppSettingsStore.Instance.Data.SincronizarVsm;
+        set
+        {
+            if (AppSettingsStore.Instance.Data.SincronizarVsm == value)
+                return;
+
+            AppSettingsStore.Instance.Data.SincronizarVsm = value;
+            AppSettingsStore.Instance.Salvar();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MostrarBotaoSincronizarVsm));
+            AtualizarComandosDoDia();
+
+            if (value)
+            {
+                IniciarTimerSyncVsm();
+                _ = ExecutarCargaAsync(exibirErroSync: false);
+            }
+            else
+            {
+                PararTimerSyncVsm();
+            }
+        }
+    }
+
     public ICommand ImportarCsvCommand { get; }
     public ICommand SincronizarVsmCommand { get; }
     public ICommand AtualizarCommand { get; }
@@ -387,16 +416,30 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     }
 
     private bool PodeSincronizarVsm =>
-        SyncVsmDisponivel && IntervaloPronto && !IsCarregando && !_estaSincronizando;
+        PoliticaSyncVsm.DeveSincronizar(SyncVsmDisponivel, SincronizarVsmNestePc)
+        && IntervaloPronto
+        && !IsCarregando
+        && !_estaSincronizando;
 
     private void IniciarTimerSyncVsm()
     {
-        if (_syncVsm is null || _timerSyncVsm is not null)
+        if (!PoliticaSyncVsm.DeveSincronizar(SyncVsmDisponivel, SincronizarVsmNestePc)
+            || _timerSyncVsm is not null)
             return;
 
         _timerSyncVsm = new DispatcherTimer { Interval = IntervaloSyncVsm };
         _timerSyncVsm.Tick += OnTimerSyncVsm;
         _timerSyncVsm.Start();
+    }
+
+    private void PararTimerSyncVsm()
+    {
+        if (_timerSyncVsm is null)
+            return;
+
+        _timerSyncVsm.Stop();
+        _timerSyncVsm.Tick -= OnTimerSyncVsm;
+        _timerSyncVsm = null;
     }
 
     private void OnTimerSyncVsm(object? sender, EventArgs e)
@@ -449,7 +492,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         bool apenasDiasQuentes,
         CancellationToken cancellationToken)
     {
-        if (_syncVsm is null || !IntervaloPronto || _estaSincronizando)
+        if (!PoliticaSyncVsm.DeveSincronizar(SyncVsmDisponivel, SincronizarVsmNestePc)
+            || !IntervaloPronto
+            || _estaSincronizando)
             return;
 
         var inicio = DataInicio!.Value;
@@ -476,6 +521,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             MensagemStatus = $"Sincronizando notas do VSM em {periodo}...";
 
             var sync = _syncVsm;
+            if (sync is null)
+                return;
+
             IProgress<VsmSyncProgress> progresso = new Progress<VsmSyncProgress>(p =>
             {
                 ProgressoSync = p.Total <= 0 ? 0 : (double)p.Etapa / p.Total;
@@ -523,13 +571,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         CancelarCargaPendente();
-
-        if (_timerSyncVsm is null)
-            return;
-
-        _timerSyncVsm.Stop();
-        _timerSyncVsm.Tick -= OnTimerSyncVsm;
-        _timerSyncVsm = null;
+        PararTimerSyncVsm();
     }
 
     private async Task CarregarConfiguracoesAsync()
