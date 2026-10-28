@@ -114,7 +114,7 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Na conferencia, a mesma NF em dois dias do intervalo (quando o status e o mesmo) aparece como uma linha. Pintar essa linha replica a cor para a copia ainda em branco. Os totais do dashboard e da conferencia contam a NF visivel, nao a linha duplicada. O dia anterior nao e apagado nem muda de dia.
+O periodo da fila de devolucoes so filtra a lista: nada e apagado ao salvar a data minima. Pendentes e concluidas anteriores permanecem no banco. A exclusao continua apenas pelo botao de cada linha.
 
 ### Configuracao (app-settings.json)
 

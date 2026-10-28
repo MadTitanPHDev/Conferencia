@@ -80,13 +80,8 @@
                                 VerticalAlignment="Center"
                                 Language="pt-BR"
                                 infra:CalendarRange.Start="{Binding DataMinimaRastreio}"
-                                infra:CalendarRange.End="{Binding DataMinimaRastreio}"/>
-                    <CheckBox Content="Remover da fila o que for anterior"
-                              IsChecked="{Binding RemoverPendentesAnteriores, Mode=TwoWay}"
-                              FontSize="12"
-                              VerticalAlignment="Center"
-                              Margin="0,2,10,2"
-                              ToolTip="Apaga pendentes e concluídas com data de fila anterior à data mínima. Itens e recados daqueles registros saem junto."/>
+                                infra:CalendarRange.End="{Binding DataMinimaRastreio}"
+                                ToolTip="Só esconde da lista o que for anterior. Nada é apagado; marcações novas abaixo dessa data também não entram."/>
                     <Button Content="Salvar"
                             Command="{Binding SalvarPeriodoCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"

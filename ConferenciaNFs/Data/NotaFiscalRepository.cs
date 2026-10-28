@@ -460,6 +460,10 @@ public sealed partial class NotaFiscalRepository
             """, new { Chave = ConfigLimpezaDevolucoesAntesCorte });
     }
 
+    /// <summary>
+    /// Só a limpeza única já aplicada (flag ConfigLimpezaDevolucoesAntesCorte).
+    /// Salvar o período da fila nunca chama isto: histórico permanece no banco.
+    /// </summary>
     private static void RemoverDevolucoesForaDoPeriodo(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
@@ -2713,12 +2717,10 @@ public sealed partial class NotaFiscalRepository
 
     public async Task SalvarDataMinimaDevolucoesAsync(
         DateTime? dataMinima,
-        bool removerPendentesAnteriores,
         CancellationToken cancellationToken = default)
     {
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         var valor = dataMinima.HasValue
             ? DataCompraParser.Formatar(dataMinima.Value.Date)
@@ -2732,12 +2734,7 @@ public sealed partial class NotaFiscalRepository
         {
             Chave = ConfigDevolucoesDataMinima,
             Valor = valor
-        }, transaction);
-
-        if (removerPendentesAnteriores && dataMinima.HasValue)
-            RemoverDevolucoesForaDoPeriodo(connection, transaction, dataMinima.Value.Date);
-
-        await transaction.CommitAsync(cancellationToken);
+        });
     }
 
     private static async Task<DateTime?> ObterDataMinimaDevolucoesInternalAsync(

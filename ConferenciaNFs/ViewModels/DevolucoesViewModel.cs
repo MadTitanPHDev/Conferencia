@@ -25,7 +25,6 @@ public sealed class DevolucoesViewModel : ViewModelBase
     private string _mensagem = string.Empty;
     private bool _isCarregando;
     private DateTime? _dataMinimaRastreio;
-    private bool _removerPendentesAnteriores = true;
     private readonly long? _destacarDevolucaoId;
     private readonly long? _destacarNotaFiscalId;
 
@@ -230,12 +229,6 @@ public sealed class DevolucoesViewModel : ViewModelBase
         }
     }
 
-    public bool RemoverPendentesAnteriores
-    {
-        get => _removerPendentesAnteriores;
-        set => SetProperty(ref _removerPendentesAnteriores, value);
-    }
-
     public string TextoPeriodoAtual => DataMinimaRastreio.HasValue
         ? $"Fila a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)} (pendentes e concluídas)"
         : "Sem data mínima (rastreia todas as devoluções da fila)";
@@ -356,11 +349,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
             var confirmar = MessageBox.Show(
                 DataMinimaRastreio.HasValue
                     ? $"Definir fila de devoluções a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}?\n\n"
-                      + "A fila só recebe o que for marcado Devolver / pré-nota a partir dessa data. "
-                      + "Notas Devolver antigas da conferência não voltam a entrar.\n\n"
-                      + (RemoverPendentesAnteriores
-                          ? "Pendentes e concluídas anteriores a essa data serão removidas da fila."
-                          : "Registros anteriores apenas deixarão de aparecer na lista (permanecem no banco).")
+                      + "A lista esconde o que for anterior a essa data, mas nada é apagado. "
+                      + "A fila só recebe marcações novas Devolver / pré-nota a partir dessa data."
                     : "Nenhuma data selecionada. Use \"Limpar período\" para rastrear todas, ou escolha uma data.",
                 "Período da fila",
                 DataMinimaRastreio.HasValue ? MessageBoxButton.YesNo : MessageBoxButton.OK,
@@ -369,9 +359,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
             if (!DataMinimaRastreio.HasValue || confirmar != MessageBoxResult.Yes)
                 return;
 
-            await _repository.SalvarDataMinimaDevolucoesAsync(
-                DataMinimaRastreio,
-                RemoverPendentesAnteriores);
+            await _repository.SalvarDataMinimaDevolucoesAsync(DataMinimaRastreio);
 
             Mensagem = $"Período salvo: a partir de {DataCompraParser.Formatar(DataMinimaRastreio.Value)}.";
             await CarregarAsync();
@@ -397,7 +385,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
         try
         {
             DataMinimaRastreio = null;
-            await _repository.SalvarDataMinimaDevolucoesAsync(null, removerPendentesAnteriores: false);
+            await _repository.SalvarDataMinimaDevolucoesAsync(null);
             await CarregarAsync();
         }
         catch (Exception ex)
