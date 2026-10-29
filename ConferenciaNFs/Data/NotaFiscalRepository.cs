@@ -171,6 +171,8 @@ public sealed partial class NotaFiscalRepository
         InicializarTabelaDevolucoes(connection);
         InicializarTabelaItensNota(connection);
         InicializarTabelaMotivosDevolucao(connection);
+        InicializarTabelaPessoas(connection);
+        InicializarTabelaPendenciasCompra(connection);
         InicializarTabelaDevolucaoItens(connection);
         InicializarTabelaDevolucaoObservacoes(connection);
         AplicarCorteFilaDevolucoesPorAcao(connection);

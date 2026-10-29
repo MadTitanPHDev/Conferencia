@@ -166,6 +166,14 @@
         <Border Grid.Row="1"
                 Style="{StaticResource SurfaceCardStyle}"
                 Padding="4">
+            <DockPanel>
+            <TextBlock DockPanel.Dock="Bottom"
+                       Text="{Binding TextoPendenciaSelecionada}"
+                       Style="{StaticResource PageSubtitleStyle}"
+                       FontSize="12"
+                       Margin="8,6,8,4"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding TextoPendenciaSelecionada, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
             <DataGrid x:Name="GrdNotas"
                       ItemsSource="{Binding NotasVisiveis}"
                       SelectedItem="{Binding NotaSelecionada, Mode=TwoWay}"
@@ -201,6 +209,7 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="Observação" Binding="{Binding Observacao}" Width="120" MinWidth="70"/>
+                    <DataGridTextColumn Header="Para" Binding="{Binding DestinoPendencia}" Width="110" MinWidth="70"/>
                 </DataGrid.Columns>
 
                 <DataGrid.RowStyle>
@@ -379,6 +388,7 @@
                     </ContextMenu>
                 </DataGrid.ContextMenu>
             </DataGrid>
+            </DockPanel>
         </Border>
 
         <Border Grid.Row="1"

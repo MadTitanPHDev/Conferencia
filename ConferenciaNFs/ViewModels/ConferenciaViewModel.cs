@@ -151,6 +151,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 return;
 
             ObservacaoTexto = value?.Observacao ?? string.Empty;
+            OnPropertyChanged(nameof(TextoPendenciaSelecionada));
             CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -160,6 +161,13 @@ public sealed class ConferenciaViewModel : ViewModelBase
         get => _observacaoTexto;
         set => SetProperty(ref _observacaoTexto, value);
     }
+
+    public string TextoPendenciaSelecionada =>
+        NotaSelecionada is null || string.IsNullOrWhiteSpace(NotaSelecionada.DestinoPendencia)
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(NotaSelecionada.EnviadoPorPendencia)
+                ? $"Enviada para {NotaSelecionada.DestinoPendencia}. {NotaSelecionada.ItensPendencia}"
+                : $"Enviada por {NotaSelecionada.EnviadoPorPendencia} para {NotaSelecionada.DestinoPendencia}. {NotaSelecionada.ItensPendencia}";
 
     public bool IsCarregando
     {
@@ -265,6 +273,16 @@ public sealed class ConferenciaViewModel : ViewModelBase
             MensagemStatus = "Carregando notas...";
 
             var notas = await _repository.ObterNotasPorLojaAsync(ApelidoLoja, DiasConferencia);
+            var pendencias = await _repository.ObterPendenciasAbertasPorNotasAsync(
+                notas.Select(n => n.Id).ToList());
+            foreach (var nota in notas)
+            {
+                if (!pendencias.TryGetValue(nota.Id, out var pendencia))
+                    continue;
+                nota.DestinoPendencia = pendencia.PessoaNome;
+                nota.EnviadoPorPendencia = pendencia.EnviadoPorNome;
+                nota.ItensPendencia = pendencia.ItensTexto;
+            }
 
             Notas.Clear();
             foreach (var nota in notas)
@@ -314,6 +332,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
         }
 
         var lista = UnificacaoNotasConferencia.UnificarMesmoStatus(query.ToList()).ToList();
+        foreach (var visivel in lista)
+            PendenciaConferenciaLeitura.CopiarDestinoParaVisivel(visivel, Notas);
+
         NotasVisiveis.Clear();
         foreach (var nota in lista)
             NotasVisiveis.Add(nota);
@@ -441,10 +462,14 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 return;
             }
 
-            await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
-
             if (novoStatus == StatusConferenciaValues.Amarelo)
-                await TentarFotografarItensAsync();
+            {
+                if (!await AplicarAmareloAsync(statusAnterior))
+                    return;
+                return;
+            }
+
+            await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
             NotaSelecionada.StatusConferencia = novoStatus;
             NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
             var copias = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
@@ -458,6 +483,80 @@ public sealed class ConferenciaViewModel : ViewModelBase
             MessageBox.Show($"Erro ao atualizar status:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private async Task<bool> AplicarAmareloAsync(string statusAnterior)
+    {
+        if (NotaSelecionada is null)
+            return false;
+
+        var escolhaJanela = new EscolhaAmareloWindow
+        {
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
+                ?? Application.Current.MainWindow
+        };
+        escolhaJanela.ShowDialog();
+        var escolha = escolhaJanela.Escolha;
+
+        if (!EscolhaAmareloEfeito.DevePintar(escolha))
+            return false;
+
+        if (EscolhaAmareloEfeito.DeveCriarPendencia(escolha))
+        {
+            if (AppSettingsStore.Instance.Data.PessoaIdNestePc <= 0)
+            {
+                MessageBox.Show(
+                    "Escolha quem usa este PC no menu (☰) antes de enviar a divergencia.",
+                    "Divergencia",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return false;
+            }
+
+            var janela = new DivergenciaPreNotaWindow(_repository, _vsmReader, NotaSelecionada)
+            {
+                Owner = escolhaJanela.Owner
+            };
+            if (janela.ShowDialog() != true || !janela.Confirmou)
+                return false;
+
+            NotaSelecionada.StatusConferencia = StatusConferenciaValues.Amarelo;
+            NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+            NotaSelecionada.DestinoPendencia = janela.PessoaDestino;
+            NotaSelecionada.EnviadoPorPendencia = janela.EnviadoPorNome;
+            NotaSelecionada.ItensPendencia = janela.ItensEnviados;
+            OnPropertyChanged(nameof(TextoPendenciaSelecionada));
+            var copiasEnviadas = await ReplicarStatusNasCopiasAsync(
+                NotaSelecionada,
+                statusAnterior,
+                StatusConferenciaValues.Amarelo);
+            var destino = string.IsNullOrWhiteSpace(janela.PessoaDestino)
+                ? "o comprador"
+                : janela.PessoaDestino;
+            MensagemStatus = MensagemStatusComCopias(
+                $"Nota {NotaSelecionada.NumNota}: amarelo, enviada para {destino}. Continua nesta lista.",
+                copiasEnviadas);
+            AplicarFiltroNotas();
+            return true;
+        }
+
+        await _repository.DeixarAmareloSomenteConferenciaAsync(NotaSelecionada.Id);
+        await TentarFotografarItensAsync();
+        NotaSelecionada.StatusConferencia = StatusConferenciaValues.Amarelo;
+        NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+        NotaSelecionada.DestinoPendencia = string.Empty;
+        NotaSelecionada.EnviadoPorPendencia = string.Empty;
+        NotaSelecionada.ItensPendencia = string.Empty;
+        OnPropertyChanged(nameof(TextoPendenciaSelecionada));
+        var copias = await ReplicarStatusNasCopiasAsync(
+            NotaSelecionada,
+            statusAnterior,
+            StatusConferenciaValues.Amarelo);
+        MensagemStatus = MensagemStatusComCopias(
+            $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(StatusConferenciaValues.Amarelo)}.",
+            copias);
+        AplicarFiltroNotas();
+        return true;
     }
 
     private async Task<bool> ConfirmarPreNotaAsync()

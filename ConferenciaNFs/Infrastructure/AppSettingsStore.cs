@@ -172,6 +172,11 @@ public sealed class AppSettings
     public bool SincronizarVsm { get; set; }
 
     /// <summary>
+    /// Pessoa do cadastro que usa este computador. Local — nao filtra a lista da conferencia.
+    /// </summary>
+    public long PessoaIdNestePc { get; set; }
+
+    /// <summary>
     /// Duplo clique na conferencia: true copia o numero da NF; false abre os itens.
     /// </summary>
     public bool DuploCliqueCopiaNumero { get; set; }

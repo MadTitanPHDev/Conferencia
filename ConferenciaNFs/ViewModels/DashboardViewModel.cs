@@ -35,13 +35,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private PaginaAtiva _pagina = PaginaAtiva.Hoje;
     private ConferenciaViewModel? _conferenciaAtual;
     private DevolucoesViewModel? _devolucoesAtual;
+    private PendenciasCompraViewModel? _pendenciasAtual;
     private double _progressoSync;
 
     private enum PaginaAtiva
     {
         Hoje,
         Conferencia,
-        Devolucoes
+        Devolucoes,
+        Pendencias
     }
 
     public DashboardViewModel(NotaFiscalRepository repository, VsmSyncService? syncVsm = null)
@@ -49,6 +51,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _repository = repository;
         _syncVsm = syncVsm;
         Lojas = new ObservableCollection<LojaPendencia>();
+        PessoasCadastro = new ObservableCollection<Pessoa>();
 
         (_dataInicio, _dataFim) = IntervaloDeAbertura();
 
@@ -60,7 +63,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
         GerenciarPrecosCommand = new RelayCommand(GerenciarPrecos);
         GerenciarMotivosCommand = new RelayCommand(GerenciarMotivos);
+        GerenciarPessoasCommand = new RelayCommand(GerenciarPessoas);
         DevolucoesCommand = new RelayCommand(AbrirDevolucoes);
+        PendenciasCompraCommand = new RelayCommand(AbrirPendencias);
         VoltarHojeCommand = new RelayCommand(_ => VoltarHoje());
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
@@ -86,6 +91,22 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         HerancaStatusImportacao && IntervaloPronto && !EstaVazio && !IsCarregando;
 
     public ObservableCollection<LojaPendencia> Lojas { get; }
+    public ObservableCollection<Pessoa> PessoasCadastro { get; }
+
+    public Pessoa? PessoaNestePc
+    {
+        get => PessoasCadastro.FirstOrDefault(p => p.Id == AppSettingsStore.Instance.Data.PessoaIdNestePc);
+        set
+        {
+            var id = value?.Id ?? 0;
+            if (AppSettingsStore.Instance.Data.PessoaIdNestePc == id)
+                return;
+
+            AppSettingsStore.Instance.Data.PessoaIdNestePc = id;
+            AppSettingsStore.Instance.Salvar();
+            OnPropertyChanged();
+        }
+    }
 
     public DateTime? DataInicio
     {
@@ -113,6 +134,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
 
             if (_pagina == PaginaAtiva.Devolucoes)
                 return "Fila de devoluções";
+
+            if (_pagina == PaginaAtiva.Pendencias)
+                return "Divergências enviadas";
 
             return IntervaloPronto
                 ? $"Conferência {DataSelecionadaTexto}"
@@ -182,6 +206,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public bool MostrarDevolucoes =>
         _pagina == PaginaAtiva.Devolucoes && _devolucoesAtual is not null;
 
+    public bool MostrarPendencias =>
+        _pagina == PaginaAtiva.Pendencias && _pendenciasAtual is not null;
+
     public bool MostrarEmptyHoje => MostrarPainelHoje && EstaVazio;
 
     public bool MostrarCardsHoje => MostrarPainelHoje && !EstaVazio;
@@ -209,6 +236,21 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                 return;
 
             OnPropertyChanged(nameof(MostrarDevolucoes));
+            OnPropertyChanged(nameof(MostrarPendencias));
+            OnPropertyChanged(nameof(TituloPagina));
+            OnPropertyChanged(nameof(ResumoPagina));
+        }
+    }
+
+    public PendenciasCompraViewModel? PendenciasAtual
+    {
+        get => _pendenciasAtual;
+        private set
+        {
+            if (!SetProperty(ref _pendenciasAtual, value))
+                return;
+
+            OnPropertyChanged(nameof(MostrarPendencias));
             OnPropertyChanged(nameof(TituloPagina));
             OnPropertyChanged(nameof(ResumoPagina));
         }
@@ -266,7 +308,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand GerenciarDistribuidorasCommand { get; }
     public ICommand GerenciarPrecosCommand { get; }
     public ICommand GerenciarMotivosCommand { get; }
+    public ICommand GerenciarPessoasCommand { get; }
     public ICommand DevolucoesCommand { get; }
+    public ICommand PendenciasCompraCommand { get; }
     public ICommand VoltarHojeCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand PesquisarProdutoCommand { get; }
@@ -411,8 +455,25 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
 
         await CarregarConfiguracoesAsync();
+        await CarregarPessoasNestePcAsync();
         await AbrirDiaAsync();
         IniciarTimerSyncVsm();
+    }
+
+    private async Task CarregarPessoasNestePcAsync()
+    {
+        try
+        {
+            var pessoas = await _repository.ListarPessoasAsync(somenteAtivos: true);
+            PessoasCadastro.Clear();
+            foreach (var pessoa in pessoas)
+                PessoasCadastro.Add(pessoa);
+            OnPropertyChanged(nameof(PessoaNestePc));
+        }
+        catch
+        {
+            // A escolha de quem usa o PC pode ser feita quando o banco responder.
+        }
     }
 
     private bool PodeSincronizarVsm =>
@@ -736,6 +797,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         }
 
         DevolucoesAtual = null;
+        PendenciasAtual = null;
         ConferenciaAtual = new ConferenciaViewModel(_repository, loja.ApelidoLoja, _diasAtivos, _syncVsm?.Reader)
         {
             AoFechar = () => VoltarHoje()
@@ -750,10 +812,12 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         var estavaFora = _pagina != PaginaAtiva.Hoje
             || _conferenciaAtual is not null
-            || _devolucoesAtual is not null;
+            || _devolucoesAtual is not null
+            || _pendenciasAtual is not null;
 
         ConferenciaAtual = null;
         DevolucoesAtual = null;
+        PendenciasAtual = null;
         _pagina = PaginaAtiva.Hoje;
         NotificarPagina();
 
@@ -766,6 +830,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(MostrarPainelHoje));
         OnPropertyChanged(nameof(MostrarConferencia));
         OnPropertyChanged(nameof(MostrarDevolucoes));
+        OnPropertyChanged(nameof(MostrarPendencias));
         OnPropertyChanged(nameof(TituloPagina));
         OnPropertyChanged(nameof(ResumoPagina));
         NotificarVisibilidadePainelHoje();
@@ -961,14 +1026,37 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         janela.ShowDialog();
     }
 
+    private void GerenciarPessoas(object? parameter)
+    {
+        var janela = new GerenciarPessoasWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        janela.ShowDialog();
+    }
+
     private void AbrirDevolucoes(object? parameter)
     {
         ConferenciaAtual = null;
+        PendenciasAtual = null;
         DevolucoesAtual = new DevolucoesViewModel(_repository)
         {
             AoFechar = () => VoltarHoje()
         };
         _pagina = PaginaAtiva.Devolucoes;
+        NotificarPagina();
+    }
+
+    private void AbrirPendencias(object? parameter)
+    {
+        ConferenciaAtual = null;
+        DevolucoesAtual = null;
+        PendenciasAtual = new PendenciasCompraViewModel(_repository, _syncVsm?.Reader)
+        {
+            AoFechar = () => VoltarHoje()
+        };
+        _pagina = PaginaAtiva.Pendencias;
         NotificarPagina();
     }
 
@@ -1030,6 +1118,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         SalvarIntervaloEscolhido();
 
         DevolucoesAtual = null;
+        PendenciasAtual = null;
         ConferenciaAtual = new ConferenciaViewModel(
             _repository,
             resultado.ApelidoLoja,
@@ -1046,6 +1135,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private void AbrirFilaDaPesquisa(NotaPesquisaResultado resultado)
     {
         ConferenciaAtual = null;
+        PendenciasAtual = null;
         DevolucoesAtual = new DevolucoesViewModel(
             _repository,
             resultado.DevolucaoId,

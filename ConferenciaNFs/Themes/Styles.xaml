@@ -134,14 +134,14 @@
                                                   Color="{DynamicResource Color.NeumorphAccentShadow}"/>
                             </Border.Effect>
                             <Border x:Name="face"
-                                    Background="{TemplateBinding Background}"
+                            Background="{TemplateBinding Background}"
                                     CornerRadius="9"
                                     Margin="0,0,0,2.1"
-                                    Padding="{TemplateBinding Padding}">
+                            Padding="{TemplateBinding Padding}">
                                 <ContentPresenter HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"
                                                   TextElement.Foreground="{TemplateBinding Foreground}"/>
-                            </Border>
+                    </Border>
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -231,8 +231,8 @@
                         </VisualStateManager.VisualStateGroups>
                         <Border x:Name="lip"
                                 Background="{DynamicResource Brush.SurfaceEdge}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="10">
                             <Border.Effect>
                                 <DropShadowEffect x:Name="shadow"
@@ -246,9 +246,9 @@
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="9"
                                     Margin="0,0,0,2.1"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -631,8 +631,8 @@
                         </VisualStateManager.VisualStateGroups>
                         <Border x:Name="lip"
                                 Background="{DynamicResource Brush.SurfaceEdge}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="10">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="6.3"
@@ -645,9 +645,9 @@
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="9"
                                     Margin="0,0,0,2.1"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -876,8 +876,8 @@
                         </VisualStateManager.VisualStateGroups>
                         <Border x:Name="lip"
                                 Background="{DynamicResource Brush.SurfaceEdge}"
-                                BorderBrush="{DynamicResource Brush.Border}"
-                                BorderThickness="1"
+                            BorderBrush="{DynamicResource Brush.Border}"
+                            BorderThickness="1"
                                 CornerRadius="20">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="5"
@@ -890,9 +890,9 @@
                                     Background="{DynamicResource Brush.SurfaceMuted}"
                                     CornerRadius="18"
                                     Margin="0,0,0,2"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>

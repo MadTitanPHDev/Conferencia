@@ -7,6 +7,9 @@ public class NotaFiscal : INotifyPropertyChanged
 {
     private string _statusConferencia = StatusConferenciaValues.Pendente;
     private string _observacao = string.Empty;
+    private string _destinoPendencia = string.Empty;
+    private string _enviadoPorPendencia = string.Empty;
+    private string _itensPendencia = string.Empty;
 
     public long Id { get; set; }
     public string ApelidoLoja { get; set; } = string.Empty;
@@ -47,6 +50,48 @@ public class NotaFiscal : INotifyPropertyChanged
                 return;
 
             _observacao = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Pessoa da pendência aberta. Vazio quando o amarelo é só da conferência.
+    /// </summary>
+    public string DestinoPendencia
+    {
+        get => _destinoPendencia;
+        set
+        {
+            if (_destinoPendencia == value)
+                return;
+
+            _destinoPendencia = value ?? string.Empty;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EnviadoPorPendencia
+    {
+        get => _enviadoPorPendencia;
+        set
+        {
+            if (_enviadoPorPendencia == value)
+                return;
+
+            _enviadoPorPendencia = value ?? string.Empty;
+            OnPropertyChanged();
+        }
+    }
+
+    public string ItensPendencia
+    {
+        get => _itensPendencia;
+        set
+        {
+            if (_itensPendencia == value)
+                return;
+
+            _itensPendencia = value ?? string.Empty;
             OnPropertyChanged();
         }
     }

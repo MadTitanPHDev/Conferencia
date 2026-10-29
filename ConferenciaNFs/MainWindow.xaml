@@ -67,6 +67,11 @@
                             Command="{Binding DevolucoesCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Divergências"
+                            Command="{Binding PendenciasCompraCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"
+                            ToolTip="Notas amarelas enviadas a uma pessoa. O amarelo só da conferencia nao entra aqui."/>
                     <Button Content="  Pesquisar nota"
                             Command="{Binding PesquisarNotaCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
@@ -93,6 +98,10 @@
                             Margin="0,0,0,4"/>
                     <Button Content="  Motivos de devolução"
                             Command="{Binding GerenciarMotivosCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
+                    <Button Content="  Pessoas"
+                            Command="{Binding GerenciarPessoasCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"/>
                 </StackPanel>
 
@@ -575,6 +584,10 @@
                           Background="{DynamicResource Brush.Background}">
                         <views:DevolucoesWindow DataContext="{Binding DevolucoesAtual}"/>
                     </Grid>
+                    <Grid Visibility="{Binding MostrarPendencias, Converter={StaticResource BoolToVisibilityConverter}}"
+                          Background="{DynamicResource Brush.Background}">
+                        <views:PendenciasCompraWindow DataContext="{Binding PendenciasAtual}"/>
+                    </Grid>
                 </Grid>
             </Grid>
 
@@ -606,6 +619,21 @@
                                     Click="FecharMenuAvancado_Click"/>
                         </Grid>
 
+                        <TextBlock Text="Quem usa este PC"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextPrimary}"
+                                   Margin="0,0,0,6"/>
+                        <ComboBox ItemsSource="{Binding PessoasCadastro}"
+                                  SelectedItem="{Binding PessoaNestePc}"
+                                  DisplayMemberPath="Nome"
+                                  Margin="0,0,0,8"
+                                  ToolTip="Nome gravado nas divergencias enviadas por este computador. A lista da conferencia continua mostrando todas."/>
+                        <TextBlock Text="A conferencia ve todas as pendencias. O comprador ve este nome como quem enviou."
+                                   FontSize="11"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,16"/>
                         <controls:SyncVsmToggle Foreground="{DynamicResource Brush.TextPrimary}"
                                                 Margin="0,0,0,20"/>
 
@@ -715,6 +743,11 @@
                             Click="FecharMenuFlutuante_Click"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Divergências"
+                            Command="{Binding PendenciasCompraCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"/>
                     <Button Content="  Pesquisar nota"
                             Command="{Binding PesquisarNotaCommand}"
                             Click="FecharMenuFlutuante_Click"
@@ -752,6 +785,15 @@
                     <TextBlock Text="FERRAMENTAS"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="6,0,0,8"/>
+                    <TextBlock Text="QUEM USA ESTE PC"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Foreground="{DynamicResource Brush.Accent}"
+                               Margin="6,8,0,6"/>
+                    <ComboBox ItemsSource="{Binding PessoasCadastro}"
+                              SelectedItem="{Binding PessoaNestePc}"
+                              DisplayMemberPath="Nome"
+                              Margin="6,0,0,12"
+                              ToolTip="Nome gravado nas divergencias enviadas por este computador."/>
                     <controls:SyncVsmToggle Foreground="{DynamicResource Brush.SidebarText}"
                                             Margin="6,0,0,12"/>
                     <CheckBox Content="Herdar status na importação"
