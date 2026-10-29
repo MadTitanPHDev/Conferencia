@@ -19,6 +19,12 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private readonly NotaFiscalRepository _repository;
     private readonly VsmSyncService? _syncVsm;
     private DispatcherTimer? _timerSyncVsm;
+    private DispatcherTimer? _timerAvisoPendencia;
+    private readonly HashSet<long> _pendenciasConhecidas = [];
+    private readonly HashSet<long> _resolucoesConhecidas = [];
+    private bool _avisoPendenciaJaLeu;
+    private bool _resolucaoJaLeu;
+    private bool _avisoPendenciaEmCurso;
     private bool _isCarregando;
     private bool _estaSincronizando;
     private bool _estaVazio = true;
@@ -105,6 +111,11 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
             AppSettingsStore.Instance.Data.PessoaIdNestePc = id;
             AppSettingsStore.Instance.Salvar();
             OnPropertyChanged();
+            _avisoPendenciaJaLeu = false;
+            _resolucaoJaLeu = false;
+            _pendenciasConhecidas.Clear();
+            _resolucoesConhecidas.Clear();
+            _ = VerificarAvisosPendenciaAsync();
         }
     }
 
@@ -458,6 +469,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         await CarregarPessoasNestePcAsync();
         await AbrirDiaAsync();
         IniciarTimerSyncVsm();
+        IniciarTimerAvisoPendencia();
+        _ = VerificarAvisosPendenciaAsync();
     }
 
     private async Task CarregarPessoasNestePcAsync()
@@ -633,6 +646,80 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         CancelarCargaPendente();
         PararTimerSyncVsm();
+        PararTimerAvisoPendencia();
+    }
+
+    private void IniciarTimerAvisoPendencia()
+    {
+        if (_timerAvisoPendencia is not null)
+            return;
+
+        _timerAvisoPendencia = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
+        _timerAvisoPendencia.Tick += (_, _) => _ = VerificarAvisosPendenciaAsync();
+        _timerAvisoPendencia.Start();
+    }
+
+    private void PararTimerAvisoPendencia()
+    {
+        if (_timerAvisoPendencia is null)
+            return;
+
+        _timerAvisoPendencia.Stop();
+        _timerAvisoPendencia = null;
+    }
+
+    private async Task VerificarAvisosPendenciaAsync()
+    {
+        if (_avisoPendenciaEmCurso)
+            return;
+
+        var pessoaId = AppSettingsStore.Instance.Data.PessoaIdNestePc;
+        if (pessoaId <= 0)
+        {
+            _avisoPendenciaJaLeu = false;
+            _resolucaoJaLeu = false;
+            _pendenciasConhecidas.Clear();
+            _resolucoesConhecidas.Clear();
+            return;
+        }
+
+        _avisoPendenciaEmCurso = true;
+        try
+        {
+            var atuais = await _repository.ListarAvisosPendenciaAsync(pessoaId);
+            var novas = AvisoPendenciaNovas.Separar(
+                atuais,
+                _pendenciasConhecidas,
+                aviso => aviso.Id,
+                ref _avisoPendenciaJaLeu);
+
+            IReadOnlyList<PendenciaAviso> resolvidas = [];
+            var nomeNestePc = PessoasCadastro.FirstOrDefault(p => p.Id == pessoaId)?.Nome;
+            if (EquipeConferencia.EhMembro(nomeNestePc))
+            {
+                var concluidas = await _repository.ListarResolucoesPendenciaAsync();
+                resolvidas = AvisoPendenciaNovas.Separar(
+                    concluidas,
+                    _resolucoesConhecidas,
+                    aviso => aviso.Id,
+                    ref _resolucaoJaLeu);
+            }
+
+            if (novas.Count == 0 && resolvidas.Count == 0)
+                return;
+
+            AvisoPendenciaSom.Tocar();
+            AvisoPendenciaJanela.Mostrar(novas);
+            AvisoPendenciaJanela.MostrarResolucoes(resolvidas);
+        }
+        catch
+        {
+            // Aviso é auxiliar: a lista de divergências continua disponível.
+        }
+        finally
+        {
+            _avisoPendenciaEmCurso = false;
+        }
     }
 
     private async Task CarregarConfiguracoesAsync()

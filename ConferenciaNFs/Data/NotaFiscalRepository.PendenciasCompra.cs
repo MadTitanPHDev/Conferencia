@@ -429,6 +429,71 @@ public sealed partial class NotaFiscalRepository
             : StatusConferenciaValues.Laranja;
     }
 
+    public async Task<IReadOnlyList<PendenciaAviso>> ListarAvisosPendenciaAsync(
+        long pessoaId,
+        CancellationToken cancellationToken = default)
+    {
+        if (pessoaId <= 0)
+            return [];
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.QueryAsync<PendenciaAviso>(new CommandDefinition(
+            """
+            SELECT
+                p.Id,
+                n.NumNota,
+                n.ApelidoLoja,
+                p.EnviadoPorNome
+            FROM PendenciasCompra p
+            INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
+            WHERE p.StatusPendencia = @Aberta
+              AND p.PessoaId = @PessoaId
+            ORDER BY p.Id
+            """,
+            new
+            {
+                Aberta = StatusPendenciaCompraValues.Aberta,
+                PessoaId = pessoaId
+            },
+            cancellationToken: cancellationToken));
+
+        return linhas.AsList();
+    }
+
+    public async Task<IReadOnlyList<PendenciaAviso>> ListarResolucoesPendenciaAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.QueryAsync<PendenciaAviso>(new CommandDefinition(
+            """
+            SELECT
+                p.Id,
+                n.NumNota,
+                n.ApelidoLoja,
+                p.EnviadoPorNome,
+                p.StatusPendencia
+            FROM PendenciasCompra p
+            INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
+            WHERE p.StatusPendencia = ANY(@Statuses)
+            ORDER BY p.Id
+            """,
+            new
+            {
+                Statuses = new[]
+                {
+                    StatusPendenciaCompraValues.Ficou,
+                    StatusPendenciaCompraValues.Devolvida
+                }
+            },
+            cancellationToken: cancellationToken));
+
+        return linhas.AsList();
+    }
+
     public async Task<IReadOnlyList<PendenciaCompraResumo>> ListarPendenciasAsync(
         bool concluidas,
         CancellationToken cancellationToken = default)

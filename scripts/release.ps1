@@ -114,7 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Por padrao nenhum PC puxa notas do VSM. No menu hamburguer, ligue Puxar notas neste PC so na maquina que deve sincronizar: o botao Sincronizar VSM aparece nela. Os outros PCs leem o Postgres e continuam com busca de nota e de produto.
+Cadastro de Pessoas. No Amarelo da para enviar a nota a um comprador ou so deixar amarela para a conferencia. A lista Divergencias mostra o que foi enviado e quem enviou.
+
+No menu, escolha Quem usa este PC. O comprador recebe aviso com som quando chega uma pendencia para ele. Paulo, Guilherme, Matheus e Joao Gabriel recebem aviso com som quando o comprador devolve ou absorve a nota. A conferencia continua vendo todas as pendencias.
 
 ### Configuracao (app-settings.json)
 

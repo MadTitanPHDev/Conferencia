@@ -9,10 +9,10 @@
     <RootNamespace>ConferenciaNFs</RootNamespace>
     <AssemblyName>ConferenciaNFs</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.30</Version>
-    <AssemblyVersion>1.0.30.0</AssemblyVersion>
-    <FileVersion>1.0.30.0</FileVersion>
-    <InformationalVersion>1.0.30</InformationalVersion>
+    <Version>1.0.31</Version>
+    <AssemblyVersion>1.0.31.0</AssemblyVersion>
+    <FileVersion>1.0.31.0</FileVersion>
+    <InformationalVersion>1.0.31</InformationalVersion>
     <StartupObject>ConferenciaNFs.Program</StartupObject>
   </PropertyGroup>
 
@@ -40,6 +40,7 @@
     <Resource Include="Assets\logo-mark.png" />
     <Resource Include="Assets\logo-sidebar.png" />
     <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\mixkit-software-interface-back-2575.wav" />
   </ItemGroup>
 
 </Project>
