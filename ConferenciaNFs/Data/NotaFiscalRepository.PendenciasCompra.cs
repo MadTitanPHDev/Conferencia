@@ -39,6 +39,8 @@ public sealed partial class NotaFiscalRepository
                 CustoNota NUMERIC(18,4) NOT NULL DEFAULT 0,
                 UNIQUE (PendenciaId, Sequencia)
             );
+
+            ALTER TABLE PendenciaCompraItens ADD COLUMN IF NOT EXISTS Motivo TEXT NOT NULL DEFAULT '';
             """);
     }
 
@@ -112,6 +114,7 @@ public sealed partial class NotaFiscalRepository
             SELECT Id
             FROM PendenciasCompra
             WHERE NotaFiscalId = @NotaFiscalId
+              AND PessoaId = @PessoaId
               AND StatusPendencia = @Aberta
             ORDER BY Id DESC
             LIMIT 1
@@ -119,6 +122,7 @@ public sealed partial class NotaFiscalRepository
             new
             {
                 NotaFiscalId = notaFiscalId,
+                PessoaId = pessoaId,
                 Aberta = StatusPendenciaCompraValues.Aberta
             },
             tx,
@@ -198,10 +202,10 @@ public sealed partial class NotaFiscalRepository
                 """
                 INSERT INTO PendenciaCompraItens (
                     PendenciaId, NotaFiscalId, Sequencia, CodProd, NomeProd,
-                    BarrasEan, Quantidade, CustoNota)
+                    BarrasEan, Quantidade, CustoNota, Motivo)
                 VALUES (
                     @PendenciaId, @NotaFiscalId, @Sequencia, @CodProd, @NomeProd,
-                    @BarrasEan, @Quantidade, @CustoNota)
+                    @BarrasEan, @Quantidade, @CustoNota, @Motivo)
                 """,
                 new
                 {
@@ -212,7 +216,8 @@ public sealed partial class NotaFiscalRepository
                     item.NomeProd,
                     item.BarrasEan,
                     item.Quantidade,
-                    item.CustoNota
+                    item.CustoNota,
+                    Motivo = item.Motivo ?? string.Empty
                 },
                 tx,
                 cancellationToken: cancellationToken));
@@ -266,31 +271,96 @@ public sealed partial class NotaFiscalRepository
             throw new InvalidOperationException($"Nota com Id {pendencia.NotaFiscalId} nao encontrada.");
 
         var observacao = PendenciaConferenciaLeitura.JuntarObservacao(nota.Observacao, pendencia.Observacao);
-        var statusNota = RespostaPendenciaEfeito.StatusNota(ficarComDivergencia);
+        var respondidaEm = DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"));
+        var atualizadas = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE PendenciasCompra
+            SET StatusPendencia = @Status,
+                RespondidaEm = @RespondidaEm
+            WHERE Id = @Id
+              AND StatusPendencia = @Aberta
+            """,
+            new
+            {
+                Id = pendenciaId,
+                Status = RespostaPendenciaEfeito.StatusPendencia(ficarComDivergencia),
+                RespondidaEm = respondidaEm,
+                Aberta = StatusPendenciaCompraValues.Aberta
+            },
+            tx,
+            cancellationToken: cancellationToken));
 
-        if (RespostaPendenciaEfeito.EntraNaFilaDevolucao(ficarComDivergencia))
-        {
-            var itens = (await connection.QueryAsync<PendenciaCompraItem>(new CommandDefinition(
-                """
-                SELECT PendenciaId, Sequencia, CodProd, NomeProd, BarrasEan, Quantidade, CustoNota
-                FROM PendenciaCompraItens
-                WHERE PendenciaId = @PendenciaId
-                ORDER BY Sequencia
-                """,
-                new { PendenciaId = pendenciaId },
-                tx,
-                cancellationToken: cancellationToken))).AsList();
+        if (atualizadas == 0)
+            throw new InvalidOperationException("Esta divergencia ja foi respondida.");
 
-            if (itens.Count == 0)
-                throw new InvalidOperationException("Esta divergencia nao tem itens para devolver.");
-
-            statusNota = await EnviarParaFilaDevolucaoAsync(
-                connection,
-                tx,
+        var abertas = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            """
+            SELECT COUNT(*)
+            FROM PendenciasCompra
+            WHERE NotaFiscalId = @NotaFiscalId
+              AND StatusPendencia = @Aberta
+            """,
+            new
+            {
                 pendencia.NotaFiscalId,
-                observacao,
-                itens,
-                cancellationToken);
+                Aberta = StatusPendenciaCompraValues.Aberta
+            },
+            tx,
+            cancellationToken: cancellationToken));
+
+        string statusNota;
+        if (abertas > 0)
+        {
+            statusNota = StatusConferenciaValues.Amarelo;
+        }
+        else
+        {
+            var devolvidas = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                """
+                SELECT COUNT(*)
+                FROM PendenciasCompra
+                WHERE NotaFiscalId = @NotaFiscalId
+                  AND StatusPendencia = @Devolvida
+                """,
+                new
+                {
+                    pendencia.NotaFiscalId,
+                    Devolvida = StatusPendenciaCompraValues.Devolvida
+                },
+                tx,
+                cancellationToken: cancellationToken));
+
+            if (devolvidas > 0)
+            {
+                var itens = (await connection.QueryAsync<PendenciaCompraItem>(new CommandDefinition(
+                    """
+                    SELECT i.PendenciaId, i.Sequencia, i.CodProd, i.NomeProd, i.BarrasEan, i.Quantidade, i.CustoNota, i.Motivo
+                    FROM PendenciaCompraItens i
+                    INNER JOIN PendenciasCompra p ON p.Id = i.PendenciaId
+                    WHERE p.NotaFiscalId = @NotaFiscalId
+                      AND p.StatusPendencia = @Devolvida
+                    ORDER BY i.Sequencia
+                    """,
+                    new
+                    {
+                        pendencia.NotaFiscalId,
+                        Devolvida = StatusPendenciaCompraValues.Devolvida
+                    },
+                    tx,
+                    cancellationToken: cancellationToken))).AsList();
+
+                statusNota = await EnviarParaFilaDevolucaoAsync(
+                    connection,
+                    tx,
+                    pendencia.NotaFiscalId,
+                    observacao,
+                    itens,
+                    cancellationToken);
+            }
+            else
+            {
+                statusNota = StatusConferenciaValues.Verde;
+            }
         }
 
         await connection.ExecuteAsync(new CommandDefinition(
@@ -313,28 +383,6 @@ public sealed partial class NotaFiscalRepository
             },
             tx,
             cancellationToken: cancellationToken));
-
-        var respondidaEm = DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"));
-        var atualizadas = await connection.ExecuteAsync(new CommandDefinition(
-            """
-            UPDATE PendenciasCompra
-            SET StatusPendencia = @Status,
-                RespondidaEm = @RespondidaEm
-            WHERE Id = @Id
-              AND StatusPendencia = @Aberta
-            """,
-            new
-            {
-                Id = pendenciaId,
-                Status = RespostaPendenciaEfeito.StatusPendencia(ficarComDivergencia),
-                RespondidaEm = respondidaEm,
-                Aberta = StatusPendenciaCompraValues.Aberta
-            },
-            tx,
-            cancellationToken: cancellationToken));
-
-        if (atualizadas == 0)
-            throw new InvalidOperationException("Esta divergencia ja foi respondida.");
 
         await tx.CommitAsync(cancellationToken);
         return statusNota;
@@ -496,6 +544,7 @@ public sealed partial class NotaFiscalRepository
 
     public async Task<IReadOnlyList<PendenciaCompraResumo>> ListarPendenciasAsync(
         bool concluidas,
+        long? somentePessoaId = null,
         CancellationToken cancellationToken = default)
     {
         await using var connection = CriarConexao();
@@ -520,13 +569,15 @@ public sealed partial class NotaFiscalRepository
             INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
             INNER JOIN Pessoas pe ON pe.Id = p.PessoaId
             WHERE p.StatusPendencia = ANY(@Statuses)
+              AND (@SomentePessoaId IS NULL OR p.PessoaId = @SomentePessoaId)
             ORDER BY p.Id DESC
             """,
             new
             {
                 Statuses = concluidas
                     ? new[] { StatusPendenciaCompraValues.Ficou, StatusPendenciaCompraValues.Devolvida }
-                    : new[] { StatusPendenciaCompraValues.Aberta }
+                    : new[] { StatusPendenciaCompraValues.Aberta },
+                SomentePessoaId = somentePessoaId
             },
             cancellationToken: cancellationToken))).AsList();
 
@@ -573,7 +624,7 @@ public sealed partial class NotaFiscalRepository
 
         var itens = (await connection.QueryAsync<PendenciaCompraItem>(new CommandDefinition(
             """
-            SELECT PendenciaId, Sequencia, CodProd, NomeProd, BarrasEan, Quantidade, CustoNota
+            SELECT PendenciaId, Sequencia, CodProd, NomeProd, BarrasEan, Quantidade, CustoNota, Motivo
             FROM PendenciaCompraItens
             WHERE PendenciaId = @PendenciaId
             ORDER BY Sequencia
@@ -627,7 +678,14 @@ public sealed partial class NotaFiscalRepository
         await PreencherItensAsync(connection, linhas, cancellationToken);
         return linhas
             .GroupBy(p => p.NotaFiscalId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Id).First());
+            .ToDictionary(g => g.Key, g =>
+            {
+                var principal = g.OrderByDescending(p => p.Id).First();
+                principal.PessoaNome = string.Join(" · ", g.Select(p => p.PessoaNome).Distinct());
+                var enviados = g.Select(p => p.EnviadoPorNome).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct();
+                principal.EnviadoPorNome = string.Join(" · ", enviados);
+                return principal;
+            });
     }
 
     private static async Task PreencherItensAsync(
@@ -640,7 +698,7 @@ public sealed partial class NotaFiscalRepository
 
         var itens = (await connection.QueryAsync<PendenciaCompraItem>(new CommandDefinition(
             """
-            SELECT PendenciaId, Sequencia, CodProd, NomeProd, BarrasEan, Quantidade, CustoNota
+            SELECT PendenciaId, Sequencia, CodProd, NomeProd, BarrasEan, Quantidade, CustoNota, Motivo
             FROM PendenciaCompraItens
             WHERE PendenciaId = ANY(@Ids)
             ORDER BY Sequencia

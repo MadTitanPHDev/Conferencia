@@ -19,6 +19,18 @@ public sealed partial class NotaFiscalRepository
                 CriadaEm TEXT NOT NULL DEFAULT ''
             );
             """);
+
+        var criadaEm = DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"));
+        connection.Execute("""
+            INSERT INTO Pessoas (Nome, NomeChave, Ativo, CriadaEm)
+            VALUES (@Nome, @NomeChave, TRUE, @CriadaEm)
+            ON CONFLICT (NomeChave) DO NOTHING
+            """, new
+        {
+            Nome = "Rafael",
+            NomeChave = PessoaNome.Chave("Rafael"),
+            CriadaEm = criadaEm
+        });
     }
 
     public async Task<IReadOnlyList<Pessoa>> ListarPessoasAsync(

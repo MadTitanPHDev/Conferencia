@@ -7,6 +7,8 @@ public sealed class DivergenciaLinha : ViewModelBase
 {
     private bool _selecionado;
     private decimal _quantidade;
+    private string _motivo = string.Empty;
+    private string _compradorNome = string.Empty;
 
     public DivergenciaLinha(ItemNotaSnapshot item)
     {
@@ -23,6 +25,27 @@ public sealed class DivergenciaLinha : ViewModelBase
     public decimal QuantidadeNota => Item.QuantItemCompra;
     public decimal CustoNota => Item.CustoNota;
     public decimal TotalItem => Quantidade * CustoNota;
+    public long CompradorId { get; private set; }
+
+    public string CompradorNome
+    {
+        get => _compradorNome;
+        private set => SetProperty(ref _compradorNome, value);
+    }
+
+    public string Motivo
+    {
+        get => _motivo;
+        set => SetProperty(ref _motivo, value ?? string.Empty);
+    }
+
+    public void DefinirComprador(long pessoaId, string nome, string motivo)
+    {
+        CompradorId = pessoaId;
+        CompradorNome = nome ?? string.Empty;
+        Motivo = motivo ?? string.Empty;
+        OnPropertyChanged(nameof(CompradorId));
+    }
 
     public string EanParaCopiar
     {
@@ -59,6 +82,7 @@ public sealed class DivergenciaLinha : ViewModelBase
         NomeProd = NomeProd,
         BarrasEan = BarrasEan,
         Quantidade = Quantidade,
-        CustoNota = CustoNota
+        CustoNota = CustoNota,
+        Motivo = Motivo.Trim()
     };
 }

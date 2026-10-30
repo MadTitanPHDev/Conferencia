@@ -10,6 +10,7 @@ public partial class App : Application
         // O store cria/migra o arquivo em %AppData% antes de qualquer leitura.
         AppSettingsStore.Instance.Recarregar();
         ThemeService.Instance.Inicializar();
+        InicioComWindows.Garantir();
 
         var mainWindow = new MainWindow();
         mainWindow.Show();

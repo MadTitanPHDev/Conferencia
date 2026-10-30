@@ -11,6 +11,7 @@ public class EquipeConferenciaTests
     [InlineData("  guilherme ", true)]
     [InlineData("João Gabriel", true)]
     [InlineData("Joao Gabriel", true)]
+    [InlineData("Rafael", false)]
     [InlineData("Hillary", false)]
     [InlineData("", false)]
     public void EhMembro_SoEquipeDaConferencia(string nome, bool esperado)

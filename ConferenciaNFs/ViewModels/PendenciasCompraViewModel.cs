@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
 using ConferenciaNFs.Data;
+using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
 using ConferenciaNFs.Views;
 
@@ -81,7 +82,29 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
         try
         {
             IsCarregando = true;
-            var lista = await _repository.ListarPendenciasAsync(MostrarConcluidas);
+            var pessoaId = AppSettingsStore.Instance.Data.PessoaIdNestePc;
+            if (pessoaId <= 0)
+            {
+                Pendencias.Clear();
+                Selecionada = null;
+                Mensagem = "Escolha quem usa este PC no menu para ver as pendencias.";
+                return;
+            }
+
+            var pessoas = await _repository.ListarPessoasAsync(somenteAtivos: false);
+            var eu = pessoas.FirstOrDefault(p => p.Id == pessoaId);
+            if (eu is null)
+            {
+                Pendencias.Clear();
+                Selecionada = null;
+                Mensagem = "Escolha quem usa este PC no menu para ver as pendencias.";
+                return;
+            }
+
+            var verTodas = EquipeConferencia.EhMembro(eu.Nome);
+            var lista = await _repository.ListarPendenciasAsync(
+                MostrarConcluidas,
+                verTodas ? null : eu.Id);
             var idAntes = Selecionada?.Id;
             Pendencias.Clear();
             foreach (var item in lista)
@@ -91,13 +114,16 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
                 ? Pendencias.FirstOrDefault(p => p.Id == id) ?? Pendencias.FirstOrDefault()
                 : Pendencias.FirstOrDefault();
 
+            var escopo = verTodas ? "de todos" : "enviadas para voce";
             Mensagem = MostrarConcluidas
                 ? (Pendencias.Count == 0
                     ? "Nenhuma divergencia concluida. Respostas ficam gravadas e nao sao apagadas."
-                    : $"{Pendencias.Count} divergencia(s) concluida(s).")
+                    : $"{Pendencias.Count} divergencia(s) concluida(s) {escopo}.")
                 : (Pendencias.Count == 0
-                    ? "Nenhuma divergencia enviada em aberto. O amarelo só da conferencia nao aparece aqui."
-                    : $"{Pendencias.Count} divergencia(s) enviada(s). O periodo da conferencia nao apaga esta lista.");
+                    ? (verTodas
+                        ? "Nenhuma divergencia enviada em aberto."
+                        : "Nenhuma pendencia enviada para voce.")
+                    : $"{Pendencias.Count} divergencia(s) {escopo}.");
         }
         catch (Exception ex)
         {

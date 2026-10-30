@@ -114,9 +114,11 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Cadastro de Pessoas. No Amarelo da para enviar a nota a um comprador ou so deixar amarela para a conferencia. A lista Divergencias mostra o que foi enviado e quem enviou.
+Na pre-nota de divergencia, aplique comprador e motivo aos itens marcados. Cada comprador recebe so os itens dele. O comprador, ao abrir, ve apenas esses itens.
 
-No menu, escolha Quem usa este PC. O comprador recebe aviso com som quando chega uma pendencia para ele. Paulo, Guilherme, Matheus e Joao Gabriel recebem aviso com som quando o comprador devolve ou absorve a nota. A conferencia continua vendo todas as pendencias.
+Quem usa este PC nao e apagado pelo botao Atualizar. Paulo, Guilherme, Matheus e Joao Gabriel veem todas as pendencias. Os demais veem so as enviadas para eles. Rafael entra no cadastro.
+
+O aplicativo instalado abre ao entrar no Windows. O aviso com som continua: comprador quando chega pendencia, e a conferencia quando ela e devolvida ou absorvida.
 
 ### Configuracao (app-settings.json)
 

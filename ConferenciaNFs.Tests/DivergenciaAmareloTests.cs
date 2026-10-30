@@ -29,6 +29,23 @@ public class DivergenciaAmareloTests
     }
 
     [Fact]
+    public void ValidarAtribuidos_SemCompradorAplicado_Recusa()
+    {
+        var linha = Linha();
+        linha.Selecionado = true;
+        Assert.NotNull(DivergenciaValidador.ValidarAtribuidos([linha]));
+    }
+
+    [Fact]
+    public void ValidarAtribuidos_CompradorEMotivo_Aceita()
+    {
+        var linha = Linha();
+        linha.DefinirComprador(4, "Hillary", "mais caro");
+        linha.Quantidade = 1;
+        Assert.Null(DivergenciaValidador.ValidarAtribuidos([linha]));
+    }
+
+    [Fact]
     public void Validar_SemPessoa_Recusa()
     {
         var linha = Linha();

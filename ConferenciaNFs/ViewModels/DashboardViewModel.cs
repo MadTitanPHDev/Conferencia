@@ -22,6 +22,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     private DispatcherTimer? _timerAvisoPendencia;
     private readonly HashSet<long> _pendenciasConhecidas = [];
     private readonly HashSet<long> _resolucoesConhecidas = [];
+    private bool _restaurandoPessoaNestePc;
     private bool _avisoPendenciaJaLeu;
     private bool _resolucaoJaLeu;
     private bool _avisoPendenciaEmCurso;
@@ -104,6 +105,9 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         get => PessoasCadastro.FirstOrDefault(p => p.Id == AppSettingsStore.Instance.Data.PessoaIdNestePc);
         set
         {
+            if (_restaurandoPessoaNestePc)
+                return;
+
             var id = value?.Id ?? 0;
             if (AppSettingsStore.Instance.Data.PessoaIdNestePc == id)
                 return;
@@ -478,10 +482,18 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         try
         {
             var pessoas = await _repository.ListarPessoasAsync(somenteAtivos: true);
-            PessoasCadastro.Clear();
-            foreach (var pessoa in pessoas)
-                PessoasCadastro.Add(pessoa);
-            OnPropertyChanged(nameof(PessoaNestePc));
+            _restaurandoPessoaNestePc = true;
+            try
+            {
+                PessoasCadastro.Clear();
+                foreach (var pessoa in pessoas)
+                    PessoasCadastro.Add(pessoa);
+                OnPropertyChanged(nameof(PessoaNestePc));
+            }
+            finally
+            {
+                _restaurandoPessoaNestePc = false;
+            }
         }
         catch
         {

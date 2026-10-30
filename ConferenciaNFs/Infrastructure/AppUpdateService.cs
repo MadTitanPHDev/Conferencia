@@ -106,6 +106,18 @@ public static class AppUpdateService
         }
     }
 
+    public static bool EstaInstalado()
+    {
+        try
+        {
+            return CriarGerenciador().IsInstalled;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static UpdateManager CriarGerenciador()
         => new(new GithubSource(RepoUrl, accessToken: null, prerelease: false));
 }

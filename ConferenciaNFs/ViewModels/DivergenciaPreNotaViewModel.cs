@@ -18,6 +18,8 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
     private bool _podeEditar = true;
     private Pessoa? _pessoaSelecionada;
     private string _observacao = string.Empty;
+    private string _motivoLote = string.Empty;
+    private Pessoa? _compradorLote;
     private string _filtroTexto = string.Empty;
     private string _mensagem = "Carregando itens...";
     private bool _isCarregando;
@@ -37,7 +39,9 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         LinhasView = CollectionViewSource.GetDefaultView(Linhas);
         LinhasView.Filter = PassaFiltro;
         Pessoas = new ObservableCollection<Pessoa>();
+        Compradores = new ObservableCollection<PessoaEnvioLinha>();
         ConfirmarCommand = new AsyncRelayCommand(_ => ConfirmarAsync(), _ => PodeConfirmar);
+        AplicarCompradorCommand = new RelayCommand(_ => AplicarComprador(), _ => PodeEditar && Linhas.Any(l => l.Selecionado));
         FicarCommand = new AsyncRelayCommand(_ => ResponderAsync(ficar: true), _ => PodeResponder);
         DevolverCommand = new AsyncRelayCommand(_ => ResponderAsync(ficar: false), _ => PodeResponder);
         AlternarSelecaoTodosCommand = new RelayCommand(_ => AlternarSelecaoTodos(), _ => LinhasVisiveis.Any());
@@ -49,7 +53,11 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
     public ObservableCollection<DivergenciaLinha> Linhas { get; }
     public ICollectionView LinhasView { get; }
     public ObservableCollection<Pessoa> Pessoas { get; }
+    public ObservableCollection<PessoaEnvioLinha> Compradores { get; }
+
+    public bool EscolhendoCompradores => !_pendenciaId.HasValue;
     public ICommand ConfirmarCommand { get; }
+    public ICommand AplicarCompradorCommand { get; }
     public ICommand FicarCommand { get; }
     public ICommand DevolverCommand { get; }
     public ICommand AlternarSelecaoTodosCommand { get; }
@@ -95,7 +103,13 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
 
     public string TextoCancelar => PodeEditar ? "Cancelar" : "Fechar";
 
-    private bool PodeConfirmar => PodeEditar && !IsCarregando && Linhas.Count > 0 && PessoaSelecionada is not null;
+    private bool PodeConfirmar =>
+        PodeEditar
+        && !IsCarregando
+        && Linhas.Any(l => l.Selecionado)
+        && (_pendenciaId.HasValue
+            ? PessoaSelecionada is not null
+            : Linhas.Any(l => l.CompradorId > 0));
 
     private bool PodeResponder =>
         PodeEditar
@@ -103,6 +117,18 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         && !IsCarregando
         && Linhas.Count > 0
         && PessoaSelecionada is not null;
+
+    public Pessoa? CompradorLote
+    {
+        get => _compradorLote;
+        set => SetProperty(ref _compradorLote, value);
+    }
+
+    public string MotivoLote
+    {
+        get => _motivoLote;
+        set => SetProperty(ref _motivoLote, value ?? string.Empty);
+    }
 
     public Pessoa? PessoaSelecionada
     {
@@ -198,7 +224,13 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
             var pessoas = await _repository.ListarPessoasAsync(somenteAtivos: true);
             Pessoas.Clear();
             foreach (var pessoa in pessoas)
+            {
                 Pessoas.Add(pessoa);
+                var linhaPessoa = new PessoaEnvioLinha(pessoa.Id, pessoa.Nome);
+                linhaPessoa.PropertyChanged += (_, _) =>
+                    ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
+                Compradores.Add(linhaPessoa);
+            }
             if (gravada is { PessoaId: > 0 }
                 && Pessoas.All(p => p.Id != gravada.PessoaId))
             {
@@ -210,38 +242,47 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
                 });
             }
 
-            var itens = await ItemNotaSnapshotServico.GarantirAsync(_repository, _reader, _nota);
-            if (itens.Count == 0 && gravada is { Itens.Count: > 0 })
-            {
-                itens = gravada.Itens.Select(i => new ItemNotaSnapshot
-                {
-                    NotaFiscalId = _nota.Id,
-                    Sequencia = i.Sequencia,
-                    CodProd = i.CodProd,
-                    NomeProd = i.NomeProd,
-                    BarrasEan = i.BarrasEan,
-                    QuantItemCompra = i.Quantidade,
-                    CustoNota = i.CustoNota
-                }).ToList();
-            }
-
-            var porSequencia = gravada?.Itens.ToDictionary(i => i.Sequencia)
-                ?? new Dictionary<int, PendenciaCompraItem>();
+            var foto = await ItemNotaSnapshotServico.GarantirAsync(_repository, _reader, _nota);
+            var fotoPorSequencia = foto.ToDictionary(i => i.Sequencia);
 
             foreach (var linha in Linhas)
                 linha.PropertyChanged -= OnLinhaPropertyChanged;
             Linhas.Clear();
-            foreach (var item in itens)
-            {
-                var linha = new DivergenciaLinha(item);
-                if (porSequencia.TryGetValue(item.Sequencia, out var marcado))
-                {
-                    linha.Selecionado = true;
-                    linha.Quantidade = marcado.Quantidade;
-                }
 
-                linha.PropertyChanged += OnLinhaPropertyChanged;
-                Linhas.Add(linha);
+            if (gravada is not null)
+            {
+                foreach (var marcado in gravada.Itens.OrderBy(i => i.Sequencia))
+                {
+                    var baseItem = fotoPorSequencia.TryGetValue(marcado.Sequencia, out var daNota)
+                        ? daNota
+                        : new ItemNotaSnapshot
+                        {
+                            NotaFiscalId = _nota.Id,
+                            Sequencia = marcado.Sequencia,
+                            CodProd = marcado.CodProd,
+                            NomeProd = marcado.NomeProd,
+                            BarrasEan = marcado.BarrasEan,
+                            QuantItemCompra = marcado.Quantidade,
+                            CustoNota = marcado.CustoNota
+                        };
+                    var linha = new DivergenciaLinha(baseItem)
+                    {
+                        Selecionado = true,
+                        Quantidade = marcado.Quantidade
+                    };
+                    linha.DefinirComprador(gravada.PessoaId, gravada.PessoaNome, marcado.Motivo);
+                    linha.PropertyChanged += OnLinhaPropertyChanged;
+                    Linhas.Add(linha);
+                }
+            }
+            else
+            {
+                foreach (var item in foto)
+                {
+                    var linha = new DivergenciaLinha(item);
+                    linha.PropertyChanged += OnLinhaPropertyChanged;
+                    Linhas.Add(linha);
+                }
             }
 
             if (gravada is not null)
@@ -287,8 +328,8 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
             }
 
             Mensagem = _pendenciaId.HasValue
-                ? "Itens ja enviados. Ajuste a pessoa, a quantidade ou a observacao e salve."
-                : "Marque os produtos, a quantidade e a pessoa. A nota continua na conferencia, em amarelo.";
+                ? "Somente os itens enviados nesta pendencia."
+                : "Marque os produtos, a quantidade e um ou mais compradores. A nota continua na conferencia, em amarelo.";
         }
         catch (Exception ex)
         {
@@ -376,6 +417,37 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         return (linha.BarrasEan ?? string.Empty).Contains(termo, StringComparison.OrdinalIgnoreCase);
     }
 
+    private void AplicarComprador()
+    {
+        if (CompradorLote is null)
+        {
+            MessageBox.Show("Escolha o comprador.", "Divergencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(MotivoLote))
+        {
+            MessageBox.Show("Escreva o motivo.", "Divergencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var marcados = Linhas.Where(l => l.Selecionado).ToList();
+        if (marcados.Count == 0)
+        {
+            MessageBox.Show("Marque ao menos um item.", "Divergencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        foreach (var linha in marcados)
+            linha.DefinirComprador(CompradorLote.Id, CompradorLote.Nome, MotivoLote.Trim());
+
+        ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
+        Mensagem = $"{marcados.Count} item(ns) para {CompradorLote.Nome}.";
+    }
+
     private async Task ResponderAsync(bool ficar)
     {
         if (_pendenciaId is not long pendenciaId)
@@ -410,11 +482,13 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
                 Observacao,
                 escolhidos);
             var status = await _repository.ResponderPendenciaAsync(pendenciaId, ficar);
-            MensagemResultado = ficar
-                ? $"Nota {_nota.NumNota} voltou para Verde."
-                : status == StatusConferenciaValues.Laranja
-                    ? $"A mesma compra ja estava na fila. A nota {_nota.NumNota} ficou como ja vista."
-                    : $"Nota {_nota.NumNota} entrou na fila de devolucoes.";
+            MensagemResultado = status == StatusConferenciaValues.Amarelo
+                ? $"Resposta gravada. A nota {_nota.NumNota} continua amarela ate os outros compradores responderem."
+                : ficar
+                    ? $"Nota {_nota.NumNota} voltou para Verde."
+                    : status == StatusConferenciaValues.Laranja
+                        ? $"A mesma compra ja estava na fila. A nota {_nota.NumNota} ficou como ja vista."
+                        : $"Nota {_nota.NumNota} entrou na fila de devolucoes.";
             _confirmou = true;
             Fechar?.Invoke();
         }
@@ -434,26 +508,60 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         if (!PodeEditar)
             return;
 
-        var pessoaId = PessoaSelecionada?.Id ?? 0;
-        var erro = DivergenciaValidador.Validar(Linhas, pessoaId);
-        if (erro is not null)
+        if (_pendenciaId.HasValue)
         {
-            MessageBox.Show(erro, "Divergencia", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            var pessoaId = PessoaSelecionada?.Id ?? 0;
+            var erroAtual = DivergenciaValidador.Validar(Linhas, pessoaId);
+            if (erroAtual is not null)
+            {
+                MessageBox.Show(erroAtual, "Divergencia", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+        }
+        else
+        {
+            var erroEnvio = DivergenciaValidador.ValidarAtribuidos(Linhas);
+            if (erroEnvio is not null)
+            {
+                MessageBox.Show(erroEnvio, "Divergencia", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
         }
 
         try
         {
             IsCarregando = true;
-            var escolhidos = Linhas.Where(l => l.Selecionado).Select(l => l.ParaGravacao()).ToList();
-            await _repository.RegistrarPendenciaDivergenciaAsync(
-                _nota.Id,
-                pessoaId,
-                Observacao,
-                escolhidos,
-                _pendenciaId.HasValue ? 0 : AppSettingsStore.Instance.Data.PessoaIdNestePc);
-            PessoaDestino = PessoaSelecionada?.Nome ?? string.Empty;
-            ItensEnviados = PendenciaConferenciaLeitura.TextoItens(escolhidos);
+            if (_pendenciaId.HasValue)
+            {
+                var escolhidos = Linhas.Where(l => l.Selecionado).Select(l => l.ParaGravacao()).ToList();
+                await _repository.RegistrarPendenciaDivergenciaAsync(
+                    _nota.Id,
+                    PessoaSelecionada!.Id,
+                    Observacao,
+                    escolhidos);
+                PessoaDestino = PessoaSelecionada.Nome;
+                ItensEnviados = PendenciaConferenciaLeitura.TextoItens(escolhidos);
+            }
+            else
+            {
+                var grupos = Linhas.Where(l => l.CompradorId > 0).GroupBy(l => l.CompradorId).ToList();
+                foreach (var grupo in grupos)
+                {
+                    var escolhidos = grupo.Select(l => l.ParaGravacao()).ToList();
+                    var motivos = string.Join(" · ", grupo.Select(l => l.Motivo.Trim()).Where(m => m.Length > 0).Distinct());
+                    await _repository.RegistrarPendenciaDivergenciaAsync(
+                        _nota.Id,
+                        grupo.Key,
+                        motivos,
+                        escolhidos,
+                        AppSettingsStore.Instance.Data.PessoaIdNestePc);
+                }
+
+                PessoaDestino = string.Join(", ", grupos.Select(g => g.First().CompradorNome).Distinct());
+                ItensEnviados = PendenciaConferenciaLeitura.TextoItens(
+                    Linhas.Where(l => l.CompradorId > 0).Select(l => l.ParaGravacao()));
+            }
+
             _confirmou = true;
             Fechar?.Invoke();
         }
@@ -466,5 +574,25 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         {
             IsCarregando = false;
         }
+    }
+}
+
+public sealed class PessoaEnvioLinha : ViewModelBase
+{
+    private bool _selecionada;
+
+    public PessoaEnvioLinha(long id, string nome)
+    {
+        Id = id;
+        Nome = nome;
+    }
+
+    public long Id { get; }
+    public string Nome { get; }
+
+    public bool Selecionada
+    {
+        get => _selecionada;
+        set => SetProperty(ref _selecionada, value);
     }
 }

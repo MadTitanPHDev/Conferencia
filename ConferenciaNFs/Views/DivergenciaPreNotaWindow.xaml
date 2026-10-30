@@ -117,6 +117,8 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="*" MinWidth="140" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Comprador" Binding="{Binding CompradorNome}" Width="110" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="140" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Preco" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="90" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="80" IsReadOnly="True"/>
                             <DataGridTemplateColumn Header="Qtd" Width="90">
@@ -137,27 +139,61 @@
 
             <Border Grid.Column="1" Style="{StaticResource SurfaceCardStyle}" Padding="14,12">
                 <StackPanel>
-                    <TextBlock Text="Pessoa"
+                    <StackPanel Visibility="{Binding EscolhendoCompradores, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Aplicar aos marcados"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0,0,0,8"/>
+                        <TextBlock Text="Comprador"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Margin="0,0,0,4"/>
+                        <ComboBox ItemsSource="{Binding Pessoas}"
+                                  SelectedItem="{Binding CompradorLote}"
+                                  DisplayMemberPath="Nome"
+                                  IsEnabled="{Binding PodeEditar}"
+                                  Margin="0,0,0,10"/>
+                        <TextBlock Text="Motivo"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding MotivoLote, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 MinHeight="70"
+                                 Padding="8"
+                                 Margin="0,0,0,10"/>
+                        <Button Content="Aplicar aos marcados"
+                                Command="{Binding AplicarCompradorCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                Padding="12,8"
+                                Margin="0,0,0,16"/>
+                    </StackPanel>
+                    <TextBlock Text="Comprador"
                                FontSize="12"
                                Foreground="{DynamicResource Brush.TextSecondary}"
-                               Margin="0,0,0,4"/>
-                    <ComboBox ItemsSource="{Binding Pessoas}"
-                              SelectedItem="{Binding PessoaSelecionada}"
-                              DisplayMemberPath="Nome"
-                              IsEnabled="{Binding PodeEditar}"
-                              Margin="0,0,0,12"/>
+                               Margin="0,0,0,4"
+                               Visibility="{Binding EscolhendoCompradores, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding PessoaSelecionada.Nome}"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,12"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding EscolhendoCompradores, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                     <TextBlock Text="Observacao"
                                FontSize="12"
                                Foreground="{DynamicResource Brush.TextSecondary}"
-                               Margin="0,0,0,4"/>
+                               Margin="0,0,0,4"
+                               Visibility="{Binding EscolhendoCompradores, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                     <TextBox Text="{Binding Observacao, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource ModernTextBoxStyle}"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
                              IsEnabled="{Binding PodeEditar}"
-                             MinHeight="90"
+                             MinHeight="70"
                              Padding="8"
-                             Margin="0,0,0,12"/>
+                             Margin="0,0,0,12"
+                             Visibility="{Binding EscolhendoCompradores, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                     <TextBlock Text="Resumo"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="0,0,0,6"/>

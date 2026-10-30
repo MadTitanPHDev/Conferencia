@@ -9,4 +9,5 @@ public sealed class PendenciaCompraItem
     public string BarrasEan { get; set; } = string.Empty;
     public decimal Quantidade { get; set; }
     public decimal CustoNota { get; set; }
+    public string Motivo { get; set; } = string.Empty;
 }
