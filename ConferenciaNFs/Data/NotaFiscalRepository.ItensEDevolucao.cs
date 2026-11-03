@@ -289,6 +289,7 @@ public sealed partial class NotaFiscalRepository
                 OrigemStatus = OrigemStatusValues.Manual,
                 StatusAtualizadoPor = "Pre-nota"
             }, tx);
+            await CancelarPendenciasAbertasDaIdentidadeAsync(connection, tx, notaFiscalId, cancellationToken);
             await tx.CommitAsync(cancellationToken);
             return;
         }
@@ -360,6 +361,7 @@ public sealed partial class NotaFiscalRepository
             },
             tx);
 
+        await CancelarPendenciasAbertasDaIdentidadeAsync(connection, tx, notaFiscalId, cancellationToken);
         await tx.CommitAsync(cancellationToken);
     }
 

@@ -99,6 +99,8 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
 
     public string TextoRemetente { get; private set; } = string.Empty;
 
+    public string TextoDistribuidora { get; private set; } = string.Empty;
+
     public string EnviadoPorNome { get; private set; } = string.Empty;
 
     public string TextoCancelar => PodeEditar ? "Cancelar" : "Fechar";
@@ -290,6 +292,9 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
                 Observacao = gravada.Observacao;
                 PessoaSelecionada = Pessoas.FirstOrDefault(p => p.Id == gravada.PessoaId);
                 EnviadoPorNome = gravada.EnviadoPorNome;
+                TextoDistribuidora = string.IsNullOrWhiteSpace(gravada.NomeDistribuidora)
+                    ? _nota.NomeForn
+                    : gravada.NomeDistribuidora;
                 TextoRemetente = string.IsNullOrWhiteSpace(gravada.EnviadoPorNome)
                     ? string.Empty
                     : $"Enviado por {gravada.EnviadoPorNome}";
@@ -304,6 +309,7 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
             }
 
             OnPropertyChanged(nameof(TextoRemetente));
+            OnPropertyChanged(nameof(TextoDistribuidora));
 
             LinhasView.Refresh();
             OnPropertyChanged(nameof(TextoResumo));

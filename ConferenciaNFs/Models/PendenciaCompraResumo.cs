@@ -11,6 +11,7 @@ public sealed class PendenciaCompraResumo
     public string NumNota { get; set; } = string.Empty;
     public string DiaConferencia { get; set; } = string.Empty;
     public string NomeForn { get; set; } = string.Empty;
+    public string NomeDistribuidora { get; set; } = string.Empty;
     public string Observacao { get; set; } = string.Empty;
     public string StatusPendencia { get; set; } = string.Empty;
     public string CriadaEm { get; set; } = string.Empty;

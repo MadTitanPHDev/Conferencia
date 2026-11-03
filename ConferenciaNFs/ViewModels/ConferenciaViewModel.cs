@@ -454,6 +454,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                     return;
                 NotaSelecionada.StatusConferencia = novoStatus;
                 NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+                LimparPendenciaNaTela(NotaSelecionada);
                 var copiasVermelho = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
                 MensagemStatus = MensagemStatusComCopias(
                     $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).",
@@ -472,6 +473,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
             await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
             NotaSelecionada.StatusConferencia = novoStatus;
             NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+            if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(novoStatus))
+                LimparPendenciaNaTela(NotaSelecionada);
             var copias = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
             MensagemStatus = MensagemStatusComCopias(
                 $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.",
@@ -654,6 +657,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                     StatusConferenciaValues.Verde);
                 NotaSelecionada.StatusConferencia = StatusConferenciaValues.Verde;
                 NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
+                LimparPendenciaNaTela(NotaSelecionada);
                 await ReplicarStatusNasCopiasAsync(
                     NotaSelecionada,
                     statusAnterior,
@@ -738,9 +742,26 @@ public sealed class ConferenciaViewModel : ViewModelBase
             await _repository.AtualizarStatusConferenciaAsync(copia.Id, novoStatus);
             copia.StatusConferencia = novoStatus;
             copia.OrigemStatus = OrigemStatusValues.Manual;
+            if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(novoStatus))
+                LimparPendenciaNaTela(copia);
         }
 
         return copias.Count;
+    }
+
+    private void LimparPendenciaNaTela(NotaFiscal origem)
+    {
+        foreach (var nota in Notas)
+        {
+            if (nota.Id != origem.Id && !UnificacaoNotasConferencia.MesmaIdentidade(origem, nota))
+                continue;
+
+            nota.DestinoPendencia = string.Empty;
+            nota.EnviadoPorPendencia = string.Empty;
+            nota.ItensPendencia = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(TextoPendenciaSelecionada));
     }
 
     private async Task<int> ReplicarObservacaoNasCopiasAsync(NotaFiscal origem, string texto)

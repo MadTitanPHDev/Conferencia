@@ -33,6 +33,7 @@
             <DataGrid ItemsSource="{Binding Pendencias}"
                       SelectedItem="{Binding Selecionada, Mode=TwoWay}"
                       MouseDoubleClick="GrdPendencias_MouseDoubleClick"
+                      PreviewKeyDown="GrdPendencias_PreviewKeyDown"
                       Style="{StaticResource ModernDataGridStyle}"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
@@ -44,7 +45,7 @@
                     <DataGridTextColumn Header="Loja" Binding="{Binding ApelidoLoja}" Width="90"/>
                     <DataGridTextColumn Header="Nota" Binding="{Binding NumNota}" Width="90"/>
                     <DataGridTextColumn Header="Dia" Binding="{Binding DiaConferencia}" Width="90"/>
-                    <DataGridTextColumn Header="Fornecedor" Binding="{Binding NomeForn}" Width="*"/>
+                    <DataGridTextColumn Header="Distribuidora" Binding="{Binding NomeDistribuidora}" Width="*"/>
                     <DataGridTextColumn Header="Situacao" Binding="{Binding StatusPendencia}" Width="90"/>
                     <DataGridTextColumn Header="Observacao" Binding="{Binding Observacao}" Width="160"/>
                     <DataGridTextColumn Header="Enviada em" Binding="{Binding CriadaEm}" Width="120"/>
@@ -54,18 +55,30 @@
 
         <Border Grid.Row="2" Style="{StaticResource SurfaceCardStyle}" Padding="12,10">
             <DockPanel>
-                <Button DockPanel.Dock="Right"
-                        Content="Ver itens"
+                <StackPanel DockPanel.Dock="Right" Margin="16,0,0,0">
+                    <Button Content="Copiar numero"
+                            Command="{Binding CopiarNumeroCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,7"
+                            Margin="0,0,0,8"
+                            Visibility="{Binding DevolvidasPeloComprador, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <Button Content="Ver itens"
                         Command="{Binding AbrirItensCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="12,7"
                         Margin="16,0,0,0"
                         VerticalAlignment="Center"
                         ToolTip="Abre a pre-nota, onde o comprador responde."/>
+                </StackPanel>
                 <StackPanel>
                     <CheckBox Content="Mostrar concluidas"
                               IsChecked="{Binding MostrarConcluidas}"
                               Margin="0,0,0,8"/>
+                    <CheckBox Content="Devolvidas pelo comprador"
+                              IsChecked="{Binding DevolvidasPeloComprador}"
+                              Margin="0,0,0,8"
+                              Visibility="{Binding VerEquipe, Converter={StaticResource BoolToVisibilityConverter}}"
+                              ToolTip="Lista o que o comprador mandou devolver. Duplo clique abre a pre-nota de devolucao."/>
                     <TextBlock Text="ITENS"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="0,0,0,4"/>

@@ -2591,6 +2591,9 @@ public sealed partial class NotaFiscalRepository
             }, transaction);
         }
 
+        if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(status))
+            await CancelarPendenciasAbertasDaIdentidadeAsync(connection, transaction, id, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
     }
 

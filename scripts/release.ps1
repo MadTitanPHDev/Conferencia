@@ -114,11 +114,11 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Na pre-nota de divergencia, aplique comprador e motivo aos itens marcados. Cada comprador recebe so os itens dele. O comprador, ao abrir, ve apenas esses itens.
+A conferencia ve, em Divergencias, a lista Devolvidas pelo comprador. Duplo clique abre a pre-nota de devolucao, e o numero da nota pode ser copiado.
 
-Quem usa este PC nao e apagado pelo botao Atualizar. Paulo, Guilherme, Matheus e Joao Gabriel veem todas as pendencias. Os demais veem so as enviadas para eles. Rafael entra no cadastro.
+O comprador ve o nome da distribuidora na lista e no topo da pre-nota.
 
-O aplicativo instalado abre ao entrar no Windows. O aviso com som continua: comprador quando chega pendencia, e a conferencia quando ela e devolvida ou absorvida.
+Se a conferencia mudar o status da nota (branco, verde, vermelho, laranja ou azul), a pendencia aberta sai da lista do comprador e acompanha o status definido.
 
 ### Configuracao (app-settings.json)
 

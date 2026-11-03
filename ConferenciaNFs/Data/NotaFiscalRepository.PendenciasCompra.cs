@@ -57,21 +57,7 @@ public sealed partial class NotaFiscalRepository
         await using var tx = await connection.BeginTransactionAsync(cancellationToken);
 
         await PintarAmareloAsync(connection, tx, notaFiscalId, "Operador", cancellationToken);
-        await connection.ExecuteAsync(new CommandDefinition(
-            """
-            UPDATE PendenciasCompra
-            SET StatusPendencia = @Cancelada
-            WHERE NotaFiscalId = @NotaFiscalId
-              AND StatusPendencia = @Aberta
-            """,
-            new
-            {
-                NotaFiscalId = notaFiscalId,
-                Cancelada = StatusPendenciaCompraValues.Cancelada,
-                Aberta = StatusPendenciaCompraValues.Aberta
-            },
-            tx,
-            cancellationToken: cancellationToken));
+        await CancelarPendenciasAbertasDaIdentidadeAsync(connection, tx, notaFiscalId, cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
     }
@@ -542,16 +528,61 @@ public sealed partial class NotaFiscalRepository
         return linhas.AsList();
     }
 
+    public async Task<DevolucaoItem?> ObterDevolucaoDaNotaAsync(
+        long notaFiscalId,
+        CancellationToken cancellationToken = default)
+    {
+        if (notaFiscalId <= 0)
+            return null;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        return await connection.QueryFirstOrDefaultAsync<DevolucaoItem>(new CommandDefinition(
+            $"""
+            SELECT
+                d.Id,
+                d.NotaFiscalId,
+                n2.ApelidoLoja,
+                n2.NumNota,
+                n2.NomeForn,
+                n2.CnpjForn,
+                n2.ValorNota,
+                n2.DataEmissao,
+                n2.DiaConferencia,
+                d.StatusDevolucao,
+                COALESCE(NULLIF(TRIM(d.Andamento), ''), 'AguardandoLoja') AS Andamento,
+                d.DataMarcada,
+                d.DataConclusao,
+                d.Observacao
+            FROM Devolucoes d
+            INNER JOIN NotasFiscais n2 ON n2.Id = d.NotaFiscalId
+            INNER JOIN NotasFiscais n ON n.Id = @NotaFiscalId
+            WHERE {SqlMesmaIdentidadeNotas}
+            ORDER BY
+                CASE WHEN d.StatusDevolucao = @Pendente THEN 0 ELSE 1 END,
+                d.Id DESC
+            LIMIT 1
+            """,
+            new
+            {
+                NotaFiscalId = notaFiscalId,
+                Pendente = StatusDevolucaoValues.Pendente
+            },
+            cancellationToken: cancellationToken));
+    }
+
     public async Task<IReadOnlyList<PendenciaCompraResumo>> ListarPendenciasAsync(
         bool concluidas,
         long? somentePessoaId = null,
+        bool somenteDevolvidas = false,
         CancellationToken cancellationToken = default)
     {
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
         var linhas = (await connection.QueryAsync<PendenciaCompraResumo>(new CommandDefinition(
-            """
+            $"""
             SELECT
                 p.Id,
                 p.NotaFiscalId,
@@ -561,6 +592,7 @@ public sealed partial class NotaFiscalRepository
                 n.NumNota,
                 n.DiaConferencia,
                 n.NomeForn,
+                COALESCE(NULLIF(TRIM(dist.NomeForn), ''), n.NomeForn) AS NomeDistribuidora,
                 p.Observacao,
                 p.StatusPendencia,
                 p.CriadaEm,
@@ -568,15 +600,18 @@ public sealed partial class NotaFiscalRepository
             FROM PendenciasCompra p
             INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
             INNER JOIN Pessoas pe ON pe.Id = p.PessoaId
+            {SqlJoinDistribuidoraPorCnpj}
             WHERE p.StatusPendencia = ANY(@Statuses)
               AND (@SomentePessoaId IS NULL OR p.PessoaId = @SomentePessoaId)
             ORDER BY p.Id DESC
             """,
             new
             {
-                Statuses = concluidas
-                    ? new[] { StatusPendenciaCompraValues.Ficou, StatusPendenciaCompraValues.Devolvida }
-                    : new[] { StatusPendenciaCompraValues.Aberta },
+                Statuses = somenteDevolvidas
+                    ? new[] { StatusPendenciaCompraValues.Devolvida }
+                    : concluidas
+                        ? new[] { StatusPendenciaCompraValues.Ficou, StatusPendenciaCompraValues.Devolvida }
+                        : new[] { StatusPendenciaCompraValues.Aberta },
                 SomentePessoaId = somentePessoaId
             },
             cancellationToken: cancellationToken))).AsList();
@@ -596,7 +631,7 @@ public sealed partial class NotaFiscalRepository
         await connection.OpenAsync(cancellationToken);
 
         var pendencia = await connection.QuerySingleOrDefaultAsync<PendenciaCompraResumo>(new CommandDefinition(
-            """
+            $"""
             SELECT
                 p.Id,
                 p.NotaFiscalId,
@@ -607,6 +642,7 @@ public sealed partial class NotaFiscalRepository
                 n.NumNota,
                 n.DiaConferencia,
                 n.NomeForn,
+                COALESCE(NULLIF(TRIM(dist.NomeForn), ''), n.NomeForn) AS NomeDistribuidora,
                 p.Observacao,
                 p.StatusPendencia,
                 p.CriadaEm,
@@ -614,6 +650,7 @@ public sealed partial class NotaFiscalRepository
             FROM PendenciasCompra p
             INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
             INNER JOIN Pessoas pe ON pe.Id = p.PessoaId
+            {SqlJoinDistribuidoraPorCnpj}
             WHERE p.Id = @Id
             """,
             new { Id = pendenciaId },
@@ -648,7 +685,7 @@ public sealed partial class NotaFiscalRepository
         await connection.OpenAsync(cancellationToken);
 
         var linhas = (await connection.QueryAsync<PendenciaCompraResumo>(new CommandDefinition(
-            """
+            $"""
             SELECT
                 p.Id,
                 p.NotaFiscalId,
@@ -658,6 +695,7 @@ public sealed partial class NotaFiscalRepository
                 n.NumNota,
                 n.DiaConferencia,
                 n.NomeForn,
+                COALESCE(NULLIF(TRIM(dist.NomeForn), ''), n.NomeForn) AS NomeDistribuidora,
                 p.Observacao,
                 p.StatusPendencia,
                 p.CriadaEm,
@@ -665,6 +703,7 @@ public sealed partial class NotaFiscalRepository
             FROM PendenciasCompra p
             INNER JOIN NotasFiscais n ON n.Id = p.NotaFiscalId
             INNER JOIN Pessoas pe ON pe.Id = p.PessoaId
+            {SqlJoinDistribuidoraPorCnpj}
             WHERE p.StatusPendencia = @Aberta
               AND p.NotaFiscalId = ANY(@Ids)
             """,
@@ -713,6 +752,35 @@ public sealed partial class NotaFiscalRepository
                 ? PendenciaConferenciaLeitura.TextoItens(daPendencia)
                 : string.Empty;
         }
+    }
+
+    private static async Task CancelarPendenciasAbertasDaIdentidadeAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long notaFiscalId,
+        CancellationToken cancellationToken)
+    {
+        await connection.ExecuteAsync(new CommandDefinition(
+            $"""
+            UPDATE PendenciasCompra p
+            SET StatusPendencia = @Cancelada
+            WHERE p.StatusPendencia = @Aberta
+              AND EXISTS (
+                  SELECT 1
+                  FROM NotasFiscais n
+                  INNER JOIN NotasFiscais n2 ON n2.Id = p.NotaFiscalId
+                  WHERE n.Id = @NotaFiscalId
+                    AND {SqlMesmaIdentidadeNotas}
+              )
+            """,
+            new
+            {
+                NotaFiscalId = notaFiscalId,
+                Cancelada = StatusPendenciaCompraValues.Cancelada,
+                Aberta = StatusPendenciaCompraValues.Aberta
+            },
+            transaction,
+            cancellationToken: cancellationToken));
     }
 
     private static async Task PintarAmareloAsync(

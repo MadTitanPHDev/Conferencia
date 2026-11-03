@@ -16,6 +16,8 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
     private string _mensagem = "Carregando divergencias enviadas...";
     private bool _isCarregando;
     private bool _mostrarConcluidas;
+    private bool _devolvidasPeloComprador;
+    private bool _verEquipe;
 
     public PendenciasCompraViewModel(NotaFiscalRepository repository, VsmComprasReader? reader = null)
     {
@@ -24,12 +26,14 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
         Pendencias = new ObservableCollection<PendenciaCompraResumo>();
         AtualizarCommand = new AsyncRelayCommand(_ => CarregarAsync());
         AbrirItensCommand = new AsyncRelayCommand(_ => AbrirItensAsync(), _ => Selecionada is not null && !IsCarregando);
+        CopiarNumeroCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => Selecionada is not null);
         _ = CarregarAsync();
     }
 
     public ObservableCollection<PendenciaCompraResumo> Pendencias { get; }
     public ICommand AtualizarCommand { get; }
     public ICommand AbrirItensCommand { get; }
+    public ICommand CopiarNumeroCommand { get; }
     public Action? AoFechar { get; set; }
 
     public PendenciaCompraResumo? Selecionada
@@ -50,6 +54,23 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
         set
         {
             if (!SetProperty(ref _mostrarConcluidas, value))
+                return;
+            _ = CarregarAsync();
+        }
+    }
+
+    public bool VerEquipe
+    {
+        get => _verEquipe;
+        private set => SetProperty(ref _verEquipe, value);
+    }
+
+    public bool DevolvidasPeloComprador
+    {
+        get => _devolvidasPeloComprador;
+        set
+        {
+            if (!SetProperty(ref _devolvidasPeloComprador, value))
                 return;
             _ = CarregarAsync();
         }
@@ -102,9 +123,17 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
             }
 
             var verTodas = EquipeConferencia.EhMembro(eu.Nome);
+            VerEquipe = verTodas;
+            if (!verTodas && _devolvidasPeloComprador)
+            {
+                _devolvidasPeloComprador = false;
+                OnPropertyChanged(nameof(DevolvidasPeloComprador));
+            }
+
             var lista = await _repository.ListarPendenciasAsync(
                 MostrarConcluidas,
-                verTodas ? null : eu.Id);
+                verTodas ? null : eu.Id,
+                verTodas && DevolvidasPeloComprador);
             var idAntes = Selecionada?.Id;
             Pendencias.Clear();
             foreach (var item in lista)
@@ -113,6 +142,14 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
             Selecionada = idAntes is long id
                 ? Pendencias.FirstOrDefault(p => p.Id == id) ?? Pendencias.FirstOrDefault()
                 : Pendencias.FirstOrDefault();
+
+            if (verTodas && DevolvidasPeloComprador)
+            {
+                Mensagem = Pendencias.Count == 0
+                    ? "Nenhuma nota devolvida pelo comprador."
+                    : $"{Pendencias.Count} nota(s) devolvida(s) pelo comprador. Duplo clique abre a pre-nota de devolucao.";
+                return;
+            }
 
             var escopo = verTodas ? "de todos" : "enviadas para voce";
             Mensagem = MostrarConcluidas
@@ -139,6 +176,23 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
         }
     }
 
+    public bool CopiarNumeroNotaSelecionada()
+    {
+        if (Selecionada is null || string.IsNullOrWhiteSpace(Selecionada.NumNota))
+            return false;
+
+        try
+        {
+            Clipboard.SetText(Selecionada.NumNota.Trim());
+            Mensagem = $"Numero da nota {Selecionada.NumNota.Trim()} copiado.";
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public Task AbrirItensDaSelecionadaAsync() => AbrirItensAsync();
 
     private async Task AbrirItensAsync()
@@ -153,6 +207,14 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
             {
                 MessageBox.Show("Nota nao encontrada no cadastro.", "Divergencias",
                     MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (VerEquipe
+                && DevolvidasPeloComprador
+                && string.Equals(Selecionada.StatusPendencia, StatusPendenciaCompraValues.Devolvida, StringComparison.OrdinalIgnoreCase))
+            {
+                await AbrirPreNotaDevolucaoAsync(nota);
                 return;
             }
 
@@ -177,8 +239,31 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
         }
     }
 
+    private async Task AbrirPreNotaDevolucaoAsync(NotaFiscal nota)
+    {
+        var devolucao = await _repository.ObterDevolucaoDaNotaAsync(nota.Id);
+        if (devolucao is null)
+        {
+            MessageBox.Show(
+                "Esta nota ainda nao entrou na fila de devolucoes. Se outro comprador ainda nao respondeu, ela continua amarela.",
+                "Devolucoes",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var janela = new PreNotaWindow(_repository, _reader, nota, PreNotaModo.ConfirmacaoFila, devolucao)
+        {
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
+                ?? Application.Current.MainWindow
+        };
+        if (janela.ShowDialog() == true && janela.Confirmou)
+            await CarregarAsync();
+    }
+
     private void AtualizarComandos()
     {
         ((AsyncRelayCommand)AbrirItensCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)CopiarNumeroCommand).RaiseCanExecuteChanged();
     }
 }

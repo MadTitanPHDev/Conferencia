@@ -12,6 +12,15 @@ public partial class PendenciasCompraWindow : UserControl
         InitializeComponent();
     }
 
+    private void GrdPendencias_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.C || Keyboard.Modifiers != ModifierKeys.Control)
+            return;
+
+        if (DataContext is PendenciasCompraViewModel viewModel && viewModel.CopiarNumeroNotaSelecionada())
+            e.Handled = true;
+    }
+
     private async void GrdPendencias_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (FindParent<DataGridRow>((System.Windows.DependencyObject)e.OriginalSource) is null)
