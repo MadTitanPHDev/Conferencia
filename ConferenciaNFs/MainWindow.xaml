@@ -92,6 +92,11 @@
                             Command="{Binding GerenciarDistribuidorasCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Importar distribuidoras"
+                            Command="{Binding ImportarDistribuidorasCommand}"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"
+                            ToolTip="Planilha com CNPJ e Fornecedor. Preenche nome vazio e mantem Predileta."/>
                     <Button Content="  Tabelas de preço"
                             Command="{Binding GerenciarPrecosCommand}"
                             Style="{StaticResource SidebarNavButtonStyle}"
@@ -772,6 +777,12 @@
                             Click="FecharMenuFlutuante_Click"
                             Style="{StaticResource SidebarNavButtonStyle}"
                             Margin="0,0,0,4"/>
+                    <Button Content="  Importar distribuidoras"
+                            Command="{Binding ImportarDistribuidorasCommand}"
+                            Click="FecharMenuFlutuante_Click"
+                            Style="{StaticResource SidebarNavButtonStyle}"
+                            Margin="0,0,0,4"
+                            ToolTip="Planilha com CNPJ e Fornecedor. Preenche nome vazio e mantem Predileta."/>
                     <Button Content="  Tabelas de preço"
                             Command="{Binding GerenciarPrecosCommand}"
                             Click="FecharMenuFlutuante_Click"

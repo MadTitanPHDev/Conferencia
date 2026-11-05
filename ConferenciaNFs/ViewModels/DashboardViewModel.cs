@@ -68,6 +68,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         AbrirConferenciaCommand = new RelayCommand(AbrirConferencia, param => param is LojaPendencia);
         GerenciarLojasCommand = new RelayCommand(GerenciarLojas);
         GerenciarDistribuidorasCommand = new RelayCommand(GerenciarDistribuidoras);
+        ImportarDistribuidorasCommand = new AsyncRelayCommand(_ => ImportarDistribuidorasAsync());
         GerenciarPrecosCommand = new RelayCommand(GerenciarPrecos);
         GerenciarMotivosCommand = new RelayCommand(GerenciarMotivos);
         GerenciarPessoasCommand = new RelayCommand(GerenciarPessoas);
@@ -321,6 +322,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand AbrirConferenciaCommand { get; }
     public ICommand GerenciarLojasCommand { get; }
     public ICommand GerenciarDistribuidorasCommand { get; }
+    public ICommand ImportarDistribuidorasCommand { get; }
     public ICommand GerenciarPrecosCommand { get; }
     public ICommand GerenciarMotivosCommand { get; }
     public ICommand GerenciarPessoasCommand { get; }
@@ -1103,6 +1105,62 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         };
 
         janela.ShowDialog();
+    }
+
+    private async Task ImportarDistribuidorasAsync()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Planilha de distribuidoras",
+            Filter = "Planilha Excel (*.xls;*.xlsx;*.htm;*.html)|*.xls;*.xlsx;*.htm;*.html",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var conteudo = await File.ReadAllTextAsync(dialog.FileName, System.Text.Encoding.Latin1);
+            if (!conteudo.Contains("<td", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "Use a planilha no formato do Excel com as colunas CNPJ e Fornecedor, como o arquivo exportado.",
+                    "Importar distribuidoras",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var planilha = ImportacaoDistribuidoraNomes.Ler(conteudo);
+            if (planilha.Count == 0)
+            {
+                MessageBox.Show(
+                    "Nenhum CNPJ com nome foi encontrado na planilha.",
+                    "Importar distribuidoras",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var resultado = await _repository.ImportarNomesDistribuidorasAsync(planilha);
+            MessageBox.Show(
+                $"Nomes preenchidos: {resultado.Preenchidos}\n" +
+                $"Ja tinham nome e foram mantidos: {resultado.JaTinhamNome}\n" +
+                $"Predileta mantida no lugar de Cimed: {resultado.PrediletaMantida}\n" +
+                $"CNPJ da planilha sem cadastro: {resultado.ForaDoCadastro}",
+                "Importar distribuidoras",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Erro ao importar distribuidoras:\n{ex.Message}",
+                "Importar distribuidoras",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void GerenciarPrecos(object? parameter)

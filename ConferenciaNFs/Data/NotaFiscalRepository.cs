@@ -2177,6 +2177,60 @@ public sealed partial class NotaFiscalRepository
         return resultado.ToList();
     }
 
+    public async Task<ResultadoImportacaoDistribuidoras> ImportarNomesDistribuidorasAsync(
+        IReadOnlyList<NomeDistribuidoraPlanilha> planilha,
+        CancellationToken cancellationToken = default)
+    {
+        var cadastradas = await ObterDistribuidorasAsync(cancellationToken);
+        var porCnpj = cadastradas
+            .GroupBy(d => ImportacaoDistribuidoraNomes.SomenteDigitos(d.CnpjForn), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        var preenchidos = 0;
+        var jaTinhamNome = 0;
+        var prediletaMantida = 0;
+        var fora = 0;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        foreach (var item in planilha)
+        {
+            if (!porCnpj.TryGetValue(item.Cnpj, out var atual))
+            {
+                fora++;
+                continue;
+            }
+
+            var novoNome = ImportacaoDistribuidoraNomes.NomeParaGravar(item.Cnpj, atual.NomeForn, item.Nome);
+            if (novoNome is null)
+            {
+                if (item.Cnpj == ImportacaoDistribuidoraNomes.CnpjPredileta
+                    && atual.NomeForn.Contains("PREDILETA", StringComparison.OrdinalIgnoreCase))
+                    prediletaMantida++;
+                else
+                    jaTinhamNome++;
+                continue;
+            }
+
+            if (item.Cnpj == ImportacaoDistribuidoraNomes.CnpjPredileta)
+                prediletaMantida++;
+            else
+                preenchidos++;
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE Distribuidoras
+                SET NomeForn = @Nome
+                WHERE regexp_replace(COALESCE(CnpjForn, ''), '[^0-9]', '', 'g') = @Cnpj
+                """,
+                new { Nome = novoNome, Cnpj = item.Cnpj },
+                cancellationToken: cancellationToken));
+        }
+
+        return new ResultadoImportacaoDistribuidoras(preenchidos, jaTinhamNome, prediletaMantida, fora);
+    }
+
     public async Task AtualizarDistribuidoraAsync(
         string cnpjForn,
         int? prazoDevolucaoDias,
