@@ -50,4 +50,22 @@ public static class StatusHerancaImportacao
             StatusConferenciaValues.Pendente,
             StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Amarelo copiado sozinho vira laranja quando o dia anterior mais recente
+    /// já está resolvido. Amarelo definido na mão permanece. Nenhuma outra cor muda.
+    /// </summary>
+    public static bool DeveRepintarAmareloAutomatico(
+        string? statusAtual,
+        string? origem,
+        string? statusHerdado)
+        => string.Equals(
+               statusAtual?.Trim(),
+               StatusConferenciaValues.Amarelo,
+               StringComparison.OrdinalIgnoreCase)
+           && OrigemStatusValues.PodeSerAlteradoAutomaticamente(origem)
+           && string.Equals(
+               statusHerdado?.Trim(),
+               StatusConferenciaValues.Laranja,
+               StringComparison.OrdinalIgnoreCase);
 }

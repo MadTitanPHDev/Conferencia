@@ -48,6 +48,10 @@ public sealed class DevolucaoItem : INotifyPropertyChanged
     public decimal ValorNota { get; set; }
     public string DataEmissao { get; set; } = string.Empty;
     public string DiaConferencia { get; set; } = string.Empty;
+    public int CodCompra { get; set; }
+    public string StatusVsm { get; set; } = string.Empty;
+    public string ReabertaVsm { get; set; } = string.Empty;
+    public string SituacaoVsmRotulo => StatusCompraVsm.Rotulo(StatusVsm, ReabertaVsm);
     public string DataMarcada { get; set; } = string.Empty;
     public int? PrazoDevolucaoDias { get; set; }
     public bool RastrearPrazo { get; set; }

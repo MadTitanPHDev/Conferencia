@@ -46,6 +46,7 @@
                     <DataGridTextColumn Header="Nota" Binding="{Binding NumNota}" Width="90"/>
                     <DataGridTextColumn Header="Dia" Binding="{Binding DiaConferencia}" Width="90"/>
                     <DataGridTextColumn Header="Distribuidora" Binding="{Binding NomeDistribuidora}" Width="*"/>
+                    <DataGridTextColumn Header="VSM" Binding="{Binding SituacaoVsmRotulo}" Width="110"/>
                     <DataGridTextColumn Header="Situacao" Binding="{Binding StatusPendencia}" Width="90"/>
                     <DataGridTextColumn Header="Observacao" Binding="{Binding Observacao}" Width="160"/>
                     <DataGridTextColumn Header="Enviada em" Binding="{Binding CriadaEm}" Width="120"/>

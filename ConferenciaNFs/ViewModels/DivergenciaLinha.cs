@@ -9,6 +9,7 @@ public sealed class DivergenciaLinha : ViewModelBase
     private decimal _quantidade;
     private string _motivo = string.Empty;
     private string _compradorNome = string.Empty;
+    private ComparacaoPedidoExibicao _comparacao = new();
 
     public DivergenciaLinha(ItemNotaSnapshot item)
     {
@@ -25,6 +26,13 @@ public sealed class DivergenciaLinha : ViewModelBase
     public decimal QuantidadeNota => Item.QuantItemCompra;
     public decimal CustoNota => Item.CustoNota;
     public decimal TotalItem => Quantidade * CustoNota;
+    public ComparacaoPedidoExibicao Comparacao
+    {
+        get => _comparacao;
+        private set => SetProperty(ref _comparacao, value);
+    }
+
+    public string SituacaoPedido => Comparacao.Situacao;
     public long CompradorId { get; private set; }
 
     public string CompradorNome
@@ -37,6 +45,12 @@ public sealed class DivergenciaLinha : ViewModelBase
     {
         get => _motivo;
         set => SetProperty(ref _motivo, value ?? string.Empty);
+    }
+
+    public void DefinirComparacaoPedido(ComparacaoPedidoExibicao comparacao)
+    {
+        Comparacao = comparacao ?? new ComparacaoPedidoExibicao();
+        OnPropertyChanged(nameof(SituacaoPedido));
     }
 
     public void DefinirComprador(long pessoaId, string nome, string motivo)

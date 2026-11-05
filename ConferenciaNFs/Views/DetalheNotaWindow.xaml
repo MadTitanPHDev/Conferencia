@@ -74,6 +74,12 @@
                            Margin="0,2,0,0"
                            FontSize="12"
                            TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding SituacaoVsm}"
+                           Style="{StaticResource PageSubtitleStyle}"
+                           Margin="0,2,0,0"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding MensagemStatus}"
                            Style="{StaticResource PageSubtitleStyle}"
                            Margin="0,2,0,0"

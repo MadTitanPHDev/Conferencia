@@ -29,6 +29,9 @@ public partial class PreNotaWindow : Window
 
     public bool Confirmou => DataContext is PreNotaViewModel vm && vm.Confirmou;
 
+    public IReadOnlyList<long> NotasRepintadas =>
+        DataContext is PreNotaViewModel vm ? vm.NotasRepintadas : [];
+
     private void Cancelar_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;

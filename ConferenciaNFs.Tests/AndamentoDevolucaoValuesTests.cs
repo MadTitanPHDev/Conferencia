@@ -7,7 +7,7 @@ public class AndamentoDevolucaoValuesTests
 {
     [Theory]
     [InlineData(AndamentoDevolucaoValues.EnviarXml, "Enviar XML")]
-    [InlineData(AndamentoDevolucaoValues.AguardandoLoja, "Aguardando loja")]
+    [InlineData(AndamentoDevolucaoValues.AguardandoLoja, "Anexar nota")]
     [InlineData(AndamentoDevolucaoValues.AguardandoDist, "Aguardando dist.")]
     public void ObterRotulo_UsaTextoDaPlanilha(string valor, string rotulo)
     {

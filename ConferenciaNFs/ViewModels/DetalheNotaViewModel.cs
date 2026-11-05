@@ -15,6 +15,7 @@ public sealed class DetalheNotaViewModel : ViewModelBase
     private bool _isCarregando;
     private bool _estaVazio = true;
     private string _mensagemStatus = "Carregando itens...";
+    private string _situacaoVsm = "VSM: —";
     private ItemNotaPrecoLinha? _itemSelecionado;
 
     public DetalheNotaViewModel(
@@ -50,6 +51,12 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             var fornecedor = string.IsNullOrWhiteSpace(_nota.NomeForn) ? _nota.CnpjForn : _nota.NomeForn;
             return $"{fornecedor} · R$ {_nota.ValorNota:N2}";
         }
+    }
+
+    public string SituacaoVsm
+    {
+        get => _situacaoVsm;
+        private set => SetProperty(ref _situacaoVsm, value);
     }
 
     public bool IsCarregando
@@ -196,6 +203,7 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         {
             IsCarregando = true;
             MensagemStatus = "Buscando itens...";
+            await CarregarSituacaoVsmAsync();
 
             IReadOnlyList<ItemCompraVsm> itens;
             var veioDoSnapshot = false;
@@ -241,5 +249,37 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         {
             IsCarregando = false;
         }
+    }
+
+    private async Task CarregarSituacaoVsmAsync()
+    {
+        var status = _nota.StatusVsm;
+        var reaberta = _nota.ReabertaVsm;
+        var codCompra = _nota.CodCompra ?? 0;
+
+        if (_reader is not null && codCompra > 0)
+        {
+            try
+            {
+                var mapa = await _reader.ListarSituacaoPorCodCompraAsync([codCompra]);
+                if (mapa.TryGetValue(codCompra, out var atual))
+                {
+                    status = atual.Status;
+                    reaberta = atual.Reaberta;
+                    _nota.StatusVsm = status;
+                    _nota.ReabertaVsm = reaberta;
+                    if (_repository is not null)
+                        await _repository.GravarSituacaoVsmAsync(mapa);
+                }
+            }
+            catch
+            {
+                // Mantem o valor gravado na ultima sincronizacao.
+            }
+        }
+
+        SituacaoVsm = codCompra <= 0 && string.IsNullOrWhiteSpace(status)
+            ? "VSM: sem codigo da compra"
+            : $"VSM: {StatusCompraVsm.Rotulo(status, reaberta)}";
     }
 }

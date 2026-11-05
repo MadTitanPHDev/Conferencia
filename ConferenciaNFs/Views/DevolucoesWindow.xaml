@@ -285,6 +285,7 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="Distribuidora" Binding="{Binding NomeForn}" Width="*" MinWidth="120"/>
+                    <DataGridTextColumn Header="VSM" Binding="{Binding SituacaoVsmRotulo}" Width="110"/>
                     <DataGridTextColumn Header="Emissao" Binding="{Binding DataEmissao}" Width="95"/>
                     <DataGridTextColumn Header="Limite" Binding="{Binding DataLimiteTexto}" Width="95"/>
                     <DataGridTextColumn Header="Prazo" Binding="{Binding SituacaoPrazo}" Width="150"/>

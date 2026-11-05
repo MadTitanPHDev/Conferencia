@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Titulo}"
-        Height="640"
-        Width="1120"
+        Height="680"
+        Width="1280"
         MinHeight="480"
-        MinWidth="920"
+        MinWidth="860"
         Icon="pack://application:,,,/Assets/app.ico"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Background}"
@@ -46,7 +46,7 @@
         <Grid Grid.Row="1" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="320"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Style="{StaticResource SurfaceCardStyle}" Padding="0" Margin="0,0,10,0">
@@ -77,10 +77,11 @@
                                FontSize="11"
                                Margin="12,0,12,2"/>
                     <TextBlock DockPanel.Dock="Top"
-                               Text="Duplo clique na linha copia o codigo de barras."
+                               Text="Duplo clique na linha copia o codigo de barras. Se a janela estiver estreita, role a grade para o lado."
                                Style="{StaticResource PageSubtitleStyle}"
                                FontSize="11"
-                               Margin="12,0,12,8"/>
+                               Margin="12,0,12,8"
+                               TextWrapping="Wrap"/>
                     <DataGrid ItemsSource="{Binding LinhasView}"
                               SelectedItem="{Binding LinhaSelecionada, Mode=TwoWay}"
                               MouseDoubleClick="GrdItens_MouseDoubleClick"
@@ -88,10 +89,13 @@
                               AutoGenerateColumns="False"
                               CanUserAddRows="False"
                               CanUserDeleteRows="False"
+                              CanUserReorderColumns="False"
                               HeadersVisibility="Column"
-                              SelectionMode="Single">
+                              SelectionMode="Single"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Width="72">
+                            <DataGridTemplateColumn Width="72" MinWidth="72">
                                 <DataGridTemplateColumn.Header>
                                     <Button Content="Todos"
                                             Command="{Binding DataContext.AlternarSelecaoTodosCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -108,9 +112,9 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Cod" Binding="{Binding CodProd}" Width="70" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="EAN" Binding="{Binding BarrasEan}" Width="130" IsReadOnly="True"/>
-                            <DataGridTemplateColumn Header="" Width="76">
+                            <DataGridTextColumn Header="Cod" Binding="{Binding CodProd}" Width="70" MinWidth="70" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="EAN" Binding="{Binding BarrasEan}" Width="130" MinWidth="130" IsReadOnly="True"/>
+                            <DataGridTemplateColumn Header="" Width="76" MinWidth="76">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Content="Copiar"
@@ -123,12 +127,13 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="*" MinWidth="140" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Comprador" Binding="{Binding CompradorNome}" Width="110" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="140" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Preco" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="90" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="80" IsReadOnly="True"/>
-                            <DataGridTemplateColumn Header="Qtd" Width="90">
+                            <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="220" MinWidth="180" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Comprador" Binding="{Binding CompradorNome}" Width="110" MinWidth="110" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="160" MinWidth="140" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Preco" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="96" MinWidth="96" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding SituacaoPedido}" Width="150" MinWidth="130" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="80" MinWidth="80" IsReadOnly="True"/>
+                            <DataGridTemplateColumn Header="Qtd" Width="90" MinWidth="90">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBox Text="{Binding Quantidade, UpdateSourceTrigger=PropertyChanged}"
@@ -138,13 +143,14 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Total" Binding="{Binding TotalItem, StringFormat='R$ {0:N2}'}" Width="100" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Total" Binding="{Binding TotalItem, StringFormat='R$ {0:N2}'}" Width="100" MinWidth="100" IsReadOnly="True"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource SurfaceCardStyle}" Padding="14,12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <StackPanel Visibility="{Binding EscolhendoCompradores, Converter={StaticResource BoolToVisibilityConverter}}">
                         <TextBlock Text="Aplicar aos marcados"
@@ -201,6 +207,96 @@
                              Padding="8"
                              Margin="0,0,0,12"
                              Visibility="{Binding EscolhendoCompradores, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                    <TextBlock Text="Nota x pedido"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0,4,0,2"/>
+                    <TextBlock Text="{Binding LinhaSelecionada.NomeProd}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="68"/>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="56"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Nota" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Pedidos" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Dif." FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Quantidade" FontSize="12" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.QtdNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.QtdPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifQtd}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifQtdAlerta}" Value="True">
+                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preço total" FontSize="12" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoTotal}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifPrecoTotalAlerta}" Value="True">
+                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Preço unit." FontSize="12" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoUnit}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifPrecoUnitAlerta}" Value="True">
+                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Desconto (%)" FontSize="12" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.DescontoNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.DescontoPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifDesconto}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifDescontoAlerta}" Value="True">
+                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
                     <TextBlock Text="Resumo"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="0,0,0,6"/>
@@ -210,6 +306,7 @@
                                Foreground="{DynamicResource Brush.TextPrimary}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 

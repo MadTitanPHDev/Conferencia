@@ -114,11 +114,13 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-A conferencia ve, em Divergencias, a lista Devolvidas pelo comprador. Duplo clique abre a pre-nota de devolucao, e o numero da nota pode ser copiado.
+Ao resolver uma nota (verde, azul, vermelho ou laranja), o amarelo automatico dos dias seguintes vira laranja. Notas que ja estavam nesse desenho sao corrigidas na primeira abertura. Amarelo pintado na mao permanece.
 
-O comprador ve o nome da distribuidora na lista e no topo da pre-nota.
+A pesquisa de produtos mostra se o item foi devolvido, esta na fila ou nao. Filtros de loja e distribuidora usam o cadastro. Da para filtrar por status, periodo e devolucao do item.
 
-Se a conferencia mudar o status da nota (branco, verde, vermelho, laranja ou azul), a pendencia aberta sai da lista do comprador e acompanha o status definido.
+O status do VSM aparece ao abrir a nota na conferencia, e nas grades de devolucao e divergencias: Em aberto, Finalizada, Reaberta ou Devolvido. O andamento Aguardando loja passou a se chamar Anexar nota.
+
+Na pre-nota enviada ao comprador, o item selecionado compara quantidade, preco e desconto da nota com os pedidos da mesma loja.
 
 ### Configuracao (app-settings.json)
 

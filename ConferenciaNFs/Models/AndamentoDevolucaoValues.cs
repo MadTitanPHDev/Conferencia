@@ -1,6 +1,9 @@
 namespace ConferenciaNFs.Models;
 
-public sealed record AndamentoDevolucaoOpcao(string Valor, string Rotulo);
+public sealed record AndamentoDevolucaoOpcao(string Valor, string Rotulo)
+{
+    public override string ToString() => Rotulo;
+}
 
 public static class AndamentoDevolucaoValues
 {
@@ -20,7 +23,7 @@ public static class AndamentoDevolucaoValues
     public static readonly IReadOnlyList<AndamentoDevolucaoOpcao> Opcoes =
     [
         new(EnviarXml, "Enviar XML"),
-        new(AguardandoLoja, "Aguardando loja"),
+        new(AguardandoLoja, "Anexar nota"),
         new(AguardandoDist, "Aguardando dist.")
     ];
 
@@ -28,14 +31,14 @@ public static class AndamentoDevolucaoValues
     [
         FiltroTodos,
         "Enviar XML",
-        "Aguardando loja",
+        "Anexar nota",
         "Aguardando dist."
     ];
 
     public static string ObterRotulo(string andamento) => andamento switch
     {
         EnviarXml => "Enviar XML",
-        AguardandoLoja => "Aguardando loja",
+        AguardandoLoja => "Anexar nota",
         AguardandoDist => "Aguardando dist.",
         _ => andamento
     };
@@ -43,7 +46,7 @@ public static class AndamentoDevolucaoValues
     public static string? DeFiltro(string filtro) => filtro switch
     {
         "Enviar XML" => EnviarXml,
-        "Aguardando loja" => AguardandoLoja,
+        "Anexar nota" => AguardandoLoja,
         "Aguardando dist." => AguardandoDist,
         _ => null
     };

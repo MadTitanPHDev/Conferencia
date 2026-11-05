@@ -1,3 +1,5 @@
+using ConferenciaNFs.Infrastructure;
+
 namespace ConferenciaNFs.Models;
 
 /// <summary>
@@ -32,6 +34,7 @@ public sealed class ItemEanPesquisaResultado
     public decimal ValorNota { get; set; }
     public string NomeForn { get; set; } = string.Empty;
     public string StatusConferencia { get; set; } = string.Empty;
+    public string DevolucaoItemRotulo { get; set; } = DevolucaoItemPesquisa.Nao;
 
     public string StatusRotulo => string.IsNullOrWhiteSpace(StatusConferencia)
         ? "—"

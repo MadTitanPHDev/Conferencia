@@ -64,7 +64,13 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
     public ICommand LimparFiltroCommand { get; }
     public ICommand CopiarEanCommand { get; }
 
-    public DivergenciaLinha? LinhaSelecionada { get; set; }
+    private DivergenciaLinha? _linhaSelecionada;
+
+    public DivergenciaLinha? LinhaSelecionada
+    {
+        get => _linhaSelecionada;
+        set => SetProperty(ref _linhaSelecionada, value);
+    }
 
     public bool Confirmou => _confirmou;
     public string PessoaDestino { get; private set; } = string.Empty;
@@ -311,7 +317,7 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
             OnPropertyChanged(nameof(TextoRemetente));
             OnPropertyChanged(nameof(TextoDistribuidora));
 
-            LinhasView.Refresh();
+            await PreencherComparacaoPedidoAsync(foto);
             OnPropertyChanged(nameof(TextoResumo));
             NotificarFiltro();
 
@@ -347,6 +353,46 @@ public sealed class DivergenciaPreNotaViewModel : ViewModelBase
         {
             IsCarregando = false;
         }
+    }
+
+    private async Task PreencherComparacaoPedidoAsync(IReadOnlyList<ItemNotaSnapshot> foto)
+    {
+        var porProduto = new Dictionary<int, ComparacaoProdutoPedido>();
+        var codCompra = _nota.CodCompra ?? foto.Select(i => i.CodCompra ?? 0).FirstOrDefault(c => c > 0);
+
+        if (_reader is not null && codCompra > 0)
+        {
+            try
+            {
+                var comparacoes = await _reader.ListarComparacaoPedidosAsync(codCompra);
+                foreach (var item in comparacoes)
+                    porProduto[item.CodProd] = item;
+            }
+            catch
+            {
+                // Sem o VSM, a linha ainda mostra o desconto gravado na foto da nota.
+            }
+        }
+
+        foreach (var linha in Linhas)
+        {
+            if (!porProduto.TryGetValue(linha.CodProd, out var comparacao))
+            {
+                comparacao = new ComparacaoProdutoPedido
+                {
+                    CodProd = linha.CodProd,
+                    QtdNota = linha.QuantidadeNota,
+                    ValorItem = linha.Item.ValorItemCompra,
+                    DescontoNota = linha.Item.Desconto,
+                    PrecoUnitarioNota = linha.CustoNota
+                };
+            }
+
+            linha.DefinirComparacaoPedido(ComparacaoPedidoNota.Exibir(comparacao));
+        }
+
+        if (LinhaSelecionada is null)
+            LinhaSelecionada = Linhas.FirstOrDefault();
     }
 
     private void OnLinhaPropertyChanged(object? sender, PropertyChangedEventArgs e)

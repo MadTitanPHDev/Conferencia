@@ -33,6 +33,7 @@ public sealed class VsmComprasReader
                 c.CNPJFORN       AS CnpjForn,
                 c.VALORNOTA      AS ValorNota,
                 c.STATUS         AS Status,
+                COALESCE(c.REABERTA, '') AS Reaberta,
                 c.NFECHAVEACESSO AS NfeChaveAcesso,
                 c.SERIENOTA      AS SerieNota
             FROM compras c
@@ -177,6 +178,81 @@ public sealed class VsmComprasReader
         return registros.AsList();
     }
 
+    /// <summary>
+    /// Pedidos da mesma loja na data de emissão ou de entrada, só com produtos desta nota.
+    /// </summary>
+    public async Task<IReadOnlyList<ComparacaoProdutoPedido>> ListarComparacaoPedidosAsync(
+        int codCompra,
+        CancellationToken cancellationToken = default)
+    {
+        if (codCompra <= 0)
+            return [];
+
+        const string sql = """
+            SELECT
+                i.CODPROD AS CodProd,
+                SUM(i.QUANTITEMCOMPRA) AS QtdNota,
+                SUM(i.VALORITEMCOMPRA) AS ValorItem,
+                SUM(i.DESCONTO) AS DescontoNota,
+                CASE
+                    WHEN SUM(i.QUANTITEMCOMPRA) = 0 THEN 0
+                    ELSE SUM(i.CUSTOUNIT * i.QUANTITEMCOMPRA) / SUM(i.QUANTITEMCOMPRA)
+                END AS PrecoUnitarioNota,
+                COALESCE(ped.QtdAtendida, 0) AS QtdAtendida,
+                COALESCE(ped.QtdPedida, 0) AS QtdPedida,
+                COALESCE(ped.PrecoUnitarioPedido, 0) AS PrecoUnitarioPedido,
+                COALESCE(ped.DescontoPedido, 0) AS DescontoPedido,
+                CASE WHEN ped.CodProd IS NULL THEN 0 ELSE 1 END AS TemPedidoNumero
+            FROM itens_compra i
+            INNER JOIN compras c ON c.CODCOMPRA = i.CODCOMPRA
+            LEFT JOIN (
+                SELECT
+                    pi.CODPROD AS CodProd,
+                    SUM(COALESCE(pi.QUANTATEND, 0)) AS QtdAtendida,
+                    SUM(COALESCE(pi.QUANTPED, 0)) AS QtdPedida,
+                    CASE
+                        WHEN SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0)) = 0
+                            THEN AVG(COALESCE(pi.VALORUNIT, 0))
+                        ELSE SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0) * COALESCE(pi.VALORUNIT, 0))
+                             / SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0))
+                    END AS PrecoUnitarioPedido,
+                    CASE
+                        WHEN SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0)) = 0
+                            THEN AVG(COALESCE(pi.PERCDESCFORN, 0))
+                        ELSE SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0) * COALESCE(pi.PERCDESCFORN, 0))
+                             / SUM(COALESCE(pi.QUANTATEND, pi.QUANTPED, 0))
+                    END AS DescontoPedido
+                FROM compras c2
+                INNER JOIN pedido p
+                    ON p.CODLOJA = c2.CODLOJA
+                   AND p.DATAPEDIDO IN (c2.DATAEMISSAO, c2.DATACOMPRA)
+                INNER JOIN pedidoitens pi ON pi.IDPEDIDO = p.IDPEDIDO
+                WHERE c2.CODCOMPRA = @CodCompra
+                  AND EXISTS (
+                      SELECT 1
+                      FROM itens_compra ix
+                      WHERE ix.CODCOMPRA = c2.CODCOMPRA
+                        AND ix.CODPROD = pi.CODPROD
+                  )
+                GROUP BY pi.CODPROD
+            ) ped ON ped.CodProd = i.CODPROD
+            WHERE i.CODCOMPRA = @CodCompra
+            GROUP BY i.CODPROD, ped.CodProd, ped.QtdAtendida, ped.QtdPedida,
+                     ped.PrecoUnitarioPedido, ped.DescontoPedido
+            """;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var registros = await connection.QueryAsync<ComparacaoProdutoPedido>(new CommandDefinition(
+            sql,
+            new { CodCompra = codCompra },
+            commandTimeout: 60,
+            cancellationToken: cancellationToken));
+
+        return registros.AsList();
+    }
+
     public const int LimiteBuscaEan = 400;
 
     private static readonly string SqlCustoEntrada = $"""
@@ -193,6 +269,7 @@ public sealed class VsmComprasReader
         string ean,
         DateTime dataInicio,
         decimal? custoMinimo,
+        DateTime? dataFim = null,
         CancellationToken cancellationToken = default)
     {
         var eanNormalizado = NormalizarEan(ean);
@@ -216,6 +293,7 @@ public sealed class VsmComprasReader
             INNER JOIN compras c ON c.CODCOMPRA = i.CODCOMPRA
             WHERE (i.BARRAS_EAN = @Ean OR i.BARRAS_EANTRIB = @Ean)
               AND c.DATACOMPRA >= @DataInicio
+              AND (@DataFim IS NULL OR c.DATACOMPRA < @DataFim)
               AND (@CustoMinimo IS NULL OR {SqlCustoEntrada} > @CustoMinimo)
             ORDER BY c.DATACOMPRA DESC, i.CODCOMPRA DESC
             LIMIT @Limite
@@ -230,6 +308,7 @@ public sealed class VsmComprasReader
             {
                 Ean = eanNormalizado,
                 DataInicio = dataInicio.Date,
+                DataFim = dataFim?.Date.AddDays(1),
                 CustoMinimo = custoMinimo,
                 Limite = LimiteBuscaEan
             },
@@ -237,6 +316,40 @@ public sealed class VsmComprasReader
             cancellationToken: cancellationToken));
 
         return registros.AsList();
+    }
+
+    public async Task<IReadOnlyDictionary<int, (string Status, string Reaberta)>> ListarSituacaoPorCodCompraAsync(
+        IReadOnlyCollection<int> codigos,
+        CancellationToken cancellationToken = default)
+    {
+        var distintos = codigos.Where(c => c > 0).Distinct().ToArray();
+        if (distintos.Length == 0)
+            return new Dictionary<int, (string, string)>();
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var mapa = new Dictionary<int, (string Status, string Reaberta)>();
+        foreach (var lote in distintos.Chunk(400))
+        {
+            var linhas = await connection.QueryAsync<(int CodCompra, string? Status, string? Reaberta)>(
+                new CommandDefinition(
+                    """
+                    SELECT CODCOMPRA AS CodCompra,
+                           COALESCE(STATUS, '') AS Status,
+                           COALESCE(REABERTA, '') AS Reaberta
+                    FROM compras
+                    WHERE CODCOMPRA IN @Codigos
+                    """,
+                    new { Codigos = lote },
+                    commandTimeout: 60,
+                    cancellationToken: cancellationToken));
+
+            foreach (var linha in linhas)
+                mapa[linha.CodCompra] = (linha.Status?.Trim() ?? string.Empty, linha.Reaberta?.Trim() ?? string.Empty);
+        }
+
+        return mapa;
     }
 
     public static string NormalizarEan(string? ean)

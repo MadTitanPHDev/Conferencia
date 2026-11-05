@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using ConferenciaNFs.Infrastructure;
 
 namespace ConferenciaNFs.Models;
 
@@ -24,6 +25,9 @@ public class NotaFiscal : INotifyPropertyChanged
     public int? CodCompra { get; set; }
     public string NfeChaveAcesso { get; set; } = string.Empty;
     public string OrigemStatus { get; set; } = OrigemStatusValues.Sistema;
+    public string StatusVsm { get; set; } = string.Empty;
+    public string ReabertaVsm { get; set; } = string.Empty;
+    public string SituacaoVsmRotulo => StatusCompraVsm.Rotulo(StatusVsm, ReabertaVsm);
     public long? StatusHerdadoDeNotaFiscalId { get; set; }
     public DateTime? StatusAtualizadoEm { get; set; }
     public string StatusAtualizadoPor { get; set; } = string.Empty;

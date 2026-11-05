@@ -134,6 +134,7 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
                 MostrarConcluidas,
                 verTodas ? null : eu.Id,
                 verTodas && DevolvidasPeloComprador);
+            await AtualizarSituacaoVsmAsync(lista);
             var idAntes = Selecionada?.Id;
             Pendencias.Clear();
             foreach (var item in lista)
@@ -265,5 +266,30 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
     {
         ((AsyncRelayCommand)AbrirItensCommand).RaiseCanExecuteChanged();
         ((RelayCommand)CopiarNumeroCommand).RaiseCanExecuteChanged();
+    }
+
+    private async Task AtualizarSituacaoVsmAsync(IReadOnlyList<PendenciaCompraResumo> lista)
+    {
+        if (_reader is null || lista.Count == 0)
+            return;
+
+        try
+        {
+            var mapa = await _reader.ListarSituacaoPorCodCompraAsync(lista.Select(p => p.CodCompra).ToArray());
+            foreach (var item in lista)
+            {
+                if (!mapa.TryGetValue(item.CodCompra, out var atual))
+                    continue;
+
+                item.StatusVsm = atual.Status;
+                item.ReabertaVsm = atual.Reaberta;
+            }
+
+            await _repository.GravarSituacaoVsmAsync(mapa);
+        }
+        catch
+        {
+            // A grade fica com o status gravado na ultima sincronizacao.
+        }
     }
 }

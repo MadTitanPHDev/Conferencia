@@ -5,7 +5,7 @@
         xmlns:infra="clr-namespace:ConferenciaNFs.Infrastructure"
         Title="Pesquisar produto"
         Height="720"
-        Width="1180"
+        Width="1280"
         MinHeight="520"
         MinWidth="800"
         Icon="pack://application:,,,/Assets/app.ico"
@@ -107,10 +107,56 @@
                     <TextBlock Text="A partir de" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
                     <DatePicker SelectedDate="{Binding DataInicio, Mode=TwoWay}"
                                 Language="pt-BR"
-                                Width="150"
+                                Width="140"
                                 VerticalAlignment="Center"
                                 infra:CalendarRange.Start="{Binding DataInicio}"
-                                infra:CalendarRange.End="{Binding DataInicio}"/>
+                                infra:CalendarRange.End="{Binding DataFim}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
+                    <TextBlock Text="Ate" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding DataFim, Mode=TwoWay}"
+                                Language="pt-BR"
+                                Width="140"
+                                VerticalAlignment="Center"
+                                infra:CalendarRange.Start="{Binding DataInicio}"
+                                infra:CalendarRange.End="{Binding DataFim}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
+                    <TextBlock Text="Loja" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                    <ComboBox Width="160"
+                              ItemsSource="{Binding LojaOpcoes}"
+                              SelectedItem="{Binding LojaSelecionada}"
+                              DisplayMemberPath="Rotulo"
+                              Style="{StaticResource ModernComboBoxStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
+                    <TextBlock Text="Distribuidora" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                    <ComboBox Width="200"
+                              ItemsSource="{Binding DistribuidoraOpcoes}"
+                              SelectedItem="{Binding DistribuidoraSelecionada}"
+                              DisplayMemberPath="Rotulo"
+                              Style="{StaticResource ModernComboBoxStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
+                    <TextBlock Text="Status" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                    <ComboBox Width="200"
+                              ItemsSource="{Binding StatusOpcoes}"
+                              SelectedItem="{Binding StatusSelecionado}"
+                              DisplayMemberPath="Rotulo"
+                              Style="{StaticResource ModernComboBoxStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
+                    <TextBlock Text="Devolvido" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,4"/>
+                    <ComboBox Width="130"
+                              ItemsSource="{Binding DevolucaoOpcoes}"
+                              SelectedItem="{Binding DevolucaoSelecionada}"
+                              DisplayMemberPath="Rotulo"
+                              Style="{StaticResource ModernComboBoxStyle}"/>
                 </StackPanel>
 
                 <StackPanel Margin="0,4,16,4" VerticalAlignment="Center">
@@ -189,6 +235,10 @@
                                         Binding="{Binding Loja}"
                                         Width="120"
                                         ElementStyle="{StaticResource PesquisaEanCellTextoStyle}"/>
+                    <DataGridTextColumn Header="Distribuidora"
+                                        Binding="{Binding NomeForn}"
+                                        Width="160"
+                                        ElementStyle="{StaticResource PesquisaEanCellTextoStyle}"/>
                     <DataGridTextColumn Header="Nota"
                                         Binding="{Binding NumNota}"
                                         Width="90"
@@ -218,6 +268,10 @@
                                         Binding="{Binding StatusRotulo}"
                                         Width="110"
                                         ElementStyle="{StaticResource PesquisaEanCellTextoStyle}"/>
+                    <DataGridTextColumn Header="Devolvido"
+                                        Binding="{Binding DevolucaoItemRotulo}"
+                                        Width="110"
+                                        ElementStyle="{StaticResource PesquisaEanCellTextoStyle}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
@@ -238,6 +292,6 @@
                    FontSize="12"
                    Foreground="{DynamicResource Brush.TextSecondary}"
                    TextWrapping="Wrap"
-                   Text="Duplo clique ou Ctrl+C copia o numero da nota. Botao direito: copiar ou abrir itens. O custo minimo e opcional."/>
+                   Text="Duplo clique ou Ctrl+C copia o numero da nota. Botao direito: copiar ou abrir itens. Devolvido vale para o produto buscado."/>
     </Grid>
 </Window>

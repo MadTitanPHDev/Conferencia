@@ -56,6 +56,57 @@ public class StatusHerancaImportacaoTests
     {
         Assert.Equal(esperado, StatusHerancaImportacao.TemStatusConferido(status));
     }
+
+    [Fact]
+    public void Repintura_AmareloHerdadoDeVerde_ViraLaranja()
+    {
+        var (herdado, _) = StatusHerancaImportacao.Calcular(
+            StatusConferenciaValues.Verde,
+            "ok",
+            devolucaoJaRegistrada: false);
+
+        Assert.True(StatusHerancaImportacao.DeveRepintarAmareloAutomatico(
+            StatusConferenciaValues.Amarelo,
+            OrigemStatusValues.Herdado,
+            herdado));
+    }
+
+    [Fact]
+    public void Repintura_AmareloNaMao_PermaneceAmarelo()
+    {
+        Assert.False(StatusHerancaImportacao.DeveRepintarAmareloAutomatico(
+            StatusConferenciaValues.Amarelo,
+            OrigemStatusValues.Manual,
+            StatusConferenciaValues.Laranja));
+    }
+
+    [Fact]
+    public void Repintura_DiaAnteriorAindaAmarelo_PermaneceAmarelo()
+    {
+        var (herdado, _) = StatusHerancaImportacao.Calcular(
+            StatusConferenciaValues.Amarelo,
+            string.Empty,
+            devolucaoJaRegistrada: false);
+
+        Assert.False(StatusHerancaImportacao.DeveRepintarAmareloAutomatico(
+            StatusConferenciaValues.Amarelo,
+            OrigemStatusValues.Herdado,
+            herdado));
+    }
+
+    [Fact]
+    public void Repintura_VermelhoSemDevolucao_NaoTrocaAmareloPorVermelho()
+    {
+        var (herdado, _) = StatusHerancaImportacao.Calcular(
+            StatusConferenciaValues.Vermelho,
+            string.Empty,
+            devolucaoJaRegistrada: false);
+
+        Assert.False(StatusHerancaImportacao.DeveRepintarAmareloAutomatico(
+            StatusConferenciaValues.Amarelo,
+            OrigemStatusValues.Herdado,
+            herdado));
+    }
 }
 
 public class OrigemStatusValuesTests

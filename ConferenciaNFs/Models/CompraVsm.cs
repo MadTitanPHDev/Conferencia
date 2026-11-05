@@ -15,6 +15,7 @@ public sealed class CompraVsm
     public string? NomeForn { get; set; }
     public decimal ValorNota { get; set; }
     public string? Status { get; set; }
+    public string? Reaberta { get; set; }
     public string? NfeChaveAcesso { get; set; }
     public string? SerieNota { get; set; }
 }

@@ -450,11 +450,13 @@ public sealed class ConferenciaViewModel : ViewModelBase
         {
             if (novoStatus == StatusConferenciaValues.Vermelho)
             {
-                if (!await ConfirmarPreNotaAsync())
+                var janelaPreNota = AbrirPreNotaDevolucao();
+                if (janelaPreNota is null || !janelaPreNota.Confirmou)
                     return;
                 NotaSelecionada.StatusConferencia = novoStatus;
                 NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
                 LimparPendenciaNaTela(NotaSelecionada);
+                AplicarRepinturaNaTela(janelaPreNota.NotasRepintadas);
                 var copiasVermelho = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
                 MensagemStatus = MensagemStatusComCopias(
                     $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).",
@@ -470,11 +472,12 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 return;
             }
 
-            await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
+            var repintadas = await _repository.AtualizarStatusConferenciaAsync(NotaSelecionada.Id, novoStatus);
             NotaSelecionada.StatusConferencia = novoStatus;
             NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
             if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(novoStatus))
                 LimparPendenciaNaTela(NotaSelecionada);
+            AplicarRepinturaNaTela(repintadas);
             var copias = await ReplicarStatusNasCopiasAsync(NotaSelecionada, statusAnterior, novoStatus);
             MensagemStatus = MensagemStatusComCopias(
                 $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.",
@@ -562,10 +565,10 @@ public sealed class ConferenciaViewModel : ViewModelBase
         return true;
     }
 
-    private async Task<bool> ConfirmarPreNotaAsync()
+    private PreNotaWindow? AbrirPreNotaDevolucao()
     {
         if (NotaSelecionada is null)
-            return false;
+            return null;
 
         var janela = new PreNotaWindow(_repository, _vsmReader, NotaSelecionada)
         {
@@ -573,7 +576,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 ?? Application.Current.MainWindow
         };
 
-        return janela.ShowDialog() == true && janela.Confirmou;
+        return janela.ShowDialog() == true && janela.Confirmou ? janela : null;
     }
 
     private async Task TentarFotografarItensAsync()
@@ -652,12 +655,13 @@ public sealed class ConferenciaViewModel : ViewModelBase
 
             if (!jaEstaVerde)
             {
-                await _repository.AtualizarStatusConferenciaAsync(
+                var repintadas = await _repository.AtualizarStatusConferenciaAsync(
                     NotaSelecionada.Id,
                     StatusConferenciaValues.Verde);
                 NotaSelecionada.StatusConferencia = StatusConferenciaValues.Verde;
                 NotaSelecionada.OrigemStatus = OrigemStatusValues.Manual;
                 LimparPendenciaNaTela(NotaSelecionada);
+                AplicarRepinturaNaTela(repintadas);
                 await ReplicarStatusNasCopiasAsync(
                     NotaSelecionada,
                     statusAnterior,
@@ -734,19 +738,42 @@ public sealed class ConferenciaViewModel : ViewModelBase
                         && string.Equals(
                             n.StatusConferencia,
                             statusAnterior,
-                            StringComparison.OrdinalIgnoreCase))
+                            StringComparison.OrdinalIgnoreCase)
+                        && DataCompraParser.CompararAscendente(n.DiaConferencia, origem.DiaConferencia) <= 0)
             .ToList();
 
         foreach (var copia in copias)
         {
-            await _repository.AtualizarStatusConferenciaAsync(copia.Id, novoStatus);
+            var repintadas = await _repository.AtualizarStatusConferenciaAsync(copia.Id, novoStatus);
             copia.StatusConferencia = novoStatus;
             copia.OrigemStatus = OrigemStatusValues.Manual;
             if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(novoStatus))
                 LimparPendenciaNaTela(copia);
+            AplicarRepinturaNaTela(repintadas);
         }
 
         return copias.Count;
+    }
+
+    private void AplicarRepinturaNaTela(IReadOnlyList<long>? ids)
+    {
+        if (ids is null || ids.Count == 0)
+            return;
+
+        var marcadas = ids.ToHashSet();
+        foreach (var nota in Notas)
+        {
+            if (!marcadas.Contains(nota.Id))
+                continue;
+
+            nota.StatusConferencia = StatusConferenciaValues.Laranja;
+            nota.OrigemStatus = OrigemStatusValues.Herdado;
+            nota.DestinoPendencia = string.Empty;
+            nota.EnviadoPorPendencia = string.Empty;
+            nota.ItensPendencia = string.Empty;
+        }
+
+        OnPropertyChanged(nameof(TextoPendenciaSelecionada));
     }
 
     private void LimparPendenciaNaTela(NotaFiscal origem)

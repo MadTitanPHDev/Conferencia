@@ -1139,7 +1139,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     {
         ConferenciaAtual = null;
         PendenciasAtual = null;
-        DevolucoesAtual = new DevolucoesViewModel(_repository)
+        DevolucoesAtual = new DevolucoesViewModel(_repository, reader: _syncVsm?.Reader)
         {
             AoFechar = () => VoltarHoje()
         };
@@ -1238,7 +1238,8 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         DevolucoesAtual = new DevolucoesViewModel(
             _repository,
             resultado.DevolucaoId,
-            resultado.Id)
+            resultado.Id,
+            _syncVsm?.Reader)
         {
             AoFechar = () => VoltarHoje()
         };

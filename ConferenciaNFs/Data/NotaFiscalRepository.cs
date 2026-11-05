@@ -179,6 +179,7 @@ public sealed partial class NotaFiscalRepository
         AplicarLimpezaDevolucoesAnterioresAoCorte(connection);
         InicializarTabelaPrecos(connection);
         CorrigirNotasLojasVsm2a5(connection);
+        AplicarRepinturaAmareloHerdadoExistente(connection);
     }
 
     /// <summary>
@@ -209,6 +210,7 @@ public sealed partial class NotaFiscalRepository
     private const string ConfigHerancaStatusImportacao = "HerancaStatusImportacao";
     private const string ConfigMigracaoOrigemStatus = "MigracaoOrigemStatus_2026-10-21";
     private const string ConfigCorrecaoLojasVsm2a5 = "CorrecaoLojasVsm2a5";
+    private const string ConfigRepinturaAmareloHerdado = "RepinturaAmareloHerdado_2026-11-05";
     private const string ValorCorrecaoLojasVsm2a5 = "1";
     private const string PrefixoCorrecaoLojasVsm2a5 = "__FIX2A5__";
 
@@ -275,6 +277,10 @@ public sealed partial class NotaFiscalRepository
                 ADD COLUMN IF NOT EXISTS StatusAtualizadoEm TIMESTAMPTZ NOT NULL DEFAULT NOW();
             ALTER TABLE NotasFiscais
                 ADD COLUMN IF NOT EXISTS StatusAtualizadoPor TEXT NOT NULL DEFAULT '';
+            ALTER TABLE NotasFiscais
+                ADD COLUMN IF NOT EXISTS StatusVsm TEXT NOT NULL DEFAULT '';
+            ALTER TABLE NotasFiscais
+                ADD COLUMN IF NOT EXISTS ReabertaVsm TEXT NOT NULL DEFAULT '';
 
             CREATE INDEX IF NOT EXISTS IX_NotasFiscais_StatusHerdadoDe
                 ON NotasFiscais (StatusHerdadoDeNotaFiscalId);
@@ -1253,12 +1259,14 @@ public sealed partial class NotaFiscalRepository
                 ApelidoLoja, NumNota, NomeForn, CnpjForn,
                 ValorNota, DataCompra, DataEmissao, DiaConferencia, ChaveUnica,
                 StatusConferencia, Observacao, CodCompra, NfeChaveAcesso,
-                OrigemStatus, StatusHerdadoDeNotaFiscalId, StatusAtualizadoPor
+                OrigemStatus, StatusHerdadoDeNotaFiscalId, StatusAtualizadoPor,
+                StatusVsm, ReabertaVsm
             ) VALUES (
                 @ApelidoLoja, @NumNota, @NomeForn, @CnpjForn,
                 @ValorNota, @DataCompra, @DataEmissao, @DiaConferencia, @ChaveUnica,
                 @StatusConferencia, @Observacao, @CodCompra, @NfeChaveAcesso,
-                @OrigemStatus, @StatusHerdadoDeNotaFiscalId, @StatusAtualizadoPor
+                @OrigemStatus, @StatusHerdadoDeNotaFiscalId, @StatusAtualizadoPor,
+                @StatusVsm, @ReabertaVsm
             )
             ON CONFLICT (ChaveUnica) DO UPDATE SET
                 ApelidoLoja = EXCLUDED.ApelidoLoja,
@@ -1275,6 +1283,8 @@ public sealed partial class NotaFiscalRepository
                 DiaConferencia = EXCLUDED.DiaConferencia,
                 CodCompra = EXCLUDED.CodCompra,
                 NfeChaveAcesso = EXCLUDED.NfeChaveAcesso,
+                StatusVsm = EXCLUDED.StatusVsm,
+                ReabertaVsm = EXCLUDED.ReabertaVsm,
                 DataEmissao = CASE
                     WHEN EXCLUDED.DataEmissao <> '' THEN EXCLUDED.DataEmissao
                     ELSE NotasFiscais.DataEmissao
@@ -1334,6 +1344,8 @@ public sealed partial class NotaFiscalRepository
                 Observacao = string.Empty,
                 CodCompra = compra.CodCompra,
                 NfeChaveAcesso = compra.NfeChaveAcesso?.Trim() ?? string.Empty,
+                StatusVsm = compra.Status?.Trim() ?? string.Empty,
+                ReabertaVsm = compra.Reaberta?.Trim() ?? string.Empty,
                 OrigemStatus = OrigemStatusValues.Sistema,
                 StatusAtualizadoPor = "Sincronizacao VSM"
             };
@@ -1389,6 +1401,21 @@ public sealed partial class NotaFiscalRepository
             }
 
             await connection.ExecuteAsync(sql, nota, transaction);
+
+            if (nota.CodCompra is int codCompra && codCompra > 0)
+            {
+                await connection.ExecuteAsync("""
+                    UPDATE NotasFiscais
+                    SET StatusVsm = @StatusVsm,
+                        ReabertaVsm = @ReabertaVsm
+                    WHERE CodCompra = @CodCompra
+                    """, new
+                {
+                    nota.StatusVsm,
+                    nota.ReabertaVsm,
+                    CodCompra = codCompra
+                }, transaction);
+            }
 
             if (herancaAtiva
                 && jaExistia
@@ -1954,6 +1981,154 @@ public sealed partial class NotaFiscalRepository
         return (calculado.Status, calculado.Observacao, ultima.Id);
     }
 
+    /// <summary>
+    /// Pinta de laranja o amarelo automático de um dia seguinte quando o dia
+    /// anterior mais recente já está resolvido. Não altera DiaConferencia,
+    /// não apaga linha e não mexe em amarelo definido na mão.
+    /// </summary>
+    private static List<long> RepintarAmarelosAutomaticos(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        long? notaResolvidaId)
+    {
+        var candidatos = (notaResolvidaId is long origemId
+            ? connection.Query<NotaFiscal>(new CommandDefinition(
+                $"""
+                SELECT
+                    n2.Id,
+                    n2.ApelidoLoja,
+                    n2.NumNota,
+                    n2.CnpjForn,
+                    n2.DiaConferencia,
+                    n2.StatusConferencia,
+                    n2.OrigemStatus,
+                    n2.CodCompra,
+                    COALESCE(n2.NfeChaveAcesso, '') AS NfeChaveAcesso
+                FROM NotasFiscais n
+                INNER JOIN NotasFiscais n2 ON {SqlMesmaIdentidadeNotas}
+                WHERE n.Id = @NotaFiscalId
+                  AND n2.Id <> n.Id
+                  AND n2.StatusConferencia = @Amarelo
+                  AND n2.OrigemStatus <> @Manual
+                """,
+                new
+                {
+                    NotaFiscalId = origemId,
+                    Amarelo = StatusConferenciaValues.Amarelo,
+                    Manual = OrigemStatusValues.Manual
+                },
+                transaction))
+            : connection.Query<NotaFiscal>(new CommandDefinition(
+                """
+                SELECT
+                    Id,
+                    ApelidoLoja,
+                    NumNota,
+                    CnpjForn,
+                    DiaConferencia,
+                    StatusConferencia,
+                    OrigemStatus,
+                    CodCompra,
+                    COALESCE(NfeChaveAcesso, '') AS NfeChaveAcesso
+                FROM NotasFiscais
+                WHERE StatusConferencia = @Amarelo
+                  AND OrigemStatus <> @Manual
+                  AND TRIM(COALESCE(DiaConferencia, '')) <> ''
+                """,
+                new
+                {
+                    Amarelo = StatusConferenciaValues.Amarelo,
+                    Manual = OrigemStatusValues.Manual
+                },
+                transaction)))
+            .ToList();
+
+            if (notaResolvidaId is long idOrigem)
+            {
+                var diaOrigem = connection.QuerySingleOrDefault<string>(new CommandDefinition(
+                    "SELECT DiaConferencia FROM NotasFiscais WHERE Id = @Id",
+                    new { Id = idOrigem },
+                    transaction));
+                if (string.IsNullOrWhiteSpace(diaOrigem))
+                    return [];
+
+                candidatos = candidatos
+                    .Where(n => DataCompraParser.CompararAscendente(diaOrigem, n.DiaConferencia) < 0)
+                    .ToList();
+            }
+
+        candidatos.Sort((a, b) => DataCompraParser.CompararAscendente(a.DiaConferencia, b.DiaConferencia));
+
+        var repintadas = new List<long>();
+        foreach (var nota in candidatos)
+        {
+            var heranca = TentarResolverHerancaImportacao(
+                connection,
+                transaction,
+                nota.ApelidoLoja,
+                nota.NumNota,
+                nota.CnpjForn,
+                nota.DiaConferencia,
+                nota.NfeChaveAcesso,
+                nota.CodCompra);
+
+            if (!StatusHerancaImportacao.DeveRepintarAmareloAutomatico(
+                    nota.StatusConferencia,
+                    nota.OrigemStatus,
+                    heranca?.Status))
+                continue;
+
+            var atualizadas = connection.Execute(new CommandDefinition(
+                """
+                UPDATE NotasFiscais
+                SET StatusConferencia = @Laranja,
+                    OrigemStatus = @Herdado,
+                    StatusHerdadoDeNotaFiscalId = @FonteId,
+                    StatusAtualizadoPor = @AtualizadoPor
+                WHERE Id = @Id
+                  AND DiaConferencia = @DiaConferencia
+                  AND StatusConferencia = @Amarelo
+                  AND OrigemStatus <> @Manual
+                """,
+                new
+                {
+                    nota.Id,
+                    nota.DiaConferencia,
+                    Laranja = StatusConferenciaValues.Laranja,
+                    Herdado = OrigemStatusValues.Herdado,
+                    FonteId = heranca!.Value.FonteNotaFiscalId,
+                    AtualizadoPor = "Heranca apos resolucao",
+                    Amarelo = StatusConferenciaValues.Amarelo,
+                    Manual = OrigemStatusValues.Manual
+                },
+                transaction));
+
+            if (atualizadas > 0)
+                repintadas.Add(nota.Id);
+        }
+
+        return repintadas;
+    }
+
+    private static void AplicarRepinturaAmareloHerdadoExistente(NpgsqlConnection connection)
+    {
+        var jaAplicou = connection.ExecuteScalar<string?>(
+            "SELECT Valor FROM AppConfig WHERE Chave = @Chave",
+            new { Chave = ConfigRepinturaAmareloHerdado });
+
+        if (string.Equals(jaAplicou?.Trim(), "1", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        using var transaction = connection.BeginTransaction();
+        RepintarAmarelosAutomaticos(connection, transaction, notaResolvidaId: null);
+        connection.Execute("""
+            INSERT INTO AppConfig (Chave, Valor)
+            VALUES (@Chave, '1')
+            ON CONFLICT (Chave) DO UPDATE SET Valor = EXCLUDED.Valor
+            """, new { Chave = ConfigRepinturaAmareloHerdado }, transaction);
+        transaction.Commit();
+    }
+
     private static async Task SincronizarDistribuidorasAsync(
         NpgsqlConnection connection,
         IReadOnlyList<NotaFiscal> registros,
@@ -2271,6 +2446,33 @@ public sealed partial class NotaFiscalRepository
             l => (l.ApelidoLoja, l.NomeForn, l.StatusConferencia));
     }
 
+    public async Task<IReadOnlyList<ItemDevolucaoConsulta>> ObterItensDevolucaoPorCodCompraAsync(
+        IReadOnlyCollection<int> codCompras,
+        CancellationToken cancellationToken = default)
+    {
+        var codigos = codCompras.Where(c => c > 0).Distinct().ToArray();
+        if (codigos.Length == 0)
+            return [];
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.QueryAsync<ItemDevolucaoConsulta>(new CommandDefinition("""
+            SELECT
+                n.CodCompra,
+                i.CodProd,
+                COALESCE(i.BarrasEan, '') AS BarrasEan,
+                d.StatusDevolucao
+            FROM DevolucaoItens i
+            INNER JOIN Devolucoes d ON d.Id = i.DevolucaoId
+            INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
+            WHERE n.CodCompra = ANY(@CodCompras)
+            """, new { CodCompras = codigos },
+            cancellationToken: cancellationToken));
+
+        return linhas.AsList();
+    }
+
     public Task<IReadOnlyList<NotaFiscal>> ObterNotasPorLojaAsync(
         string apelidoLoja,
         string dataCompra,
@@ -2536,7 +2738,39 @@ public sealed partial class NotaFiscalRepository
         return removidas;
     }
 
-    public async Task AtualizarStatusConferenciaAsync(
+    public async Task GravarSituacaoVsmAsync(
+        IReadOnlyDictionary<int, (string Status, string Reaberta)> situacoes,
+        CancellationToken cancellationToken = default)
+    {
+        if (situacoes.Count == 0)
+            return;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        foreach (var item in situacoes)
+        {
+            if (item.Key <= 0)
+                continue;
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE NotasFiscais
+                SET StatusVsm = @StatusVsm,
+                    ReabertaVsm = @ReabertaVsm
+                WHERE CodCompra = @CodCompra
+                """,
+                new
+                {
+                    CodCompra = item.Key,
+                    StatusVsm = item.Value.Status ?? string.Empty,
+                    ReabertaVsm = item.Value.Reaberta ?? string.Empty
+                },
+                cancellationToken: cancellationToken));
+        }
+    }
+
+    public async Task<IReadOnlyList<long>> AtualizarStatusConferenciaAsync(
         long id,
         string status,
         CancellationToken cancellationToken = default)
@@ -2594,7 +2828,9 @@ public sealed partial class NotaFiscalRepository
         if (PendenciaAcompanhaStatus.DeveEncerrarAbertas(status))
             await CancelarPendenciasAbertasDaIdentidadeAsync(connection, transaction, id, cancellationToken);
 
+        var repintadas = RepintarAmarelosAutomaticos(connection, transaction, id);
         await transaction.CommitAsync(cancellationToken);
+        return repintadas;
     }
 
     private static bool FilaAceitaNovosRegistros(DateTime? dataMinima)
@@ -2680,6 +2916,9 @@ public sealed partial class NotaFiscalRepository
                 n.ValorNota,
                 n.DataEmissao,
                 n.DiaConferencia,
+                COALESCE(n.CodCompra, 0) AS CodCompra,
+                COALESCE(n.StatusVsm, '') AS StatusVsm,
+                COALESCE(n.ReabertaVsm, '') AS ReabertaVsm,
                 d.StatusDevolucao,
                 COALESCE(NULLIF(TRIM(d.Andamento), ''), 'AguardandoLoja') AS Andamento,
                 d.DataMarcada,

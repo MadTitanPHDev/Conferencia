@@ -250,7 +250,7 @@ public sealed partial class NotaFiscalRepository
             cancellationToken: cancellationToken));
     }
 
-    public async Task ConfirmarPreNotaAsync(
+    public async Task<IReadOnlyList<long>> ConfirmarPreNotaAsync(
         long notaFiscalId,
         IReadOnlyList<DevolucaoItemPreNota> itens,
         CancellationToken cancellationToken = default)
@@ -290,8 +290,9 @@ public sealed partial class NotaFiscalRepository
                 StatusAtualizadoPor = "Pre-nota"
             }, tx);
             await CancelarPendenciasAbertasDaIdentidadeAsync(connection, tx, notaFiscalId, cancellationToken);
+            var semFila = RepintarAmarelosAutomaticos(connection, tx, notaFiscalId);
             await tx.CommitAsync(cancellationToken);
-            return;
+            return semFila;
         }
 
         var notaDonaId = await connection.QuerySingleAsync<long>(
@@ -362,7 +363,9 @@ public sealed partial class NotaFiscalRepository
             tx);
 
         await CancelarPendenciasAbertasDaIdentidadeAsync(connection, tx, notaFiscalId, cancellationToken);
+        var repintadas = RepintarAmarelosAutomaticos(connection, tx, notaFiscalId);
         await tx.CommitAsync(cancellationToken);
+        return repintadas;
     }
 
     public async Task<IReadOnlyList<DevolucaoItemPreNota>> ObterItensPreNotaAsync(

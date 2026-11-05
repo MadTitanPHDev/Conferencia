@@ -64,6 +64,8 @@ public sealed class PreNotaViewModel : ViewModelBase
 
     public bool Confirmou => _confirmou;
 
+    public IReadOnlyList<long> NotasRepintadas { get; private set; } = [];
+
     public bool PodeEditar =>
         _modo == PreNotaModo.Criacao
         || (_modo == PreNotaModo.ConfirmacaoFila && _devolucao?.PodeConcluir == true);
@@ -386,7 +388,7 @@ public sealed class PreNotaViewModel : ViewModelBase
             }
             else
             {
-                await _repository.ConfirmarPreNotaAsync(_nota.Id, escolhidos);
+                NotasRepintadas = await _repository.ConfirmarPreNotaAsync(_nota.Id, escolhidos);
             }
 
             _confirmou = true;

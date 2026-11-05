@@ -13,6 +13,7 @@ namespace ConferenciaNFs.ViewModels;
 public sealed class DevolucoesViewModel : ViewModelBase
 {
     private readonly NotaFiscalRepository _repository;
+    private readonly VsmComprasReader? _reader;
     private readonly List<DevolucaoItem> _todas = [];
     private Dictionary<long, IReadOnlyList<DevolucaoItemPreNota>> _itensPorDevolucao = [];
     private DevolucoesPainel _painel = new();
@@ -31,9 +32,11 @@ public sealed class DevolucoesViewModel : ViewModelBase
     public DevolucoesViewModel(
         NotaFiscalRepository repository,
         long? destacarDevolucaoId = null,
-        long? destacarNotaFiscalId = null)
+        long? destacarNotaFiscalId = null,
+        VsmComprasReader? reader = null)
     {
         _repository = repository;
+        _reader = reader;
         _destacarDevolucaoId = destacarDevolucaoId;
         _destacarNotaFiscalId = destacarNotaFiscalId;
         Devolucoes = new ObservableCollection<DevolucaoItem>();
@@ -315,6 +318,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
             OnPropertyChanged(nameof(TextoPeriodoAtual));
 
             var lista = await _repository.ObterDevolucoesAsync();
+            await AtualizarSituacaoVsmAsync(lista);
             _todas.Clear();
             _todas.AddRange(lista);
             _itensPorDevolucao = (await _repository.ObterItensPreNotaPorDevolucoesAsync(
@@ -710,6 +714,31 @@ public sealed class DevolucoesViewModel : ViewModelBase
             MessageBox.Show($"Erro ao salvar andamento:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             SincronizarAndamentoCombo(Selecionada);
+        }
+    }
+
+    private async Task AtualizarSituacaoVsmAsync(IReadOnlyList<DevolucaoItem> lista)
+    {
+        if (_reader is null || lista.Count == 0)
+            return;
+
+        try
+        {
+            var mapa = await _reader.ListarSituacaoPorCodCompraAsync(lista.Select(d => d.CodCompra).ToArray());
+            foreach (var item in lista)
+            {
+                if (!mapa.TryGetValue(item.CodCompra, out var atual))
+                    continue;
+
+                item.StatusVsm = atual.Status;
+                item.ReabertaVsm = atual.Reaberta;
+            }
+
+            await _repository.GravarSituacaoVsmAsync(mapa);
+        }
+        catch
+        {
+            // A grade fica com o status gravado na ultima sincronizacao.
         }
     }
 }
