@@ -24,6 +24,10 @@ public sealed class ConferenciaViewModel : ViewModelBase
     private bool _duploCliqueCopiaNumero;
     private string _textoBuscaNota = string.Empty;
     private long? _notaIdParaSelecionar;
+    private readonly Stack<PassoDesfazerConferencia> _desfazer = new();
+    private readonly List<long> _repinturasDaAcao = [];
+    private bool _coletandoDesfazer;
+    private bool _desfazendo;
 
     public ConferenciaViewModel(
         NotaFiscalRepository repository,
@@ -60,6 +64,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         DefinirObservacaoBonificacaoCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Bonificacao));
         DefinirObservacaoEncomendaCommand = new AsyncRelayCommand(_ => AplicarObservacaoRapidaAsync(ObservacaoValues.Encomenda));
         SalvarObservacaoCommand = new AsyncRelayCommand(_ => SalvarObservacaoAsync(ObservacaoTexto));
+        DesfazerCommand = new AsyncRelayCommand(_ => DesfazerAsync(), _ => _desfazer.Count > 0 && !IsCarregando);
         ExportarConferenciaCommand = new AsyncRelayCommand(_ => ExportarConferenciaAsync());
         SelecionarTodosFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(true));
         LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
@@ -194,6 +199,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
     public ICommand DefinirObservacaoBonificacaoCommand { get; }
     public ICommand DefinirObservacaoEncomendaCommand { get; }
     public ICommand SalvarObservacaoCommand { get; }
+    public ICommand DesfazerCommand { get; }
     public ICommand ExportarConferenciaCommand { get; }
     public ICommand SelecionarTodosFiltrosCommand { get; }
     public ICommand LimparFiltrosCommand { get; }
@@ -446,6 +452,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
             return;
 
         var statusAnterior = NotaSelecionada.StatusConferencia;
+        var foto = FotografarNotas();
+        IniciarColetaDesfazer();
         try
         {
             if (novoStatus == StatusConferenciaValues.Vermelho)
@@ -462,13 +470,14 @@ public sealed class ConferenciaViewModel : ViewModelBase
                     $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)} (pre-nota gravada).",
                     copiasVermelho);
                 AplicarFiltroNotas();
+                EmpilharDesfazer(foto);
                 return;
             }
 
             if (novoStatus == StatusConferenciaValues.Amarelo)
             {
-                if (!await AplicarAmareloAsync(statusAnterior))
-                    return;
+                if (await AplicarAmareloAsync(statusAnterior))
+                    EmpilharDesfazer(foto);
                 return;
             }
 
@@ -483,11 +492,16 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 $"Nota {NotaSelecionada.NumNota}: {StatusConferenciaValues.ObterDescricao(novoStatus)}.",
                 copias);
             AplicarFiltroNotas();
+            EmpilharDesfazer(foto);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Erro ao atualizar status:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _coletandoDesfazer = false;
         }
     }
 
@@ -608,6 +622,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
         if (NotaSelecionada.Observacao == texto)
             return;
 
+        var foto = FotografarNotas();
+        IniciarColetaDesfazer();
         try
         {
             await _repository.AtualizarObservacaoAsync(NotaSelecionada.Id, texto);
@@ -618,11 +634,16 @@ public sealed class ConferenciaViewModel : ViewModelBase
                 ? $"Observacao removida da nota {NotaSelecionada.NumNota}."
                 : $"Nota {NotaSelecionada.NumNota}: observacao \"{texto}\" salva.";
             MensagemStatus = MensagemStatusComCopias(baseMsg, copias);
+            EmpilharDesfazer(foto);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Erro ao salvar observacao:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _coletandoDesfazer = false;
         }
     }
 
@@ -643,6 +664,8 @@ public sealed class ConferenciaViewModel : ViewModelBase
         if (jaTemObservacao && jaEstaVerde)
             return;
 
+        var foto = FotografarNotas();
+        IniciarColetaDesfazer();
         try
         {
             if (!jaTemObservacao)
@@ -671,11 +694,16 @@ public sealed class ConferenciaViewModel : ViewModelBase
             MensagemStatus =
                 $"Nota {NotaSelecionada.NumNota}: observacao \"{texto}\" e status Verde.";
             AplicarFiltroNotas();
+            EmpilharDesfazer(foto);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Erro ao aplicar observacao:\n{ex.Message}", "Erro",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _coletandoDesfazer = false;
         }
     }
 
@@ -760,6 +788,9 @@ public sealed class ConferenciaViewModel : ViewModelBase
         if (ids is null || ids.Count == 0)
             return;
 
+        if (_coletandoDesfazer)
+            _repinturasDaAcao.AddRange(ids);
+
         var marcadas = ids.ToHashSet();
         foreach (var nota in Notas)
         {
@@ -843,5 +874,150 @@ public sealed class ConferenciaViewModel : ViewModelBase
     {
         var sanitizado = Regex.Replace(nome.Trim(), @"[<>:""/\\|?*]", "_");
         return string.IsNullOrWhiteSpace(sanitizado) ? "loja" : sanitizado;
+    }
+
+    private void IniciarColetaDesfazer()
+    {
+        _repinturasDaAcao.Clear();
+        _coletandoDesfazer = true;
+    }
+
+    private Dictionary<long, MarcoNotaConferencia> FotografarNotas() =>
+        Notas.ToDictionary(n => n.Id, MarcoNotaConferencia.De);
+
+    private void EmpilharDesfazer(IReadOnlyDictionary<long, MarcoNotaConferencia> antes)
+    {
+        if (_desfazendo || NotaSelecionada is null)
+            return;
+
+        var passo = new PassoDesfazerConferencia { NotaId = NotaSelecionada.Id };
+        var ids = new HashSet<long>(antes.Keys);
+        foreach (var id in _repinturasDaAcao)
+            ids.Add(id);
+
+        foreach (var id in ids)
+        {
+            if (!antes.TryGetValue(id, out var marco))
+            {
+                passo.Notas.Add(new MarcoNotaConferencia
+                {
+                    Id = id,
+                    Status = StatusConferenciaValues.Amarelo,
+                    Origem = OrigemStatusValues.Sistema
+                });
+                continue;
+            }
+
+            var atual = Notas.FirstOrDefault(n => n.Id == id);
+            if (atual is null || marco.Igual(atual))
+                continue;
+
+            passo.Notas.Add(marco);
+            if (string.IsNullOrWhiteSpace(marco.DestinoPendencia)
+                && !string.IsNullOrWhiteSpace(atual.DestinoPendencia))
+                passo.CancelarPendenciaAberta = true;
+        }
+
+        if (passo.Notas.Count == 0)
+            return;
+
+        _desfazer.Push(passo);
+        ((AsyncRelayCommand)DesfazerCommand).RaiseCanExecuteChanged();
+    }
+
+    private async Task DesfazerAsync()
+    {
+        if (_desfazer.Count == 0)
+        {
+            MensagemStatus = "Nada para desfazer.";
+            return;
+        }
+
+        var passo = _desfazer.Pop();
+        ((AsyncRelayCommand)DesfazerCommand).RaiseCanExecuteChanged();
+        _desfazendo = true;
+        try
+        {
+            await _repository.RestaurarMarcacoesConferenciaAsync(
+                passo.Notas.Select(n => (n.Id, n.Status, n.Origem, n.Observacao)).ToList(),
+                passo.CancelarPendenciaAberta,
+                passo.NotaId);
+
+            foreach (var marco in passo.Notas)
+            {
+                var nota = Notas.FirstOrDefault(n => n.Id == marco.Id);
+                if (nota is null)
+                    continue;
+
+                nota.StatusConferencia = marco.Status;
+                nota.OrigemStatus = marco.Origem;
+                nota.Observacao = marco.Observacao;
+                nota.DestinoPendencia = marco.DestinoPendencia;
+                nota.EnviadoPorPendencia = marco.EnviadoPorPendencia;
+                nota.ItensPendencia = marco.ItensPendencia;
+            }
+
+            var restaurada = Notas.FirstOrDefault(n => n.Id == passo.NotaId);
+            if (restaurada is not null)
+            {
+                NotaSelecionada = restaurada;
+                ObservacaoTexto = restaurada.Observacao;
+            }
+
+            OnPropertyChanged(nameof(TextoPendenciaSelecionada));
+            AplicarFiltroNotas();
+            var descricao = restaurada is null
+                ? "a ultima marcacao"
+                : $"a nota {restaurada.NumNota} para {StatusConferenciaValues.ObterDescricao(restaurada.StatusConferencia)}";
+            MensagemStatus = $"Desfeito: {descricao}.";
+        }
+        catch (Exception ex)
+        {
+            _desfazer.Push(passo);
+            ((AsyncRelayCommand)DesfazerCommand).RaiseCanExecuteChanged();
+            MessageBox.Show($"Erro ao desfazer:\n{ex.Message}", "Erro",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _desfazendo = false;
+        }
+    }
+
+    private sealed class PassoDesfazerConferencia
+    {
+        public long NotaId { get; init; }
+        public bool CancelarPendenciaAberta { get; set; }
+        public List<MarcoNotaConferencia> Notas { get; } = [];
+    }
+
+    private sealed class MarcoNotaConferencia
+    {
+        public long Id { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public string Origem { get; init; } = string.Empty;
+        public string Observacao { get; init; } = string.Empty;
+        public string DestinoPendencia { get; init; } = string.Empty;
+        public string EnviadoPorPendencia { get; init; } = string.Empty;
+        public string ItensPendencia { get; init; } = string.Empty;
+
+        public static MarcoNotaConferencia De(NotaFiscal nota) => new()
+        {
+            Id = nota.Id,
+            Status = nota.StatusConferencia,
+            Origem = nota.OrigemStatus,
+            Observacao = nota.Observacao,
+            DestinoPendencia = nota.DestinoPendencia,
+            EnviadoPorPendencia = nota.EnviadoPorPendencia,
+            ItensPendencia = nota.ItensPendencia
+        };
+
+        public bool Igual(NotaFiscal nota) =>
+            Status == nota.StatusConferencia
+            && Origem == nota.OrigemStatus
+            && Observacao == nota.Observacao
+            && DestinoPendencia == nota.DestinoPendencia
+            && EnviadoPorPendencia == nota.EnviadoPorPendencia
+            && ItensPendencia == nota.ItensPendencia;
     }
 }

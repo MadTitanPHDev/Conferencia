@@ -52,7 +52,7 @@
                 <TextBlock Text="NOVA IMPORTACAO"
                            Style="{StaticResource SectionTitleStyle}"
                            Margin="0,0,0,10"/>
-                <TextBlock Text="Colunas: 1 EAN, 2 nome, 3 preco primario, 4 preco secundario (opcional). Sem cabecalho."
+                <TextBlock Text="Sem cabecalho: 1 EAN, 2 nome, 3 preco, 4 preco com ST (opcional). Com cabecalho, a coluna Loja tambem vale. Na comparacao, a tabela mais recente prevalece."
                            Style="{StaticResource PageSubtitleStyle}"
                            FontSize="11"
                            TextWrapping="Wrap"

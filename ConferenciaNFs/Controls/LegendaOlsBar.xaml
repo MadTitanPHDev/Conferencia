@@ -1,0 +1,12 @@
+<UserControl x:Class="ConferenciaNFs.Controls.LegendaOlsBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
+             xmlns:infra="clr-namespace:ConferenciaNFs.Infrastructure">
+    <WrapPanel HorizontalAlignment="Right">
+        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsPerfumaria}"/>
+        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.LojasPerfumaria}"/>
+        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsGenerico}"/>
+        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsReferencia}"/>
+    </WrapPanel>
+</UserControl>

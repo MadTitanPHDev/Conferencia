@@ -10,6 +10,12 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.Background}"
         FontFamily="{StaticResource Font.Primary}">
+    <Window.Resources>
+        <Style x:Key="ComparacaoPedidoTexto" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
     <Grid Margin="16,12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -213,6 +219,7 @@
                     <TextBlock Text="{Binding LinhaSelecionada.NomeProd}"
                                FontSize="12"
                                FontWeight="SemiBold"
+                               Foreground="{DynamicResource Brush.TextPrimary}"
                                TextWrapping="Wrap"
                                Margin="0,0,0,6"/>
                     <Grid Margin="0,0,0,12">
@@ -229,19 +236,21 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Nota" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Pedidos" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Dif." FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Nota" Style="{StaticResource ComparacaoPedidoTexto}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Pedidos" Style="{StaticResource ComparacaoPedidoTexto}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Dif." Style="{StaticResource ComparacaoPedidoTexto}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Quantidade" FontSize="12" Margin="0,4,4,0"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.QtdNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.QtdPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifQtd}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Quantidade" Style="{StaticResource ComparacaoPedidoTexto}" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.QtdNota}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.QtdPedido}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifQtd}" HorizontalAlignment="Right" Margin="0,4,0,0">
                             <TextBlock.Style>
-                                <Style TargetType="TextBlock">
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ComparacaoPedidoTexto}">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Margin" Value="0,4,0,0"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifQtdAlerta}" Value="True">
-                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.DifAlerta}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -249,15 +258,17 @@
                             </TextBlock.Style>
                         </TextBlock>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preço total" FontSize="12" Margin="0,4,4,0"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoTotal}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preço total" Style="{StaticResource ComparacaoPedidoTexto}" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalNota}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoTotalPedido}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoTotal}" HorizontalAlignment="Right" Margin="0,4,0,0">
                             <TextBlock.Style>
-                                <Style TargetType="TextBlock">
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ComparacaoPedidoTexto}">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Margin" Value="0,4,0,0"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifPrecoTotalAlerta}" Value="True">
-                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.DifAlerta}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -265,15 +276,17 @@
                             </TextBlock.Style>
                         </TextBlock>
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Preço unit." FontSize="12" Margin="0,4,4,0"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoUnit}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Preço unit." Style="{StaticResource ComparacaoPedidoTexto}" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitNota}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.PrecoUnitPedido}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifPrecoUnit}" HorizontalAlignment="Right" Margin="0,4,0,0">
                             <TextBlock.Style>
-                                <Style TargetType="TextBlock">
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ComparacaoPedidoTexto}">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Margin" Value="0,4,0,0"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifPrecoUnitAlerta}" Value="True">
-                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.DifAlerta}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -281,15 +294,17 @@
                             </TextBlock.Style>
                         </TextBlock>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Desconto (%)" FontSize="12" Margin="0,4,4,0"/>
-                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.DescontoNota}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.DescontoPedido}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                        <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifDesconto}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Desconto (%)" Style="{StaticResource ComparacaoPedidoTexto}" Margin="0,4,4,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LinhaSelecionada.Comparacao.DescontoNota}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding LinhaSelecionada.Comparacao.DescontoPedido}" Style="{StaticResource ComparacaoPedidoTexto}" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding LinhaSelecionada.Comparacao.DifDesconto}" HorizontalAlignment="Right" Margin="0,4,0,0">
                             <TextBlock.Style>
-                                <Style TargetType="TextBlock">
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource ComparacaoPedidoTexto}">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Margin" Value="0,4,0,0"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding LinhaSelecionada.Comparacao.DifDescontoAlerta}" Value="True">
-                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.DifAlerta}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
                                     </Style.Triggers>

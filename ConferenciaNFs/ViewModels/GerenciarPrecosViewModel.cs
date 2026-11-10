@@ -13,7 +13,7 @@ public sealed class GerenciarPrecosViewModel : ViewModelBase
     private readonly NotaFiscalRepository _repository;
     private PrecoTabelaImportacao? _selecionada;
     private string _novoNome = string.Empty;
-    private string _mensagem = "Importe uma planilha (EAN, nome, preco, preco 2) e depois exclua a anterior se for substituir.";
+    private string _mensagem = "Importe a planilha. Se houver mais de uma, a comparacao usa a mais recente.";
     private bool _isCarregando;
 
     public GerenciarPrecosViewModel(NotaFiscalRepository repository)

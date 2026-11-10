@@ -74,12 +74,20 @@ public sealed class ItemNotaPrecoLinha : ViewModelBase
         TextoVsTabela = "Fora da planilha";
     }
 
-    public void AplicarTabela(PrecoTabelaItem tabela)
+    public void AplicarTabela(
+        PrecoTabelaItem tabela,
+        decimal custoComparado,
+        bool notaComSt,
+        string avisoCusto,
+        bool peloEanTributario)
     {
-        ComparacaoResultado = ComparacaoPrecoTabela.Classificar(CustoUnit, tabela.PrecoPrimario);
-        var secundario = tabela.PrecoSecundario is > 0
-            ? $" · 2o R$ {tabela.PrecoSecundario.Value:N2}"
-            : string.Empty;
-        TextoVsTabela = $"R$ {tabela.PrecoPrimario:N2} · {tabela.NomeImportacao}{secundario}";
+        var descrita = ComparacaoPrecoTabela.Descrever(
+            custoComparado,
+            tabela,
+            notaComSt,
+            avisoCusto,
+            peloEanTributario);
+        ComparacaoResultado = descrita.Resultado;
+        TextoVsTabela = descrita.Texto;
     }
 }

@@ -4,9 +4,9 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão atual: **1.0.28** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.28))
+Versão publicada: **1.0.35** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.35))
 
-**Onde estamos:** a conferência do dia a dia (sync VSM, status, pré-nota ao devolver, fila de devoluções com andamento, Excel) está em produção. O objetivo maior continua o mesmo: um núcleo Postgres nosso, sem gravar no VSM, e mais tarde um app de compradores. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`).
+**Onde estamos:** a conferência do dia a dia está em produção, com sync VSM por computador, status, envio de divergência ao comprador, fila de devoluções e comparação de preço. O núcleo continua o PostgreSQL, sem gravar no VSM. O app separado de compradores segue em espera: o comprador usa as telas de Divergências deste mesmo programa. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`), faixas de quantidade da tabela Teuto e o relatório em lote de diferença de preços.
 
 ---
 
@@ -34,15 +34,16 @@ Versão atual: **1.0.28** ([release no GitHub](https://github.com/MadTitanPHDev/
    somente leitura                    tudo que a equipe decide
    ┌──────────────────┐               ┌──────────────────────────┐
    │ compras          │──── sync ────▶│ NotasFiscais             │
-   │ itens_compra     │               │ Devolucoes               │
-   └──────────────────┘               │ LojaOrdem / LojaVsmMap   │
-            ▲                         │ Distribuidoras           │
-            │ consulta                │ AppConfig                │
-            │ (itens, EAN)            └──────────────────────────┘
+   │ itens_compra     │               │ Devolucoes / Pessoas     │
+   │ pedido           │               │ PendenciasCompra         │
+   └──────────────────┘               │ PrecosImportacoes        │
+            ▲                         │ LojaOrdem / LojaVsmMap   │
+            │ consulta                │ Distribuidoras           │
+            │ (itens, EAN, pedido)    │ AppConfig                │
             └──────────── ConferenciaNFs (WPF) ───────────────┘
 ```
 
-O app **nunca grava no VSM**.
+O app **nunca grava no VSM**. O sync em massa só roda no computador em que o menu ☰ está com **Puxar notas neste PC** ligado. O padrão é desligado, e essa escolha fica só no `app-settings.json` da máquina.
 
 ### O dia da conferência
 
@@ -84,6 +85,8 @@ O arquivo `app-settings.json` fica em **`%AppData%\ConferenciaNFs\`**, fora da p
 {
   "JanelaFixadaNoTopo": false,
   "TemaEscuro": false,
+  "SincronizarVsm": false,
+  "PessoaIdNestePc": 0,
   "DuploCliqueCopiaNumero": false,
   "ConnectionString": "Host=127.0.0.1;Port=5432;Database=conferencia_nfs_1;Username=conferencia;Password=1234",
   "MysqlConnectionString": "Server=192.168.21.2;Port=33021;Database=myouro;User ID=compras;Password="
@@ -94,6 +97,8 @@ O arquivo `app-settings.json` fica em **`%AppData%\ConferenciaNFs\`**, fora da p
 |---|---|
 | `ConnectionString` | PostgreSQL da conferência. **Obrigatória** — sem ela o app não abre. |
 | `MysqlConnectionString` | VSM, somente leitura. Se vazia, o sync e a pesquisa por EAN ficam indisponíveis; o CSV continua como alternativa. |
+| `SincronizarVsm` | Este PC puxa notas do VSM ao abrir, no timer e no botão. Padrão `false`. |
+| `PessoaIdNestePc` | Pessoa do cadastro que usa este computador. Sobrevive ao atualizar. Não filtra a lista da conferência. |
 | `TemaEscuro` | Tema claro/escuro. |
 | `JanelaFixadaNoTopo` | Mantém as janelas acima das outras. |
 | `DuploCliqueCopiaNumero` | Na conferência: `true` = duplo clique copia o número; `false` = abre os itens. Alterna com **F12**. |
@@ -107,13 +112,13 @@ As tabelas do PostgreSQL são criadas automaticamente na primeira conexão. Não
 
 ## Uso no dia a dia
 
-1. Abra o app. Ele já entra no dia anterior e sincroniza o VSM.
+1. Abra o app. Ele entra no dia anterior. O VSM só é puxado se este PC estiver autorizado no menu.
 2. Ajuste **De / Até** se precisar cobrir fim de semana ou feriado.
 3. Clique no card da loja para abrir a conferência.
 4. Marque cada nota com o status (teclado é mais rápido que o mouse).
-5. Notas **Vermelho** entram sozinhas na fila de **Devoluções**.
+5. **Amarelo** pergunta se a nota vai ao comprador ou fica só na conferência. **Vermelho** abre a pré-nota e entra na fila de **Devoluções**.
 
-O sync roda ao abrir o intervalo, no botão **Sincronizar VSM** e automaticamente **a cada 30 minutos** enquanto o app estiver aberto. Ele nunca apaga notas — só insere e atualiza.
+No PC autorizado, o sync roda ao abrir o intervalo, no botão **Sincronizar VSM** e automaticamente **a cada 30 minutos**. Ele nunca apaga notas de um dia anterior — só insere e atualiza o dia sincronizado.
 
 O sync automático revê apenas **hoje e ontem**: como `DATACOMPRA` é a data em que a nota entrou no VSM, dia passado não recebe nota nova. Trocar o intervalo ou clicar em **Sincronizar VSM** cobre o período inteiro. Enquanto sincroniza, a barra de progresso na tela inicial mostra o andamento.
 
@@ -129,8 +134,8 @@ Na loja, conferência e devoluções abrem **na mesma janela**. O menu lateral s
 |---|---|---|
 | Pendente | Branco | Ainda não conferida |
 | Verde | Verde | Nota correta |
-| Amarelo | Amarelo | Nota com advertência (texto navy na grade, para leitura) |
-| Vermelho | Vermelho | Nota devolvida — entra na fila de devoluções |
+| Amarelo | Amarelo | Falar com compras. Pode ir ao comprador ou ficar só na conferência |
+| Vermelho | Vermelho | Devolver — abre a pré-nota e entra na fila de devoluções |
 | Laranja | Laranja | Nota de outro dia |
 | Azul | Azul | Nota absorvida |
 
@@ -150,9 +155,13 @@ Quando o VSM traz de novo uma nota já conferida em um dia anterior, a linha do 
 
 Nota nova, sem essa identidade em outro dia, **permanece em branco**. Laranja não é mais aplicado só porque a emissão é antiga.
 
-A identidade da nota é buscada por `CodCompra`, chave da NFe, ou pela combinação loja + número + CNPJ. O recurso é ligado no menu ☰ (**herdar status**), e há um **recalcular** para reaplicar as regras no intervalo aberto.
+A identidade da nota é buscada por `CodCompra`, chave da NFe, ou pela combinação loja + número + CNPJ. O recurso é ligado no menu ☰ (**herdar status**), e há um **recalcular** para reaplicar as regras no intervalo aberto. O recálculo não transforma amarelo em laranja.
 
 Cada status tem origem: **Manual** (operador), **Herdado** (sincronização) ou **Sistema**. A sincronização e o recálculo **não desfazem** uma escolha manual. A linha herdada guarda o `Id` da nota anterior, e toda mudança de status/observação entra em `NotaStatusHistorico`.
+
+Quando o operador marca Verde, Azul, Vermelho ou Laranja, o amarelo automático dos dias seguintes da mesma compra vira Laranja. Amarelo pintado na mão permanece. Uma passagem única, na primeira abertura de uma versão com essa regra, corrigiu o desenho que já existia. A repintura não muda o dia da nota nem apaga status.
+
+Mudar o status para qualquer cor que não seja Amarelo cancela a pendência **aberta** daquela compra. O histórico Ficou ou Devolvida permanece. Amarelo enviado ao comprador cria ou mantém a pendência.
 
 ---
 
@@ -164,7 +173,7 @@ Cada status tem origem: **Manual** (operador), **Herdado** (sincronização) ou 
 |---|---|
 | `0` | Pendente (Branco) |
 | `1` ou `F1` | Verde |
-| `2` ou `F2` | Amarelo |
+| `2` ou `F2` | Amarelo (enviar ao comprador ou só deixar amarelo) |
 | `3` ou `F3` | Vermelho |
 | `4` ou `F4` | Laranja |
 | `5` ou `F8` | Azul |
@@ -197,16 +206,21 @@ Mouse: **duplo clique** copia o número ou abre os itens (conforme F12), **scrol
 
 | Tela | O que faz |
 |---|---|
-| **Dashboard** | Intervalo De/Até, cards das lojas com pendências, sincronizar (com progresso), importar CSV, exportar tudo. Tema claro/escuro (paleta navy/ouro) e pin no topo. |
-| **Conferência da loja** | Abre embutida na janela principal. Grade colorida por status, observações, filtros, exportar Excel da loja. Interruptor Copiar / Abrir nota (F12). |
-| **Itens da nota** | Itens do VSM (e snapshot no Postgres quando já gravados): produto, EAN, quantidade, custo, lote, validade. |
-| **Pré-nota** | Ao marcar Vermelho: dois passos (marcar itens, aplicar motivo/classe aos marcados) e gravação no nosso banco. |
-| **Devoluções** | Fila das notas Vermelho, na mesma janela. Andamento (aguardar loja/dist., XML, absorvido…), prazo = emissão + dias da distribuidora. |
+| **Dashboard** | Intervalo De/Até, cards das lojas com pendências, sincronizar (com progresso, só no PC autorizado), importar CSV, exportar tudo. Tema claro/escuro e pin no topo. Quem usa este PC fica no menu. |
+| **Conferência da loja** | Abre embutida na janela principal. Grade colorida por status, observações, filtros, exportar Excel da loja. Coluna Distribuidora. Interruptor Copiar / Abrir nota (F12). Notas iguais no mesmo status aparecem unificadas na tela, sem mover o dia. |
+| **Itens da nota** | Itens do VSM (e snapshot no Postgres quando já gravados): produto, EAN, quantidade, custo, lote, validade. Mostra a situação do VSM (Em aberto, Finalizada, Reaberta, Devolvido). **Buscar preço** compara com as tabelas importadas. |
+| **Pré-nota** | Ao marcar Vermelho: itens, motivo e classe, gravados no nosso banco. |
+| **Divergências** | Notas amarelas enviadas a uma pessoa. O amarelo só da conferência não entra. O comprador responde por item. A equipe da conferência recebe aviso sonoro quando a pendência é resolvida. Há a lista **Devolvidas pelo comprador**. |
+| **Pré-nota da divergência** | Itens enviados, com comprador e motivo. O item selecionado compara quantidade, preço e desconto da nota com os pedidos da mesma loja no dia da emissão ou da entrada. |
+| **Devoluções** | Fila das notas Vermelho, na mesma janela. Andamento: Enviar XML, Anexar nota, Aguardando dist. Prazo = emissão + dias da distribuidora. Coluna VSM. |
 | **Pesquisar nota** | Busca por número e mostra o status da primeira conferência daquela NF. |
-| **Pesquisar produto** | Busca por EAN no VSM a partir de uma data, com custo mínimo opcional. |
+| **Pesquisar produto** | Busca por EAN no VSM, com período, loja, distribuidora, status, custo mínimo e se o item foi devolvido. A coluna Devolvido é do produto buscado. O limite do VSM é 400 linhas, antes dos filtros locais. |
 | **Gerenciar lojas** | Ordem e nome de exibição dos cards. |
-| **Distribuidoras** | Prazo de devolução por CNPJ e se o prazo é rastreado. |
-| **Motivos / tabelas de preço** | Cadastro de motivos de devolução e consulta de preços. |
+| **Distribuidoras** | Prazo de devolução por CNPJ e se o prazo é rastreado. O nome exibido prefere o cadastro. |
+| **Importar distribuidoras** | Planilha com CNPJ e Fornecedor. Preenche nome vazio ou que seja só o CNPJ. Não cria CNPJ novo, não muda prazo e não troca um nome já preenchido. O CNPJ 16.619.378/0001-08 permanece Predileta. |
+| **Pessoas** | Cadastro de quem recebe divergência. A equipe da conferência (Paulo, Guilherme, Matheus, João Gabriel) é quem ouve o aviso de resolução. |
+| **Motivos** | Cadastro de motivos de devolução. |
+| **Tabelas de preço** | Planilhas compartilhadas. Sem cabeçalho: EAN, nome, preço, preço com ST. Com cabeçalho, a coluna Loja também vale. |
 
 ---
 
@@ -265,10 +279,13 @@ ConferenciaNFs/
 
 Pontos que concentram as regras:
 
-- `Data/NotaFiscalRepository.cs` — schema, sync, herança, consultas, devoluções.
+- `Data/NotaFiscalRepository.cs` — schema, sync, herança, consultas, devoluções, preços e nomes de distribuidora.
 - `Data/VsmSyncService.cs` — sincroniza um dia ou um intervalo.
 - `Infrastructure/DataCompraParser.cs` — datas em `dd/MM/yyyy` e enumeração do intervalo.
-- `Infrastructure/StatusHerancaImportacao.cs` — regras de herança de status.
+- `Infrastructure/StatusHerancaImportacao.cs` — regras de herança e da repintura do amarelo automático.
+- `Infrastructure/PoliticaSyncVsm.cs` — quais PCs puxam o VSM.
+- `Infrastructure/ComparacaoPrecoTabela.cs` — cor, diferença e escolha da tabela de preço.
+- `Infrastructure/ComparacaoPedidoNota.cs` — nota contra pedido na divergência.
 
 ### Datas
 
@@ -282,18 +299,33 @@ PostgreSQL, criado automaticamente pelo app.
 
 | Tabela | Conteúdo |
 |---|---|
-| `NotasFiscais` | A nota e o que a equipe marcou. `ChaveUnica` = `loja_num_cnpj_diaConferencia_dataCompra`. |
+| `NotasFiscais` | A nota e o que a equipe marcou. `ChaveUnica` = `loja_num_cnpj_diaConferencia_dataCompra`. Também guarda `StatusVsm` e `ReabertaVsm`, lidos do VSM. |
+| `NotaStatusHistorico` | Mudanças de status, observação e origem. |
 | `Devolucoes` | Fila das notas Vermelho (1 por nota). |
+| `PendenciasCompra` / `PendenciaCompraItens` | Divergência enviada a uma pessoa, com status Aberta, Cancelada, Ficou ou Devolvida. |
+| `Pessoas` | Quem pode receber uma divergência. |
 | `LojaOrdem` | Ordem e nome de exibição dos cards. |
 | `LojaVsmMap` | `CODLOJA` do VSM → apelido da loja. |
-| `Distribuidoras` | CNPJ, prazo de devolução, rastrear prazo. |
+| `Distribuidoras` | CNPJ, nome, prazo de devolução, rastrear prazo. |
+| `PrecosImportacoes` / `PrecosItens` | Tabelas de preço. O item pode ter loja e um segundo preço (com ST). |
 | `AppConfig` | Chave/valor: herança ligada, data mínima de devoluções, correções aplicadas. |
 | `ItensNota` | Snapshot dos itens da NF no nosso banco (pré-nota e detalhe offline). |
 | `DevolucaoItens` | Itens, quantidades, motivo e classe da pré-nota. |
 | `DevolucaoObservacoes` | Histórico de observações da fila. |
 | `MotivosDevolucao` | Cadastro de motivos. |
 
-O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca por EAN, incluindo `BARRAS_EANTRIB`).
+O VSM é lido em `compras` (cabeçalho, `STATUS` e `REABERTA`), `itens_compra` (itens e busca por EAN, incluindo `BARRAS_EANTRIB`) e `pedido` / `pedidoitens` (comparação da divergência). O usuário MySQL não lê a tabela `fornecedor`; o nome da distribuidora vem do nosso cadastro, com o da nota como reserva.
+
+### Comparação de preço
+
+O botão **Buscar preço**, no detalhe da nota, cruza o EAN com as tabelas importadas.
+
+- Vale a tabela **mais recente** que cubra o item. O menor preço de uma tabela antiga não ganha.
+- Se a planilha tiver loja, a linha daquela loja prevalece. Uma tabela nova só de outra loja não apaga o preço geral da tabela anterior.
+- O custo da nota é valor do item menos desconto. Na loja 29 (Nova Esperança) soma ST e FCP. Se a planilha tiver preço com ST, a Nova Esperança usa esse preço.
+- A coluna mostra a diferença em reais e em percentual. Até R$ 0,02 conta como igual. Até 10% acima, mais essa folga, fica azul-claro. Acima disso, vermelho.
+- Se o EAN comercial não estiver na tabela e o tributário estiver, usa o tributário.
+- Se o valor gravado for o total da linha, a cor usa o preço unitário do VSM. Uma divergência que não seja isso continua no custo calculado e mostra o valor do VSM ao lado.
 
 ---
 
@@ -304,17 +336,14 @@ O VSM é lido em `compras` (cabeçalho da NF) e `itens_compra` (itens e busca po
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.28
+.\scripts\release.ps1 -Version 1.0.35
 ```
 
-4. Publique a release com os arquivos de `artifacts\Releases\`:
+4. O próprio script publica a release quando chamado com `-CreateGitHubRelease`. As notas saem de um arquivo temporário, para o PowerShell não quebrar o texto. Também dá para publicar à mão com os arquivos de `artifacts\Releases\`.
 
 ```powershell
-gh release create v1.0.28 (Get-ChildItem artifacts\Releases -File).FullName `
-  --title "ConferenciaNFs 1.0.28" --notes "..."
+.\scripts\release.ps1 -Version 1.0.35 -CreateGitHubRelease
 ```
-
-Ou faça os dois passos de uma vez com `.\scripts\release.ps1 -Version 1.0.28 -CreateGitHubRelease`.
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.
 

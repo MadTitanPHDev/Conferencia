@@ -140,7 +140,11 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             }
 
             var ids = tabelas.Select(t => t.Id).ToList();
-            var eans = Itens.Select(i => i.EanParaCruzar).Where(EanNormalizer.EhValido).ToList();
+            var eans = Itens
+                .SelectMany(i => new[] { i.BarrasEan, i.BarrasEanTrib })
+                .OfType<string>()
+                .Where(EanNormalizer.EhValido)
+                .ToList();
             var mapa = await _repository.ObterPrecosPorEansAsync(ids, eans);
 
             var verde = 0;
@@ -151,21 +155,37 @@ public sealed class DetalheNotaViewModel : ViewModelBase
 
             foreach (var linha in Itens)
             {
-                if (!EanNormalizer.EhValido(linha.EanParaCruzar))
+                var temEan = EanNormalizer.EhValido(linha.BarrasEan)
+                    || EanNormalizer.EhValido(linha.BarrasEanTrib);
+                if (!temEan)
                 {
                     linha.AplicarSemEan();
                     ambar++;
                     continue;
                 }
 
-                if (!mapa.TryGetValue(EanNormalizer.ChaveComparacao(linha.EanParaCruzar), out var tabela))
+                var escolha = ComparacaoPrecoTabela.Localizar(
+                    linha.BarrasEan,
+                    linha.BarrasEanTrib,
+                    mapa,
+                    _nota.ApelidoLoja);
+                if (escolha is null)
                 {
                     linha.AplicarForaDaPlanilha();
                     cinza++;
                     continue;
                 }
 
-                linha.AplicarTabela(tabela);
+                var custo = ComparacaoPrecoTabela.ResolverCusto(
+                    linha.CustoUnit,
+                    linha.Item.CustoUnit,
+                    linha.QuantItemCompra);
+                linha.AplicarTabela(
+                    escolha.Value.Item,
+                    custo.Valor,
+                    ComparacaoPrecoTabela.NotaIncluiSt(linha.Item.CodLoja, _nota.ApelidoLoja),
+                    custo.Aviso,
+                    escolha.Value.PeloEanTributario);
                 switch (linha.ComparacaoResultado)
                 {
                     case ComparacaoPrecoValores.Verde:

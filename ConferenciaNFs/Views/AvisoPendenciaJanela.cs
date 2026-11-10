@@ -36,7 +36,41 @@ public static class AvisoPendenciaJanela
         MostrarTexto("Nova pendencia", "Nova pendencia para voce\n\n" + string.Join("\n", linhas));
     }
 
-    private static void MostrarTexto(string titulo, string texto)
+    public static void MostrarDevolucoes(IReadOnlyList<AvisoDevolucaoPronto> avisos)
+    {
+        if (avisos.Count == 0)
+            return;
+
+        var acabando = avisos.Where(a => a.PrazoAcabando).Take(4).Select(a => a.Texto).ToList();
+        var semPrazo = avisos.Where(a => !a.PrazoAcabando).Take(4).Select(a => a.Texto).ToList();
+        var partes = new List<string>();
+        if (acabando.Count > 0)
+        {
+            partes.Add("Prazo acabando");
+            partes.AddRange(acabando);
+            var restantes = avisos.Count(a => a.PrazoAcabando) - acabando.Count;
+            if (restantes > 0)
+                partes.Add($"e mais {restantes}");
+        }
+
+        if (semPrazo.Count > 0)
+        {
+            if (partes.Count > 0)
+                partes.Add(string.Empty);
+            partes.Add("Sem prazo");
+            partes.AddRange(semPrazo);
+            var restantes = avisos.Count(a => !a.PrazoAcabando) - semPrazo.Count;
+            if (restantes > 0)
+                partes.Add($"e mais {restantes}");
+        }
+
+        MostrarTexto("Devoluções", string.Join("\n", partes), TimeSpan.FromSeconds(14));
+    }
+
+    private static void MostrarTexto(string titulo, string texto) =>
+        MostrarTexto(titulo, texto, TimeSpan.FromSeconds(8));
+
+    private static void MostrarTexto(string titulo, string texto, TimeSpan duracao)
     {
         var janela = new Window
         {
@@ -63,7 +97,7 @@ public static class AvisoPendenciaJanela
         janela.Loaded += (_, _) => janela.Top = area.Bottom - janela.ActualHeight - 16;
         janela.Show();
 
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        var timer = new DispatcherTimer { Interval = duracao };
         timer.Tick += (_, _) =>
         {
             timer.Stop();

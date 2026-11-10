@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:viewModels="clr-namespace:ConferenciaNFs.ViewModels"
+        xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
         Background="{DynamicResource Brush.Background}"
         FontFamily="{StaticResource Font.Primary}"
         Focusable="True">
@@ -24,6 +25,7 @@
         <KeyBinding Key="F9" Command="{Binding DefinirObservacaoBonificacaoCommand}"/>
         <KeyBinding Key="F11" Command="{Binding DefinirObservacaoEncomendaCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SalvarObservacaoCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Z" Command="{Binding DesfazerCommand}"/>
         <KeyBinding Key="F12" Command="{Binding AlternarDuploCliqueCommand}"/>
     </UserControl.InputBindings>
 
@@ -42,6 +44,7 @@
                 Padding="8,6"
                 Margin="0,0,0,4">
             <StackPanel>
+                <controls:LegendaOlsBar Margin="0,0,0,4"/>
                 <DockPanel LastChildFill="True" Margin="0,0,0,4">
                     <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
                         <ToggleButton IsChecked="{Binding DuploCliqueCopiaNumero, Mode=TwoWay}"
@@ -366,6 +369,10 @@
 
                 <DataGrid.ContextMenu>
                     <ContextMenu>
+                        <MenuItem Header="Desfazer"
+                                  InputGestureText="Ctrl+Z"
+                                  Command="{Binding DesfazerCommand}"/>
+                        <Separator/>
                         <MenuItem Header="Abrir itens da nota"
                                   Command="{Binding AbrirItensCommand}"/>
                         <MenuItem Header="Copiar número da nota"

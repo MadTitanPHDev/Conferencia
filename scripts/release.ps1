@@ -114,9 +114,24 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-O menu lateral ganhou Importar distribuidoras. A planilha com as colunas CNPJ e Fornecedor preenche o nome quando ele esta vazio ou e apenas o CNPJ. Nome ja preenchido, prazo e rastreio nao mudam. CNPJ que nao esta no cadastro nao e criado.
+A comparacao de preco usa a tabela mais recente. A coluna mostra a diferenca em reais e em percentual. Se a planilha tiver loja ou preco com ST, esses dados entram na conta.
 
-No CNPJ 16.619.378/0001-08 o nome permanece Predileta. Se a planilha trouxer Cimed, a importacao grava Predileta.
+Na conferencia da loja, Ctrl+Z desfaz a ultima cor, observacao ou envio ao comprador feito nessa tela.
+
+A Lais recebe um aviso das devolucoes pendentes com prazo acabando ou sem prazo rastreado. O aviso volta a cada 2 dias. No menu, Quem usa este PC precisa estar como Lais.
+
+Os botoes Ols Perfumaria, Lojas Perfumaria, Ols Generico e Ols Referencia ficam na conferencia, nas devolucoes e ao abrir a nota. O quadro Nota x pedido fica legivel no tema escuro.
+
+### Configuracao (app-settings.json)
+
+O arquivo NAO fica na pasta de instalacao. Edite sempre:
+
+``%AppData%\ConferenciaNFs\app-settings.json``
+
+Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs\app-settings.json``
+
+Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
+"@
 
 ### Configuracao (app-settings.json)
 

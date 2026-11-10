@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="Brush.SurfaceMuted" Color="#253041"/>
     <SolidColorBrush x:Key="Brush.Border" Color="#6E788A"/>
     <SolidColorBrush x:Key="Brush.TextPrimary" Color="#F9FAFC"/>
+    <SolidColorBrush x:Key="Brush.DifAlerta" Color="#FFB4AB"/>
     <SolidColorBrush x:Key="Brush.TextSecondary" Color="#A8B0BC"/>
     <SolidColorBrush x:Key="Brush.Accent" Color="#E8C465"/>
     <SolidColorBrush x:Key="Brush.AccentHover" Color="#F0D078"/>

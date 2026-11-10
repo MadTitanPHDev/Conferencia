@@ -245,8 +245,29 @@ public sealed partial class NotaFiscalRepository
                 NomeProd TEXT NOT NULL DEFAULT '',
                 PrecoPrimario NUMERIC(18,4) NOT NULL,
                 PrecoSecundario NUMERIC(18,4) NULL,
-                UNIQUE (ImportacaoId, Ean)
+                Loja TEXT NOT NULL DEFAULT ''
             );
+
+            ALTER TABLE PrecosItens
+                ADD COLUMN IF NOT EXISTS Loja TEXT NOT NULL DEFAULT '';
+
+            DO $$
+            DECLARE r record;
+            BEGIN
+                FOR r IN
+                    SELECT con.conname
+                    FROM pg_constraint con
+                    INNER JOIN pg_class rel ON rel.oid = con.conrelid
+                    WHERE rel.relname = 'precositens'
+                      AND con.contype = 'u'
+                      AND pg_get_constraintdef(con.oid) NOT ILIKE '%loja%'
+                LOOP
+                    EXECUTE format('ALTER TABLE PrecosItens DROP CONSTRAINT %I', r.conname);
+                END LOOP;
+            END $$;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_PrecosItens_Importacao_Ean_Loja
+                ON PrecosItens (ImportacaoId, Ean, Loja);
 
             CREATE INDEX IF NOT EXISTS IX_PrecosItens_Ean
                 ON PrecosItens (Ean);
@@ -394,6 +415,11 @@ public sealed partial class NotaFiscalRepository
 
             CREATE INDEX IF NOT EXISTS IX_Devolucoes_Andamento
                 ON Devolucoes (Andamento);
+
+            CREATE TABLE IF NOT EXISTS AvisosDevolucao (
+                DevolucaoId BIGINT PRIMARY KEY REFERENCES Devolucoes(Id) ON DELETE CASCADE,
+                UltimoAviso TEXT NOT NULL DEFAULT ''
+            );
             """);
     }
 
@@ -2887,6 +2913,85 @@ public sealed partial class NotaFiscalRepository
         return repintadas;
     }
 
+    public async Task RestaurarMarcacoesConferenciaAsync(
+        IReadOnlyList<(long Id, string Status, string Origem, string Observacao)> marcacoes,
+        bool cancelarPendenciaAberta,
+        long notaPendenciaId,
+        CancellationToken cancellationToken = default)
+    {
+        if (marcacoes.Count == 0)
+            return;
+
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        foreach (var marcacao in marcacoes)
+        {
+            var statusAtual = await connection.QuerySingleOrDefaultAsync<string>(new CommandDefinition(
+                """
+                SELECT StatusConferencia
+                FROM NotasFiscais
+                WHERE Id = @Id
+                """,
+                new { marcacao.Id },
+                transaction,
+                cancellationToken: cancellationToken));
+
+            if (statusAtual is null)
+                continue;
+
+            await connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE NotasFiscais
+                SET StatusConferencia = @Status,
+                    OrigemStatus = @Origem,
+                    Observacao = @Observacao,
+                    StatusAtualizadoPor = @StatusAtualizadoPor
+                WHERE Id = @Id
+                """,
+                new
+                {
+                    marcacao.Id,
+                    marcacao.Status,
+                    Origem = string.IsNullOrWhiteSpace(marcacao.Origem)
+                        ? OrigemStatusValues.Sistema
+                        : marcacao.Origem,
+                    marcacao.Observacao,
+                    StatusAtualizadoPor = "Desfazer"
+                },
+                transaction,
+                cancellationToken: cancellationToken));
+
+            if (statusAtual == StatusConferenciaValues.Vermelho
+                && marcacao.Status != StatusConferenciaValues.Vermelho)
+            {
+                await connection.ExecuteAsync(new CommandDefinition(
+                    """
+                    DELETE FROM Devolucoes
+                    WHERE NotaFiscalId = @NotaFiscalId
+                      AND StatusDevolucao = @StatusPendente
+                    """,
+                    new
+                    {
+                        NotaFiscalId = marcacao.Id,
+                        StatusPendente = StatusDevolucaoValues.Pendente
+                    },
+                    transaction,
+                    cancellationToken: cancellationToken));
+            }
+        }
+
+        if (cancelarPendenciaAberta && notaPendenciaId > 0)
+            await CancelarPendenciasAbertasDaIdentidadeAsync(
+                connection,
+                transaction,
+                notaPendenciaId,
+                cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private static bool FilaAceitaNovosRegistros(DateTime? dataMinima)
     {
         if (!dataMinima.HasValue)
@@ -3003,6 +3108,98 @@ public sealed partial class NotaFiscalRepository
         return lista
             .Where(d => DevolucaoVisivelNoPeriodo(d, dataMinima))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<AvisoDevolucaoPronto>> ListarAvisosDevolucaoPendentesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+
+        var linhas = await connection.QueryAsync<DevolucaoAvisoLinha>(new CommandDefinition(
+            $"""
+            SELECT
+                d.Id,
+                n.NumNota,
+                n.ApelidoLoja,
+                n.DataEmissao,
+                n.DiaConferencia,
+                d.StatusDevolucao,
+                d.DataMarcada,
+                d.DataConclusao,
+                dist.PrazoDevolucaoDias,
+                COALESCE(dist.RastrearPrazo, FALSE) AS RastrearPrazo,
+                COALESCE(a.UltimoAviso, '') AS UltimoAviso
+            FROM Devolucoes d
+            INNER JOIN NotasFiscais n ON n.Id = d.NotaFiscalId
+            LEFT JOIN AvisosDevolucao a ON a.DevolucaoId = d.Id
+            {SqlJoinDistribuidoraPorCnpj}
+            WHERE d.StatusDevolucao = @Pendente
+            """,
+            new { Pendente = StatusDevolucaoValues.Pendente },
+            cancellationToken: cancellationToken));
+
+        var dataMinima = await ObterDataMinimaDevolucoesInternalAsync(connection, transaction: null);
+        var hoje = DateTime.Today;
+        var candidatas = new List<DevolucaoParaAviso>();
+        foreach (var linha in linhas)
+        {
+            var item = new DevolucaoItem
+            {
+                DataMarcada = linha.DataMarcada ?? string.Empty,
+                DataConclusao = linha.DataConclusao,
+                DiaConferencia = linha.DiaConferencia
+            };
+            if (dataMinima.HasValue && !DevolucaoVisivelNoPeriodo(item, dataMinima))
+                continue;
+
+            candidatas.Add(new DevolucaoParaAviso(
+                linha.Id,
+                linha.NumNota,
+                linha.ApelidoLoja,
+                linha.StatusDevolucao,
+                linha.RastrearPrazo,
+                linha.PrazoDevolucaoDias,
+                DataCompraParser.TentarConverter(linha.DataEmissao),
+                linha.UltimoAviso));
+        }
+
+        return AvisoDevolucaoPrazo.Selecionar(candidatas, hoje);
+    }
+
+    public async Task MarcarAvisosDevolucaoAsync(
+        IReadOnlyCollection<long> devolucaoIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (devolucaoIds.Count == 0)
+            return;
+
+        var hoje = DataCompraParser.Formatar(DateTime.Today);
+        await using var connection = CriarConexao();
+        await connection.OpenAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            INSERT INTO AvisosDevolucao (DevolucaoId, UltimoAviso)
+            VALUES (@Id, @UltimoAviso)
+            ON CONFLICT (DevolucaoId) DO UPDATE SET UltimoAviso = EXCLUDED.UltimoAviso
+            """,
+            devolucaoIds.Select(id => new { Id = id, UltimoAviso = hoje }),
+            cancellationToken: cancellationToken));
+    }
+
+    private sealed class DevolucaoAvisoLinha
+    {
+        public long Id { get; set; }
+        public string NumNota { get; set; } = string.Empty;
+        public string ApelidoLoja { get; set; } = string.Empty;
+        public string DataEmissao { get; set; } = string.Empty;
+        public string DiaConferencia { get; set; } = string.Empty;
+        public string StatusDevolucao { get; set; } = string.Empty;
+        public string? DataMarcada { get; set; }
+        public string? DataConclusao { get; set; }
+        public int? PrazoDevolucaoDias { get; set; }
+        public bool RastrearPrazo { get; set; }
+        public string UltimoAviso { get; set; } = string.Empty;
     }
 
     public async Task<DateTime?> ObterDataMinimaDevolucoesAsync(
@@ -3363,8 +3560,8 @@ public sealed partial class NotaFiscalRepository
 
         await connection.ExecuteAsync(new CommandDefinition(
             """
-            INSERT INTO PrecosItens (ImportacaoId, Ean, NomeProd, PrecoPrimario, PrecoSecundario)
-            VALUES (@ImportacaoId, @Ean, @NomeProd, @PrecoPrimario, @PrecoSecundario)
+            INSERT INTO PrecosItens (ImportacaoId, Ean, NomeProd, PrecoPrimario, PrecoSecundario, Loja)
+            VALUES (@ImportacaoId, @Ean, @NomeProd, @PrecoPrimario, @PrecoSecundario, @Loja)
             """,
             itens.Select(i => new
             {
@@ -3372,7 +3569,8 @@ public sealed partial class NotaFiscalRepository
                 i.Ean,
                 i.NomeProd,
                 i.PrecoPrimario,
-                i.PrecoSecundario
+                i.PrecoSecundario,
+                Loja = i.Loja ?? string.Empty
             }),
             tx,
             cancellationToken: cancellationToken));
@@ -3398,7 +3596,7 @@ public sealed partial class NotaFiscalRepository
             cancellationToken: cancellationToken));
     }
 
-    public async Task<IReadOnlyDictionary<string, PrecoTabelaItem>> ObterPrecosPorEansAsync(
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<PrecoTabelaItem>>> ObterPrecosPorEansAsync(
         IReadOnlyCollection<long> importacaoIds,
         IReadOnlyCollection<string> eans,
         CancellationToken cancellationToken = default)
@@ -3412,24 +3610,26 @@ public sealed partial class NotaFiscalRepository
             .ToArray();
 
         if (ids.Length == 0 || chaves.Length == 0)
-            return new Dictionary<string, PrecoTabelaItem>(StringComparer.Ordinal);
+            return new Dictionary<string, IReadOnlyList<PrecoTabelaItem>>(StringComparer.Ordinal);
 
         await using var connection = CriarConexao();
         await connection.OpenAsync(cancellationToken);
 
         var linhas = await connection.QueryAsync<PrecoTabelaItem>(new CommandDefinition(
             """
-            SELECT DISTINCT ON (ltrim(p.Ean, '0'))
+            SELECT
+                p.ImportacaoId,
                 p.Ean,
                 p.NomeProd,
                 p.PrecoPrimario,
                 p.PrecoSecundario,
+                p.Loja,
                 i.Nome AS NomeImportacao
             FROM PrecosItens p
             INNER JOIN PrecosImportacoes i ON i.Id = p.ImportacaoId
             WHERE p.ImportacaoId = ANY(@Ids)
               AND ltrim(p.Ean, '0') = ANY(@Chaves)
-            ORDER BY ltrim(p.Ean, '0'), p.PrecoPrimario ASC, i.Id DESC
+            ORDER BY p.ImportacaoId DESC, p.Id DESC
             """,
             new { Ids = ids, Chaves = chaves },
             cancellationToken: cancellationToken));
@@ -3438,7 +3638,10 @@ public sealed partial class NotaFiscalRepository
             .Select(l => (Chave: EanNormalizer.ChaveComparacao(l.Ean), Item: l))
             .Where(x => x.Chave.Length > 0)
             .GroupBy(x => x.Chave, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First().Item, StringComparer.Ordinal);
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<PrecoTabelaItem>)g.Select(x => x.Item).ToList(),
+                StringComparer.Ordinal);
     }
 
     private NpgsqlConnection CriarConexao() => new(_connectionString);

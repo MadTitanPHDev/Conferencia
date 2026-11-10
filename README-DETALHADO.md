@@ -7,8 +7,9 @@ e o objetivo de longo prazo do ConferenciaNFs.
 
 Estado de referência deste documento:
 
-- Data: 21/10/2026.
-- Versão publicada: 1.0.28.
+- Data: 10/11/2026.
+- Versão publicada: 1.0.35.
+- No código, depois dessa release, a comparação de preço passou a usar a tabela mais recente, mostrar a diferença e ler loja e preço com ST quando a planilha traz essas colunas. Isso ainda não foi publicado no Velopack.
 - Aplicativo: WPF em .NET 8 para Windows.
 - Banco operacional: PostgreSQL compartilhado.
 - ERP VSM: MySQL em modo somente leitura.
@@ -25,15 +26,17 @@ Estado de referência deste documento:
 O ConferenciaNFs começou como uma ferramenta para substituir a conferência baseada
 em CSV por um fluxo compartilhado, rastreável e mais próximo do VSM. Atualmente ele:
 
-- lê notas e itens do VSM sem gravar no ERP;
+- lê notas, itens, status do VSM e pedidos sem gravar no ERP;
 - guarda no PostgreSQL as decisões da equipe;
 - permite classificar notas por cor/status;
+- envia divergência amarela a uma pessoa e acompanha a resposta;
 - cria pré-notas de devolução por produto;
 - mantém uma fila de devoluções com andamento;
-- consulta produtos por EAN;
-- compara custos com tabelas de preço;
+- consulta produtos por EAN, com filtros de loja, distribuidora e devolução do item;
+- compara custos com a tabela de preço mais recente;
+- importa nomes de distribuidora por CNPJ;
 - exporta conferências e devoluções;
-- atualiza as máquinas por Velopack.
+- atualiza as máquinas por Velopack, com o sync do VSM decidido em cada PC.
 
 O maior risco encontrado até agora não foi a leitura do VSM, mas a definição da
 identidade histórica de uma nota. Uma mesma compra pode reaparecer em outro
@@ -166,6 +169,13 @@ Quando uma nota reaparece em um dia novo:
 - Vermelho continua Vermelho.
 - Vermelho vira Laranja quando já existe devolução registrada para a identidade.
 - Pendente continua Pendente.
+
+Além da herança na entrada, duas regras posteriores acompanham o que o operador faz:
+
+- Ao marcar Verde, Azul, Vermelho ou Laranja, o amarelo automático dos dias seguintes da mesma compra vira Laranja. Amarelo manual permanece. A passagem não move o dia nem apaga outra cor.
+- Qualquer status que não seja Amarelo cancela a pendência aberta daquela compra. Ficou e Devolvida permanecem no histórico.
+
+Amarelo tem dois caminhos. Enviar ao comprador abre a pré-nota da divergência e cria pendência Aberta. Só deixar amarelo pinta a nota e não cria pendência.
 
 A herança deve olhar somente dias anteriores. Uma sincronização de sábado dentro
 de um intervalo sábado–terça não pode usar a terça-feira como “histórico”.
@@ -668,17 +678,28 @@ Limitações:
   sobrescrever escolha do operador. Recuperação conservadora das cinco notas
   confirmadas da loja 36 (19/10 Verde, 20/10 Laranja herdado).
 
+### Depois da 1.0.28
+
+- 1.0.28: notas duplicadas do mesmo status aparecem unificadas na tela, sem mover o dia.
+- 1.0.29: o filtro de período da fila de devoluções não apaga o histórico.
+- 1.0.30: só o PC com **Puxar notas neste PC** sincroniza o VSM. O padrão é desligado.
+- 1.0.31: cadastro de pessoas, amarelo enviado ao comprador e aviso sonoro.
+- 1.0.32: comprador e motivo por item; quem usa o PC sobrevive à atualização.
+- 1.0.33: nome da distribuidora, devolvidas pelo comprador e pendência que acompanha o status.
+- 1.0.34: amarelo automático seguinte vira laranja; status do VSM; pesquisa do item; comparação da nota com o pedido; andamento **Anexar nota**.
+- 1.0.35: importação de nomes de distribuidora. Nome vazio ou igual ao CNPJ é preenchido. Nome já preenchido permanece. Predileta não vira Cimed.
+- Depois da 1.0.35, ainda sem release: a comparação de preço usa a tabela mais recente, mostra a diferença e lê loja e preço com ST quando a planilha tem essas colunas.
+
 ---
 
 ## 7. Problemas conhecidos após a correção de origem do status
 
-Prioridade alta:
+Prioridade alta em 21/10/2026, já tratada no código atual:
 
-1. Reaplicar a correção de virtualização da pré-nota, evitando marcação por scroll.
-2. Reaplicar o fluxo seguro de vários motivos/classes sem sobrescrever grupos.
-3. Melhorar visibilidade de falhas de sincronização.
+1. A virtualização da pré-nota que marcava outros itens foi corrigida na 1.0.24.
+2. Vários motivos e classes na mesma pré-nota estão no fluxo atual.
 
-Prioridade técnica:
+Prioridade técnica que continua aberta:
 
 1. Retry transacional para falhas transitórias do PostgreSQL.
 2. CI com build e testes.
@@ -687,6 +708,7 @@ Prioridade técnica:
 5. Atualização planejada do Velopack/vpk.
 6. Remoção ou reativação consciente de código sem chamadores.
 7. Tirar os testes CSV da dependência de arquivos do Desktop.
+8. Falha de sincronização ainda pode aparecer só como mensagem genérica. Falta um diagnóstico com contagem de lidas, inseridas e ignoradas, sem expor a conexão.
 
 Limitações de dados:
 
@@ -702,22 +724,23 @@ Limitações de dados:
 
 ## 8. Melhorias em espera
 
-### 8.1 App dos compradores
+### 8.1 Compradores
 
-É o próximo objetivo de negócio.
+A primeira fatia já está neste aplicativo. Não há um app separado.
 
-O Amarelo deixará de ser apenas uma cor. A conferência deverá:
+A conferência, no amarelo, pode:
 
-- selecionar os produtos com divergência;
-- indicar a categoria ou fabricante;
-- encaminhar a pendência ao comprador responsável;
-- registrar prazo, resposta e histórico.
+- só deixar a nota amarela, sem pendência;
+- enviar os itens a uma pessoa do cadastro, com motivo;
+- continuar vendo a nota na lista da conferência.
 
-O comprador poderá:
+O comprador, em Divergências:
 
-- aceitar a divergência e devolver a nota à conferência como Verde, com observação;
-- decidir pela devolução e enviar a nota para a fila já existente;
-- registrar comentário e justificativa.
+- vê os itens que foram enviados;
+- responde. Ficou registra a absorção. Devolvida manda o item para a fila de devolução;
+- a equipe da conferência (Paulo, Guilherme, Matheus e João Gabriel) recebe aviso.
+
+Ainda falta o app próprio, o roteamento automático por fabricante e a identidade de login. A pessoa deste PC é uma preferência local, não um usuário autenticado.
 
 ### 8.2 Usuários e auditoria
 
@@ -744,20 +767,11 @@ Inicialmente pode ser manual. Depois:
 - histórico visível para conferência, comprador e devolução;
 - notificações internas.
 
-### 8.4 Pedido salvo versus NF
+### 8.4 Pedido versus NF
 
-Está tecnicamente viável, mas continua em espera.
+Na pré-nota enviada ao comprador, o item selecionado compara a nota com os pedidos da mesma loja cuja data é a emissão ou a entrada, e que tenham ao menos um produto da nota. A tela mostra quantidade, preço e desconto, e a situação Atendido, Atendido parcialmente, Não solicitado ou Pedido sem atendimento.
 
-O cruzamento não pode usar apenas CNPJ. A combinação útil inclui:
-
-- loja;
-- CNPJ;
-- itens;
-- quantidades;
-- janela de data;
-- situação do pedido.
-
-O resultado esperado seria “bate”, “bate parcialmente” ou “não encontrado”.
+Continua em espera um relatório em lote, do tipo da comparação com a sugestão Hits, e a leitura de faixa de quantidade (o mesmo EAN com preço por quantidade mínima, como na Teuto).
 
 ### 8.5 Integração SEFAZ
 
@@ -805,6 +819,8 @@ próprio, preservando o VSM como fonte somente leitura.
           ConferenciaNFs    Compradores      Devolução
              WPF atual       app novo       módulo/app
 ```
+
+A fatia do comprador que já existe mora dentro do ConferenciaNFs, na tela Divergências. O desenho acima continua valendo para o app separado, que ainda não foi criado.
 
 Resultado esperado:
 

@@ -719,12 +719,14 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
                     ref _resolucaoJaLeu);
             }
 
-            if (novas.Count == 0 && resolvidas.Count == 0)
-                return;
+            if (novas.Count > 0 || resolvidas.Count > 0)
+            {
+                AvisoPendenciaSom.Tocar();
+                AvisoPendenciaJanela.Mostrar(novas);
+                AvisoPendenciaJanela.MostrarResolucoes(resolvidas);
+            }
 
-            AvisoPendenciaSom.Tocar();
-            AvisoPendenciaJanela.Mostrar(novas);
-            AvisoPendenciaJanela.MostrarResolucoes(resolvidas);
+            await VerificarAvisosDevolucaoAsync(nomeNestePc);
         }
         catch
         {
@@ -734,6 +736,20 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         {
             _avisoPendenciaEmCurso = false;
         }
+    }
+
+    private async Task VerificarAvisosDevolucaoAsync(string? nomeNestePc)
+    {
+        if (!AvisoDevolucaoPrazo.DeveReceber(nomeNestePc))
+            return;
+
+        var avisos = await _repository.ListarAvisosDevolucaoPendentesAsync();
+        if (avisos.Count == 0)
+            return;
+
+        AvisoPendenciaSom.Tocar();
+        AvisoPendenciaJanela.MostrarDevolucoes(avisos);
+        await _repository.MarcarAvisosDevolucaoAsync(avisos.Select(a => a.Id).ToArray());
     }
 
     private async Task CarregarConfiguracoesAsync()

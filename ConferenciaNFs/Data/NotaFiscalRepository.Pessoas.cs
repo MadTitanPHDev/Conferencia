@@ -31,6 +31,16 @@ public sealed partial class NotaFiscalRepository
             NomeChave = PessoaNome.Chave("Rafael"),
             CriadaEm = criadaEm
         });
+        connection.Execute("""
+            INSERT INTO Pessoas (Nome, NomeChave, Ativo, CriadaEm)
+            VALUES (@Nome, @NomeChave, TRUE, @CriadaEm)
+            ON CONFLICT (NomeChave) DO NOTHING
+            """, new
+        {
+            Nome = "Lais",
+            NomeChave = PessoaNome.Chave("Lais"),
+            CriadaEm = criadaEm
+        });
     }
 
     public async Task<IReadOnlyList<Pessoa>> ListarPessoasAsync(
