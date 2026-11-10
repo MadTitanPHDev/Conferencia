@@ -133,17 +133,6 @@ Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs
 Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
 "@
 
-### Configuracao (app-settings.json)
-
-O arquivo NAO fica na pasta de instalacao. Edite sempre:
-
-``%AppData%\ConferenciaNFs\app-settings.json``
-
-Caminho completo tipico: ``C:\Users\<seu usuario>\AppData\Roaming\ConferenciaNFs\app-settings.json``
-
-Instalacao: baixe o Setup Velopack, execute e conclua. O app verifica novas releases no GitHub ao abrir.
-"@
-
     $notesFile = Join-Path $env:TEMP "conferencia-release-notes-$Version.md"
     Set-Content -Path $notesFile -Value $notes -Encoding utf8
     gh release create $tag @assets --title "ConferenciaNFs $Version" --notes-file $notesFile
