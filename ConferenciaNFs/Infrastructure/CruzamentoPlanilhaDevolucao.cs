@@ -42,10 +42,13 @@ public static partial class CruzamentoPlanilhaDevolucao
         if (normalizado.Length == 0)
             return null;
 
-        var loja = LojaVsmMapSeed.Lojas.FirstOrDefault(item =>
+        // O numero entre parenteses na planilha e o da tela do VSM.
+        // Nas lojas 2 a 5 esse numero nao e o CodLoja corrigido do app:
+        // Rancharia esta na aba (5), nao na (2).
+        var loja = LojaOrdemSeed.LojasPadrao.FirstOrDefault(item =>
             LojaAliasNormalizer.Normalizar(item.ApelidoLoja) == normalizado
             || LojaAliasNormalizer.Normalizar(item.NomeExibicao) == normalizado);
-        return loja?.CodLoja;
+        return loja?.NumeroOrdem;
     }
 
     public static bool DentroDoPeriodo(string? diaConferencia, string? respondidaEm)

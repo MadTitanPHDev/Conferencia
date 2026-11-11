@@ -43,4 +43,28 @@ public class CruzamentoPlanilhaDevolucaoTests
         Assert.Equal(2L, faltam[0].Id);
         Assert.Equal("80011", faltam[0].NumNota);
     }
+
+    [Fact]
+    public void Faltantes_Lojas2a5_UsamONumeroDaAbaDaPlanilha()
+    {
+        var planilha = CruzamentoPlanilhaDevolucao.IndexarAbas(
+        [
+            ("VELASQUES (2)", ["CONTROLE DE DEVOLUÇÕES"]),
+            ("COHAB (3)", ["CONTROLE DE DEVOLUÇÕES"]),
+            ("REGENTE (4)", ["CONTROLE DE DEVOLUÇÕES"]),
+            ("RANCHARIA (5)", ["CONTROLE DE DEVOLUÇÕES", "28682316"]),
+            ("MARTINOPOLIS (6)", ["CONTROLE DE DEVOLUÇÕES", "11111"])
+        ]);
+
+        var faltam = CruzamentoPlanilhaDevolucao.Faltantes(
+        [
+            (1L, "28682316", "RANCHARIA", "10/11/2026", "10/11/2026 16:32"),
+            (2L, "11111", "MARTINOPOL", "10/11/2026", "10/11/2026 16:32"),
+            (3L, "22222", "VELASQUES", "10/11/2026", "10/11/2026 16:32")
+        ],
+        planilha);
+
+        Assert.Single(faltam);
+        Assert.Equal("22222", faltam[0].NumNota);
+    }
 }
