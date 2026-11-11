@@ -114,13 +114,11 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-A comparacao de preco usa a tabela mais recente. A coluna mostra a diferenca em reais e em percentual. Se a planilha tiver loja ou preco com ST, esses dados entram na conta.
+Os botoes Ols Perfumaria, Lojas Perfumaria, Ols Generico e Ols Referencia tambem ficam na tela principal.
 
-Na conferencia da loja, Ctrl+Z desfaz a ultima cor, observacao ou envio ao comprador feito nessa tela.
+Em Divergencias, na lista Devolvidas pelo comprador, a nota fica verde quando o numero ja esta na coluna A da aba da loja. Fica amarela quando o comprador devolveu e o numero ainda nao foi lancado. A cor da conferencia nao muda.
 
-A Lais recebe um aviso das devolucoes pendentes com prazo acabando ou sem prazo rastreado. O aviso volta a cada 2 dias. No menu, Quem usa este PC precisa estar como Lais.
-
-Os botoes Ols Perfumaria, Lojas Perfumaria, Ols Generico e Ols Referencia ficam na conferencia, nas devolucoes e ao abrir a nota. O quadro Nota x pedido fica legivel no tema escuro.
+Para as cores aparecerem, o arquivo da chave da planilha precisa estar em %AppData%\ConferenciaNFs e Quem usa este PC precisa ser Paulo, Matheus, Guilherme ou Joao Gabriel.
 
 ### Configuracao (app-settings.json)
 

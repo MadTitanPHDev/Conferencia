@@ -143,13 +143,20 @@
 
             <Grid Grid.Row="0"
                   Margin="0,0,0,16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0"
+                <controls:LegendaOlsBar Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,8"/>
+
+                <StackPanel Grid.Row="1"
+                            Grid.Column="0"
                             Margin="0,0,16,0"
                             VerticalAlignment="Center">
                     <TextBlock Text="{Binding TituloPagina}"
@@ -232,7 +239,8 @@
                     </WrapPanel>
                 </StackPanel>
 
-                <Border Grid.Column="1"
+                <Border Grid.Row="1"
+                        Grid.Column="1"
                         Style="{StaticResource SurfaceCardStyle}"
                         Padding="12,10"
                         Margin="0,0,10,0"
@@ -288,6 +296,7 @@
                 </Border>
 
                 <Button x:Name="BtnMenuAvancado"
+                        Grid.Row="1"
                         Grid.Column="2"
                         VerticalAlignment="Top"
                         Content="☰"

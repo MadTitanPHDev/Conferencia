@@ -130,11 +130,12 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
                 OnPropertyChanged(nameof(DevolvidasPeloComprador));
             }
 
-            var lista = await _repository.ListarPendenciasAsync(
+            var lista = (await _repository.ListarPendenciasAsync(
                 MostrarConcluidas,
                 verTodas ? null : eu.Id,
-                verTodas && DevolvidasPeloComprador);
+                verTodas && DevolvidasPeloComprador)).ToList();
             await AtualizarSituacaoVsmAsync(lista);
+            var planilhaLida = await MarcarPlanilhaAsync(lista);
             var idAntes = Selecionada?.Id;
             Pendencias.Clear();
             foreach (var item in lista)
@@ -146,9 +147,12 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
 
             if (verTodas && DevolvidasPeloComprador)
             {
+                var cor = planilhaLida
+                    ? " Verde já está na planilha. Amarelo ainda falta lançar."
+                    : string.Empty;
                 Mensagem = Pendencias.Count == 0
                     ? "Nenhuma nota devolvida pelo comprador."
-                    : $"{Pendencias.Count} nota(s) devolvida(s) pelo comprador. Duplo clique abre a pre-nota de devolucao.";
+                    : $"{Pendencias.Count} nota(s) devolvida(s) pelo comprador.{cor} Duplo clique abre a pre-nota de devolucao.";
                 return;
             }
 
@@ -175,6 +179,40 @@ public sealed class PendenciasCompraViewModel : ViewModelBase
             OnPropertyChanged(nameof(TextoItensSelecionada));
             AtualizarComandos();
         }
+    }
+
+    private async Task<bool> MarcarPlanilhaAsync(IReadOnlyList<PendenciaCompraResumo> lista)
+    {
+        if (!lista.Any(item => item.StatusPendencia == StatusPendenciaCompraValues.Devolvida))
+            return false;
+
+        IReadOnlyDictionary<int, HashSet<string>>? planilha;
+        try
+        {
+            planilha = await PlanilhaDevolucaoGoogle.LerNumerosPorLojaAsync();
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
+        if (planilha is null)
+            return false;
+
+        foreach (var item in lista)
+        {
+            if (item.StatusPendencia != StatusPendenciaCompraValues.Devolvida)
+                continue;
+
+            item.PlanilhaDevolucao = CruzamentoPlanilhaDevolucao.Estado(
+                item.NumNota,
+                item.ApelidoLoja,
+                item.DiaConferencia,
+                item.RespondidaEm,
+                planilha) ?? string.Empty;
+        }
+
+        return true;
     }
 
     public bool CopiarNumeroNotaSelecionada()

@@ -39,6 +39,68 @@
                       IsReadOnly="True"
                       CanUserAddRows="False"
                       HeadersVisibility="Column">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PlanilhaDevolucao}" Value="Verde">
+                                <Setter Property="Background" Value="#92D050"/>
+                                <Setter Property="Foreground" Value="#1B5E20"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding PlanilhaDevolucao}" Value="Amarelo">
+                                <Setter Property="Background" Value="#FFFF00"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloForeground}"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding PlanilhaDevolucao}" Value="Verde"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#6FBF3A"/>
+                                <Setter Property="Foreground" Value="#102910"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding PlanilhaDevolucao}" Value="Amarelo"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#E6E600"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloSelectedForeground}"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PlanilhaDevolucao}" Value="Verde">
+                                <Setter Property="Foreground" Value="#1B5E20"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding PlanilhaDevolucao}" Value="Amarelo">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloForeground}"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding PlanilhaDevolucao}" Value="Verde"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#6FBF3A"/>
+                                <Setter Property="Foreground" Value="#102910"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding PlanilhaDevolucao}" Value="Amarelo"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Background" Value="#E6E600"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.StatusAmareloSelectedForeground}"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Enviado por" Binding="{Binding EnviadoPorNome}" Width="120"/>
                     <DataGridTextColumn Header="Para" Binding="{Binding PessoaNome}" Width="120"/>
@@ -79,7 +141,7 @@
                               IsChecked="{Binding DevolvidasPeloComprador}"
                               Margin="0,0,0,8"
                               Visibility="{Binding VerEquipe, Converter={StaticResource BoolToVisibilityConverter}}"
-                              ToolTip="Lista o que o comprador mandou devolver. Duplo clique abre a pre-nota de devolucao."/>
+                              ToolTip="Lista o que o comprador mandou devolver. Verde ja esta na planilha. Amarelo ainda falta lancar."/>
                     <TextBlock Text="ITENS"
                                Style="{StaticResource SectionTitleStyle}"
                                Margin="0,0,0,4"/>

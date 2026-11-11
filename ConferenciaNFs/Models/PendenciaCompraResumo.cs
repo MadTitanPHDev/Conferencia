@@ -23,5 +23,8 @@ public sealed class PendenciaCompraResumo
     public string CriadaEm { get; set; } = string.Empty;
     public string RespondidaEm { get; set; } = string.Empty;
     public string ItensTexto { get; set; } = string.Empty;
+
+    /// <summary>Verde quando o número está na aba da loja. Amarelo quando ainda falta lançar.</summary>
+    public string PlanilhaDevolucao { get; set; } = string.Empty;
     public List<PendenciaCompraItem> Itens { get; set; } = [];
 }
