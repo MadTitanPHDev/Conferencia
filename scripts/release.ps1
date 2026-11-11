@@ -114,13 +114,9 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Os botoes Ols Perfumaria, Lojas Perfumaria, Ols Generico e Ols Referencia tambem ficam na tela principal.
+Na tela de itens da nota, da para marcar produtos, escolher comprador e motivo e enviar a pendencia. A nota fica amarela e continua na conferencia. O atalho 2 da grade continua igual.
 
-Em Divergencias, na lista Devolvidas pelo comprador, a nota fica verde quando o numero ja esta na coluna A da aba da loja. Fica amarela quando o comprador devolveu e o numero ainda nao foi lancado. A cor da conferencia nao muda.
-
-Velasques, Cohab, Regente e Rancharia passam a ser buscadas pelo numero da aba da planilha: 2, 3, 4 e 5. Rancharia nao e mais procurada na aba 2.
-
-Para as cores aparecerem, o arquivo da chave da planilha precisa estar em %AppData%\ConferenciaNFs e Quem usa este PC precisa ser Paulo, Matheus, Guilherme ou Joao Gabriel.
+A pre-nota de devolucao ganhou Buscar preco. Cada item mostra a diferenca contra a tabela mais recente, sem mudar o motivo nem a quantidade da devolucao.
 
 ### Configuracao (app-settings.json)
 

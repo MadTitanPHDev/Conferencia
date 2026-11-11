@@ -43,6 +43,7 @@ public sealed class PreNotaViewModel : ViewModelBase
         ConfirmarCommand = new AsyncRelayCommand(
             _ => ConfirmarAsync(),
             _ => PodeEditar && !IsCarregando && Linhas.Count > 0);
+        CompararPrecosCommand = new AsyncRelayCommand(_ => CompararPrecosAsync(), _ => !IsCarregando && Linhas.Count > 0);
         AplicarMotivoClasseMarcadosCommand = new RelayCommand(
             _ => AplicarMotivoClasseMarcados(),
             _ => PodeEditar && !IsCarregando);
@@ -58,6 +59,7 @@ public sealed class PreNotaViewModel : ViewModelBase
     public ObservableCollection<string> Motivos { get; }
     public ObservableCollection<string> Classes { get; }
     public ICommand ConfirmarCommand { get; }
+    public ICommand CompararPrecosCommand { get; }
     public ICommand AplicarMotivoClasseMarcadosCommand { get; }
     public ICommand AlternarSelecaoTodosCommand { get; }
     public ICommand LimparFiltroCommand { get; }
@@ -154,6 +156,7 @@ public sealed class PreNotaViewModel : ViewModelBase
             if (!SetProperty(ref _isCarregando, value))
                 return;
             ((AsyncRelayCommand)ConfirmarCommand).RaiseCanExecuteChanged();
+            ((AsyncRelayCommand)CompararPrecosCommand).RaiseCanExecuteChanged();
         }
     }
 
@@ -398,6 +401,90 @@ public sealed class PreNotaViewModel : ViewModelBase
         {
             MessageBox.Show($"Erro ao gravar a pre-nota:\n{ex.Message}", "Devolucao",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsCarregando = false;
+        }
+    }
+
+    private async Task CompararPrecosAsync()
+    {
+        try
+        {
+            IsCarregando = true;
+            var tabelas = await _repository.ListarPrecosImportacoesAsync();
+            if (tabelas.Count == 0)
+            {
+                MessageBox.Show(
+                    "Nenhuma tabela importada. Use Tabelas de preco no menu.",
+                    "Buscar preco",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var ids = tabelas.Select(t => t.Id).ToList();
+            var eans = Linhas
+                .SelectMany(l => new[] { l.BarrasEan, l.BarrasEanTrib })
+                .Where(EanNormalizer.EhValido)
+                .ToList();
+            var mapa = await _repository.ObterPrecosPorEansAsync(ids, eans);
+            var verde = 0;
+            var azul = 0;
+            var vermelho = 0;
+            var cinza = 0;
+            var ambar = 0;
+
+            foreach (var linha in Linhas)
+            {
+                var temEan = EanNormalizer.EhValido(linha.BarrasEan) || EanNormalizer.EhValido(linha.BarrasEanTrib);
+                if (!temEan)
+                {
+                    linha.AplicarSemEan();
+                    ambar++;
+                    continue;
+                }
+
+                var escolha = ComparacaoPrecoTabela.Localizar(
+                    linha.BarrasEan,
+                    linha.BarrasEanTrib,
+                    mapa,
+                    _nota.ApelidoLoja);
+                if (escolha is null)
+                {
+                    linha.AplicarForaDaPlanilha();
+                    cinza++;
+                    continue;
+                }
+
+                linha.AplicarTabela(
+                    escolha.Value.Item,
+                    linha.CustoNota,
+                    ComparacaoPrecoTabela.NotaIncluiSt(0, _nota.ApelidoLoja),
+                    string.Empty,
+                    escolha.Value.PeloEanTributario);
+                switch (linha.ComparacaoResultado)
+                {
+                    case ComparacaoPrecoValores.Verde:
+                        verde++;
+                        break;
+                    case ComparacaoPrecoValores.AzulClaro:
+                        azul++;
+                        break;
+                    case ComparacaoPrecoValores.Vermelho:
+                        vermelho++;
+                        break;
+                }
+            }
+
+            var rotulo = tabelas.Count == 1 ? "1 tabela" : $"{tabelas.Count} tabelas";
+            Mensagem = $"Preco ({rotulo}): {verde} verde · {azul} azul · {vermelho} vermelho · {cinza} fora · {ambar} sem EAN.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao comparar precos:\n{ex.Message}", "Buscar preco",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {

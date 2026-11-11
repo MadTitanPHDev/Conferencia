@@ -21,6 +21,14 @@
 
         <DockPanel Grid.Row="0" Margin="0,0,0,10">
             <controls:ThemeToggle DockPanel.Dock="Right" Margin="6,0,0,0" VerticalAlignment="Top"/>
+            <Button DockPanel.Dock="Right"
+                    Content="Buscar preço"
+                    Command="{Binding CompararPrecosCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Padding="12,6"
+                    FontSize="12"
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Top"/>
             <StackPanel>
                 <TextBlock Text="{Binding Titulo}"
                            Style="{StaticResource PageTitleStyle}"
@@ -80,6 +88,33 @@
                       CanUserDeleteRows="False"
                       HeadersVisibility="Column"
                       SelectionMode="Single">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Verde">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CompareVerdeBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.CompareVerdeFg}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="AzulClaro">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CompareAzulBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.CompareAzulFg}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Vermelho">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CompareVermelhoBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.CompareVermelhoFg}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Cinza">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CompareCinzaBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.CompareCinzaFg}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ComparacaoResultado}" Value="Ambar">
+                                <Setter Property="Background" Value="{DynamicResource Brush.CompareAmbarBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.CompareAmbarFg}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Width="72">
                         <DataGridTemplateColumn.Header>
@@ -104,6 +139,7 @@
                     <DataGridTextColumn Header="Produto" Binding="{Binding NomeProd}" Width="*" MinWidth="160" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Qtd NF" Binding="{Binding QuantidadeNota, StringFormat=N3}" Width="70" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Custo" Binding="{Binding CustoNota, StringFormat='R$ {0:N2}'}" Width="90" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="vs tabela" Binding="{Binding TextoVsTabela}" Width="220" MinWidth="140" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="140" MinWidth="100" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Classe" Binding="{Binding Classe}" Width="100" IsReadOnly="True"/>
                     <DataGridTemplateColumn Header="Qtd devolver" Width="100">

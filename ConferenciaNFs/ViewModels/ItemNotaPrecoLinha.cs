@@ -7,6 +7,9 @@ public sealed class ItemNotaPrecoLinha : ViewModelBase
 {
     private string? _comparacaoResultado;
     private string _textoVsTabela = string.Empty;
+    private bool _selecionado;
+    private string _motivo = string.Empty;
+    private string _compradorNome = string.Empty;
 
     public ItemNotaPrecoLinha(ItemCompraVsm item)
     {
@@ -55,6 +58,45 @@ public sealed class ItemNotaPrecoLinha : ViewModelBase
         get => _textoVsTabela;
         private set => SetProperty(ref _textoVsTabela, value);
     }
+
+    public bool Selecionado
+    {
+        get => _selecionado;
+        set => SetProperty(ref _selecionado, value);
+    }
+
+    public long CompradorId { get; private set; }
+
+    public string CompradorNome
+    {
+        get => _compradorNome;
+        private set => SetProperty(ref _compradorNome, value);
+    }
+
+    public string Motivo
+    {
+        get => _motivo;
+        set => SetProperty(ref _motivo, value ?? string.Empty);
+    }
+
+    public void DefinirComprador(long pessoaId, string nome, string motivo)
+    {
+        CompradorId = pessoaId;
+        CompradorNome = nome ?? string.Empty;
+        Motivo = motivo ?? string.Empty;
+        OnPropertyChanged(nameof(CompradorId));
+    }
+
+    public PendenciaCompraItem ParaPendencia() => new()
+    {
+        Sequencia = Item.Sequencia,
+        CodProd = CodProd,
+        NomeProd = NomeProd ?? $"Produto {CodProd}",
+        BarrasEan = BarrasEan ?? string.Empty,
+        Quantidade = QuantItemCompra,
+        CustoNota = CustoUnit,
+        Motivo = Motivo.Trim()
+    };
 
     public void LimparComparacao()
     {

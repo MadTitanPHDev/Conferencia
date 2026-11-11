@@ -1,3 +1,4 @@
+using ConferenciaNFs.Infrastructure;
 using ConferenciaNFs.Models;
 
 namespace ConferenciaNFs.ViewModels;
@@ -8,6 +9,8 @@ public sealed class PreNotaLinha : ViewModelBase
     private decimal _quantidadeDevolver;
     private string _motivo = string.Empty;
     private string _classe = string.Empty;
+    private string? _comparacaoResultado;
+    private string _textoVsTabela = string.Empty;
 
     public PreNotaLinha(ItemNotaSnapshot item)
     {
@@ -21,6 +24,7 @@ public sealed class PreNotaLinha : ViewModelBase
     public int CodProd => Item.CodProd;
     public string NomeProd => string.IsNullOrWhiteSpace(Item.NomeProd) ? $"Produto {Item.CodProd}" : Item.NomeProd;
     public string BarrasEan => Item.BarrasEan;
+    public string BarrasEanTrib => Item.BarrasEanTrib;
     public decimal QuantidadeNota => Item.QuantItemCompra;
     public decimal CustoNota => Item.CustoNota;
 
@@ -46,6 +50,47 @@ public sealed class PreNotaLinha : ViewModelBase
     {
         get => _classe;
         set => SetProperty(ref _classe, value ?? string.Empty);
+    }
+
+    public string? ComparacaoResultado
+    {
+        get => _comparacaoResultado;
+        private set => SetProperty(ref _comparacaoResultado, value);
+    }
+
+    public string TextoVsTabela
+    {
+        get => _textoVsTabela;
+        private set => SetProperty(ref _textoVsTabela, value);
+    }
+
+    public void AplicarSemEan()
+    {
+        ComparacaoResultado = ComparacaoPrecoValores.Ambar;
+        TextoVsTabela = "Sem EAN";
+    }
+
+    public void AplicarForaDaPlanilha()
+    {
+        ComparacaoResultado = ComparacaoPrecoValores.Cinza;
+        TextoVsTabela = "Fora da planilha";
+    }
+
+    public void AplicarTabela(
+        PrecoTabelaItem tabela,
+        decimal custoComparado,
+        bool notaComSt,
+        string avisoCusto,
+        bool peloEanTributario)
+    {
+        var descrita = ComparacaoPrecoTabela.Descrever(
+            custoComparado,
+            tabela,
+            notaComSt,
+            avisoCusto,
+            peloEanTributario);
+        ComparacaoResultado = descrita.Resultado;
+        TextoVsTabela = descrita.Texto;
     }
 
     public DevolucaoItemPreNota ParaGravacao() => new()

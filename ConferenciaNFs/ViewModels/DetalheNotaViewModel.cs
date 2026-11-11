@@ -17,6 +17,8 @@ public sealed class DetalheNotaViewModel : ViewModelBase
     private string _mensagemStatus = "Carregando itens...";
     private string _situacaoVsm = "VSM: —";
     private ItemNotaPrecoLinha? _itemSelecionado;
+    private Pessoa? _compradorLote;
+    private string _motivoLote = string.Empty;
 
     public DetalheNotaViewModel(
         VsmComprasReader? reader,
@@ -27,13 +29,34 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         _repository = repository;
         _nota = nota;
         Itens = new ObservableCollection<ItemNotaPrecoLinha>();
+        Pessoas = new ObservableCollection<Pessoa>();
         CompararPrecosCommand = new AsyncRelayCommand(_ => CompararPrecosAsync(), _ => PodeCompararPrecos);
+        AplicarCompradorCommand = new RelayCommand(_ => AplicarComprador());
+        EnviarPendenciaCommand = new AsyncRelayCommand(_ => EnviarPendenciaAsync(), _ => PodeEnviarPendencia);
         _ = CarregarItensAsync();
     }
 
     public ObservableCollection<ItemNotaPrecoLinha> Itens { get; }
+    public ObservableCollection<Pessoa> Pessoas { get; }
+
+    public bool PendenciaEnviada { get; private set; }
+    public string DestinoEnviado { get; private set; } = string.Empty;
+    public string ItensEnviados { get; private set; } = string.Empty;
 
     public bool PodeCompararPrecos => _repository is not null && !IsCarregando;
+    public bool PodeEnviarPendencia => _repository is not null && !IsCarregando && Itens.Count > 0;
+
+    public Pessoa? CompradorLote
+    {
+        get => _compradorLote;
+        set => SetProperty(ref _compradorLote, value);
+    }
+
+    public string MotivoLote
+    {
+        get => _motivoLote;
+        set => SetProperty(ref _motivoLote, value ?? string.Empty);
+    }
 
     public ItemNotaPrecoLinha? ItemSelecionado
     {
@@ -67,7 +90,9 @@ public sealed class DetalheNotaViewModel : ViewModelBase
             if (!SetProperty(ref _isCarregando, value))
                 return;
             OnPropertyChanged(nameof(PodeCompararPrecos));
+            OnPropertyChanged(nameof(PodeEnviarPendencia));
             ((AsyncRelayCommand)CompararPrecosCommand).RaiseCanExecuteChanged();
+            ((AsyncRelayCommand)EnviarPendenciaCommand).RaiseCanExecuteChanged();
         }
     }
 
@@ -95,6 +120,8 @@ public sealed class DetalheNotaViewModel : ViewModelBase
     }
 
     public ICommand CompararPrecosCommand { get; }
+    public ICommand AplicarCompradorCommand { get; }
+    public ICommand EnviarPendenciaCommand { get; }
 
     public bool CopiarEanItemSelecionado()
     {
@@ -248,6 +275,7 @@ public sealed class DetalheNotaViewModel : ViewModelBase
 
             EstaVazio = Itens.Count == 0;
             ItemSelecionado = Itens.FirstOrDefault();
+            await CarregarPessoasAsync();
             MensagemStatus = EstaVazio
                 ? "Nenhum item encontrado para esta nota."
                 : veioDoSnapshot && _reader is null
@@ -301,5 +329,112 @@ public sealed class DetalheNotaViewModel : ViewModelBase
         SituacaoVsm = codCompra <= 0 && string.IsNullOrWhiteSpace(status)
             ? "VSM: sem codigo da compra"
             : $"VSM: {StatusCompraVsm.Rotulo(status, reaberta)}";
+    }
+
+    private async Task CarregarPessoasAsync()
+    {
+        if (_repository is null)
+            return;
+
+        var pessoas = await _repository.ListarPessoasAsync(somenteAtivos: true);
+        Pessoas.Clear();
+        foreach (var pessoa in pessoas)
+            Pessoas.Add(pessoa);
+    }
+
+    private void AplicarComprador()
+    {
+        if (CompradorLote is null)
+        {
+            MessageBox.Show("Escolha o comprador.", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(MotivoLote))
+        {
+            MessageBox.Show("Escreva o motivo.", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var marcados = Itens.Where(i => i.Selecionado).ToList();
+        if (marcados.Count == 0)
+        {
+            MessageBox.Show("Marque ao menos um item.", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        foreach (var linha in marcados)
+            linha.DefinirComprador(CompradorLote.Id, CompradorLote.Nome, MotivoLote.Trim());
+
+        MensagemStatus = $"{marcados.Count} item(ns) para {CompradorLote.Nome}.";
+    }
+
+    private async Task EnviarPendenciaAsync()
+    {
+        if (_repository is null)
+            return;
+
+        if (AppSettingsStore.Instance.Data.PessoaIdNestePc <= 0)
+        {
+            MessageBox.Show(
+                "Escolha quem usa este PC no menu (☰) antes de enviar a divergencia.",
+                "Enviar pendencia",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var grupos = Itens.Where(i => i.CompradorId > 0).GroupBy(i => i.CompradorId).ToList();
+        if (grupos.Count == 0)
+        {
+            MessageBox.Show("Aplique um comprador aos itens marcados.", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (grupos.SelectMany(g => g).Any(i => string.IsNullOrWhiteSpace(i.Motivo)))
+        {
+            MessageBox.Show("Informe o motivo dos itens marcados.", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            IsCarregando = true;
+            foreach (var grupo in grupos)
+            {
+                var escolhidos = grupo.Select(i => i.ParaPendencia()).ToList();
+                var motivos = string.Join(" · ", grupo.Select(i => i.Motivo.Trim()).Where(m => m.Length > 0).Distinct());
+                await _repository.RegistrarPendenciaDivergenciaAsync(
+                    _nota.Id,
+                    grupo.Key,
+                    motivos,
+                    escolhidos,
+                    AppSettingsStore.Instance.Data.PessoaIdNestePc);
+            }
+
+            var enviados = Itens.Where(i => i.CompradorId > 0).Select(i => i.ParaPendencia()).ToList();
+            DestinoEnviado = string.Join(", ", grupos.Select(g => g.First().CompradorNome).Distinct());
+            ItensEnviados = PendenciaConferenciaLeitura.TextoItens(enviados);
+            _nota.StatusConferencia = StatusConferenciaValues.Amarelo;
+            _nota.OrigemStatus = OrigemStatusValues.Manual;
+            _nota.DestinoPendencia = DestinoEnviado;
+            _nota.ItensPendencia = ItensEnviados;
+            PendenciaEnviada = true;
+            MensagemStatus = $"Nota {_nota.NumNota}: amarelo, enviada para {DestinoEnviado}. Continua na conferencia.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao enviar a pendencia:\n{ex.Message}", "Enviar pendencia",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsCarregando = false;
+        }
     }
 }

@@ -70,7 +70,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         LimparFiltrosCommand = new RelayCommand(_ => DefinirTodosFiltros(false));
         LimparBuscaNotaCommand = new RelayCommand(_ => TextoBuscaNota = string.Empty);
         CopiarNumeroNotaCommand = new RelayCommand(_ => CopiarNumeroNotaSelecionada(), _ => NotaSelecionada is not null);
-        AbrirItensCommand = new RelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
+        AbrirItensCommand = new AsyncRelayCommand(_ => AbrirItensNotaSelecionada(), _ => NotaSelecionada is not null);
         AlternarDuploCliqueCommand = new RelayCommand(_ => DuploCliqueCopiaNumero = !DuploCliqueCopiaNumero);
 
         _duploCliqueCopiaNumero = AppSettingsStore.Instance.Data.DuploCliqueCopiaNumero;
@@ -212,7 +212,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         if (DuploCliqueCopiaNumero)
             CopiarNumeroNotaSelecionada();
         else
-            AbrirItensNotaSelecionada();
+            _ = AbrirItensNotaSelecionada();
     }
 
     public bool CopiarNumeroNotaSelecionada()
@@ -233,7 +233,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
         }
     }
 
-    public void AbrirItensNotaSelecionada()
+    public async Task AbrirItensNotaSelecionada()
     {
         if (NotaSelecionada is null)
         {
@@ -262,6 +262,7 @@ public sealed class ConferenciaViewModel : ViewModelBase
             return;
         }
 
+        var statusAnterior = NotaSelecionada.StatusConferencia;
         var janela = new DetalheNotaWindow(_vsmReader, NotaSelecionada, _repository)
         {
             Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
@@ -269,6 +270,17 @@ public sealed class ConferenciaViewModel : ViewModelBase
         };
 
         janela.ShowDialog();
+        if (janela.DataContext is not DetalheNotaViewModel detalhe || !detalhe.PendenciaEnviada)
+            return;
+
+        var copias = await ReplicarStatusNasCopiasAsync(
+            NotaSelecionada,
+            statusAnterior,
+            StatusConferenciaValues.Amarelo);
+        MensagemStatus = MensagemStatusComCopias(
+            $"Nota {NotaSelecionada.NumNota}: amarelo, enviada para {detalhe.DestinoEnviado}. Continua nesta lista.",
+            copias);
+        AplicarFiltroNotas();
     }
 
     private async Task CarregarNotasAsync()
