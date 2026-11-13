@@ -150,7 +150,7 @@
   <div class="wrap">
 
     <header class="hero">
-      <div class="eyebrow">Documento interno · v1.0.20 · out/2026</div>
+      <div class="eyebrow">Documento interno · v1.0.39 · nov/2026</div>
       <h1>ConferenciaNFs — funções, bancos e expansão</h1>
       <p>
         Inventário do que o app faz hoje, das tabelas que enxergamos
@@ -159,11 +159,11 @@
         Compradores e Devolução — sem gravar no sistema da farmácia.
       </p>
       <div class="hero-meta">
-        <span class="chip ok">Produção 1.0.20</span>
-        <span class="chip ok">Pré-nota e snapshot de itens feitos</span>
-        <span class="chip next">Próximo de negócio: compradores</span>
+        <span class="chip ok">Produção 1.0.39</span>
+        <span class="chip ok">Divergência no mesmo app</span>
+        <span class="chip next">Próximo passo: classes de visão</span>
         <span class="chip wait">Retry Postgres (stream) adiado</span>
-        <span class="chip wait">Pedido↔NF e SEFAZ em espera</span>
+        <span class="chip wait">App separado dos compradores em espera</span>
       </div>
     </header>
 
@@ -184,28 +184,26 @@
     </nav>
 
     <section class="card" id="situacao">
-      <h2>Onde estamos (out/2026)</h2>
+      <h2>Onde estamos (nov/2026)</h2>
       <p class="lead">
-        Versão em produção: <strong>1.0.20</strong>.
+        Versão em produção: <strong>1.0.39</strong>.
         A conferência do dia a dia está no ar. O objetivo estratégico não mudou.
       </p>
       <div class="grid-2">
         <div class="plain-box">
           <h3>Já no chão de loja</h3>
           <p>
-            Sync VSM (com progresso; automático só hoje/ontem), intervalo De/Até,
-            conferência e devoluções na janela principal (☰ + seta), pré-nota em dois passos,
-            snapshot de itens no Postgres, andamento da fila, histórico de observações,
-            paleta navy/ouro, interruptor de tema e Copiar/Abrir nota, Velopack no GitHub.
+            Sync VSM no PC autorizado, intervalo De/Até, conferência e devoluções na janela principal,
+            pré-nota, pessoas, divergência enviada ao comprador e resposta em Divergências,
+            comparação de preço, legendas de perfumaria, aviso de prazo e cruzamento com a planilha da loja.
           </p>
         </div>
         <div class="plain-box">
           <h3>Objetivo</h3>
           <p>
-            Núcleo Postgres compartilhado: Conferência (este app), Devolução (esta tela, já com itens)
-            e Compradores (app novo). VSM só leitura. Pedido↔NF e SEFAZ continuam em espera.
-            Retry nas gravações quando o Postgres corta a conexão fica para um ajuste técnico depois —
-            não bloqueia o próximo passo de negócio (compradores).
+            Núcleo Postgres compartilhado. As três frentes continuam neste exe até as classes
+            de visão entrarem. VSM só leitura. O app separado dos compradores, o login por pessoa,
+            o retry do Postgres, o relatório de preço em lote e o SEFAZ ficam para depois.
           </p>
         </div>
       </div>
@@ -242,7 +240,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
     <!-- ========== FUNÇÕES ========== -->
     <section class="card" id="funcoes">
       <h2>Funções atuais (todas as telas)</h2>
-      <p class="lead">Versão em produção: <strong>1.0.20</strong>. App desktop WPF .NET 8, várias máquinas no mesmo banco. Conferência e devoluções abrem na janela principal.</p>
+      <p class="lead">Versão em produção: <strong>1.0.39</strong>. App desktop WPF .NET 8, várias máquinas no mesmo banco. Conferência, devoluções e divergências abrem na janela principal.</p>
 
       <h3>1. Tela inicial (lojas do dia)</h3>
       <ul>
@@ -544,6 +542,17 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
           Release Velopack em <a href="https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.20">v1.0.20</a>.
         </p>
       </div>
+      <div class="phase done">
+        <div class="when">v1.0.31–1.0.39</div>
+        <h4>Pessoas, divergência, preço e planilha</h4>
+        <p>
+          Cadastro de pessoas e envio do amarelo ao comprador. Resposta em Divergências.
+          Comparação com a tabela mais recente, legendas de perfumaria, aviso de prazo,
+          cruzamento com a planilha da loja (lojas 2 a 5 no número da aba), envio da pendência
+          na tela de preço e Buscar preço na pré-nota.
+          Release em <a href="https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.39">v1.0.39</a>.
+        </p>
+      </div>
     </section>
 
     <!-- ========== PLANEJADO ========== -->
@@ -573,23 +582,45 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
           A fila trabalha essa pré-nota (andamento, Absorvido, histórico). O VSM continua intocado.
         </p>
       </div>
-      <div class="phase">
-        <div class="when">Etapa 4 · próxima de negócio</div>
-        <h4>App dos compradores</h4>
+      <div class="phase done">
+        <div class="when">Etapa 4 · feita neste app (1.0.31–1.0.39)</div>
+        <h4>Divergência no mesmo programa</h4>
         <p>
-          Na conferência, Amarelo deixa de ser só cor: escolhe-se o(s) item(ns) e envia
-          “pendência de [fabricante]” para o comprador certo
-          (hoje ~10 pessoas: perfumaria, referência, genérico, misto).
-          O comprador responde: ficar com a divergência (volta Verde + observação)
-          ou devolver (entra na mesma fila de Devolução). Tudo gravado no Postgres.
+          Amarelo pode ir a uma pessoa, com item e motivo. A resposta Ficou ou Devolvida
+          fica em Divergências. A equipe da conferência recebe aviso. A comparação com o
+          pedido e o Buscar preço também estão neste exe.
+        </p>
+      </div>
+      <div class="phase now">
+        <div class="when">Próximo passo</div>
+        <h4>Classes no mesmo aplicativo</h4>
+        <p>
+          Cada pessoa do cadastro ganha uma classe. O menu deste PC segue Quem usa este PC.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Conferência</strong> vê o menu inteiro, inclusive Configurar e Divergências.
+          Acompanha a lista. Ficar com a divergência e Devolver ficam ocultos e o comando é recusado.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Devolução</strong> vê Lojas, a conferência da loja, a fila de Devoluções,
+          Pesquisar nota e Pesquisar produto. Na nota continuam preço, legenda e pré-nota.
+          Divergências e Configurar ficam fora do menu.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Comprador</strong> vê Divergências, Pesquisar nota e Pesquisar produto.
+          A resposta da pendência é desta classe. O comprador vê o que foi enviado para ele.
+          A conferência continua vendo o de todos. Lojas, Devoluções e Configurar ficam fora do menu.
+        </p>
+        <p style="margin-top:8px;">
+          A classe fica gravada na pessoa, no Postgres. Trocar Quem usa este PC troca a visão na hora.
         </p>
       </div>
       <div class="phase">
-        <div class="when">Etapa 5</div>
-        <h4>Usuários e auditoria</h4>
+        <div class="when">Etapa seguinte</div>
+        <h4>Login e auditoria</h4>
         <p>
-          Identidade por pessoa (não um login compartilhado): quem marcou, quando, o quê.
-          Um cadastro no Postgres serve aos três apps. Sem isso não há trilha séria.
+          O login prende a classe à pessoa que entrou, para que a escolha não seja livre neste computador.
+          A trilha guarda quem fez, em qual frente, a ação, o valor anterior, o valor novo, a data e a nota ou o item.
         </p>
       </div>
       <div class="phase">
@@ -651,7 +682,7 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
         <li><strong>VSM só leitura.</strong> Toda decisão (status, pré-nota, resposta do comprador) mora no Postgres.</li>
         <li><strong>Uma identidade de nota.</strong> Continuar com loja + número + CNPJ + dia, mais <code>CodCompra</code> e chave NFe quando existirem.</li>
         <li><strong>Itens copiados quando a pré-nota precisa.</strong> Snapshot em <code>ItensNota</code> / <code>DevolucaoItens</code>. Detalhe ainda pode ler o VSM na hora.</li>
-        <li><strong>Três apps, um banco.</strong> Conferência evolui este WPF. Devolução pode continuar neste exe (nova tela/aba) ou virar exe irmão. Compradores = app novo apontando para o mesmo Postgres.</li>
+        <li><strong>Um banco, classes neste exe.</strong> O próximo passo limita o menu pela classe da pessoa. O aplicativo separado dos compradores continua previsto depois, no mesmo Postgres.</li>
         <li><strong>CSV permanece plano B</strong> até o sync estar inquestionável na rotina.</li>
       </ol>
 
@@ -659,31 +690,32 @@ Nunca INSERT/UPDATE/DELETE no VSM.</pre>
       <div class="flow-mini">
         <p><strong>1. Snapshot de itens no Postgres — feito.</strong> Tabela <code>ItensNota</code>.</p>
         <p><strong>2. Pré-nota de devolução — feito.</strong> Vermelho abre itens; <code>DevolucaoItens</code> na fila.</p>
-        <p><strong>3. Pendência de comprador</strong> — próximo passo de negócio. Amarelo deixa de ser só cor: itens + destino. Tabelas <code>Compradores</code>, <code>PendenciasCompra</code>. App novo.</p>
-        <p><strong>4. Usuários</strong> — login simples no Postgres antes do app dos compradores ir para 10 pessoas. Auditoria: usuário, app, ação, antes/depois, data.</p>
-        <p><strong>5. Técnico (depois)</strong> — retry/keepalive no Postgres. Pedido↔NF e SEFAZ só se você pedir.</p>
+        <p><strong>3. Pendência de comprador — feita neste app.</strong> Amarelo envia itens e destino. Tabelas <code>Pessoas</code>, <code>PendenciasCompra</code>. A resposta fica em Divergências.</p>
+        <p><strong>4. Classes de visão — próximo passo.</strong> Conferência vê tudo e acompanha a pendência sem responder. Devolução vê conferência, fila e as pesquisas de nota e produto. Comprador vê Divergências e as duas pesquisas, e responde. A classe fica na pessoa.</p>
+        <p><strong>5. Login</strong> — depois das classes, para a visão não depender de quem foi escolhido em Quem usa este PC. Auditoria: usuário, frente, ação, antes/depois, data.</p>
+        <p><strong>6. Técnico (depois)</strong> — retry/keepalive no Postgres. Pedido↔NF em lote, faixa Teuto e SEFAZ só se você pedir.</p>
       </div>
 
       <h3>O que já está pronto para encaixar</h3>
       <ul>
         <li>Leitura de itens e EAN (<code>VsmComprasReader</code>) e snapshot <code>ItensNota</code>.</li>
         <li>Fila de devolução com pré-nota por item.</li>
-        <li>Amarelo já conta como pendência no dashboard.</li>
+        <li>Cadastro de <code>Pessoas</code> e pendência em <code>PendenciasCompra</code>, já respondida em Divergências.</li>
         <li>Distribuidoras com prazo.</li>
         <li>Mapa estável de lojas e CNPJ.</li>
         <li>Update por GitHub para as máquinas da equipe.</li>
       </ul>
 
       <div class="callout ok">
-        <strong>Resumo:</strong> o objetivo final não exige outro “sistema de conferência”.
-        Snapshot e pré-nota já existem. Falta transformar o Amarelo em fluxo
-        <em>por produto</em> para o comprador, e o app irmão para ele responder.
-        Retry do Postgres, pedido↔NF e SEFAZ ficam de fora até você mandar retomar.
+        <strong>Resumo:</strong> snapshot, pré-nota e divergência já existem neste exe.
+        O próximo passo é a classe da pessoa limitar o menu: conferência acompanha
+        sem responder, devolução fica na conferência e na fila, comprador responde
+        em Divergências. Login, app separado, retry do Postgres e SEFAZ vêm depois.
       </div>
     </section>
 
     <p class="footer">
-      ConferenciaNFs · Documentação interna · v1.0.20 · out/2026 · Criado para a equipe de conferência
+      ConferenciaNFs · Documentação interna · v1.0.39 · nov/2026 · Criado para a equipe de conferência
     </p>
   </div>
 </body>

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ConferenciaNFs - Planejamento</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --border: #e2e5ea;
+      --text: #1c2430;
+      --muted: #5a6575;
+      --faint: #8b95a5;
+      --accent: #1f6feb;
+      --accent-soft: #eaf2ff;
+      --green: #1a7f4b;
+      --green-soft: #e8f7ef;
+      --amber: #b45309;
+      --amber-soft: #fff7ed;
+      --slate: #334155;
+      --slate-soft: #f1f5f9;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(28, 36, 48, 0.04), 0 8px 24px rgba(28, 36, 48, 0.06);
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #dbe7ff 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e8f5ee 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 36px 20px 72px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px 28px;
+      box-shadow: var(--shadow);
+    }
+    .hero .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: var(--green-soft);
+      padding: 5px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.55rem, 3vw, 2rem);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .hero p {
+      margin: 0;
+      max-width: 44rem;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .chip {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--slate);
+      background: var(--slate-soft);
+      border: 1px solid var(--border);
+      padding: 6px 11px;
+      border-radius: 999px;
+    }
+    .chip.ok {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #bbf7d0;
+    }
+    .chip.next {
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-color: #bfdbfe;
+    }
+
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    nav.toc a {
+      text-decoration: none;
+      color: var(--accent);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    section.card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 22px;
+      box-shadow: var(--shadow);
+    }
+    section.card h2 {
+      margin: 0 0 8px;
+      font-size: 1.22rem;
+      letter-spacing: -0.02em;
+    }
+    section.card > .lead {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+    h3 {
+      margin: 18px 0 8px;
+      font-size: 1rem;
+    }
+    h3:first-child { margin-top: 0; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 0 0 8px; padding-left: 1.15rem; color: var(--muted); }
+    li { margin: 5px 0; }
+    li strong { color: var(--text); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 760px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .plain-box {
+      background: #fafbfc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .plain-box h3 { margin: 0 0 6px; font-size: 0.95rem; }
+    .plain-box p { margin: 0; font-size: 0.92rem; color: var(--muted); }
+
+    .decision {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 16px 14px;
+      margin-bottom: 12px;
+      background: #fafbfc;
+      border-left: 4px solid var(--green);
+    }
+    .decision .label {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .decision .num {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: var(--green-soft);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .decision h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .decision .em-simples {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .decision .em-tecnico {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+    }
+    .decision .em-tecnico strong { color: var(--slate); }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin: 12px 0;
+    }
+    .compare .side {
+      background: var(--slate-soft);
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+    }
+    .compare .side.good {
+      background: var(--green-soft);
+      border-color: #bbf7d0;
+    }
+    .compare .side h4 {
+      margin: 0 0 6px;
+      font-size: 0.85rem;
+    }
+    .compare .side p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .compare .arrow {
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 1.2rem;
+    }
+    @media (max-width: 640px) {
+      .compare { grid-template-columns: 1fr; }
+      .compare .arrow { transform: rotate(90deg); padding: 4px 0; }
+    }
+
+    .flow-mini {
+      display: grid;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .flow-mini .step {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .flow-mini .n {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.9rem;
+    }
+    .flow-mini h4 { margin: 2px 0 2px; font-size: 0.92rem; }
+    .flow-mini p { margin: 0; font-size: 0.86rem; color: var(--muted); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--faint);
+      font-weight: 700;
+    }
+    tr:last-child td { border-bottom: none; }
+    td.ok { color: var(--green); font-weight: 700; }
+
+    .phase {
+      border-left: 4px solid var(--accent);
+      padding: 12px 14px;
+      background: #f8fafc;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 10px;
+    }
+    .phase.done {
+      border-left-color: var(--green);
+      background: #f0fdf4;
+    }
+    .phase.now {
+      border-left-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .phase .when {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+    .phase.done .when { color: var(--green); }
+    .phase h4 { margin: 0 0 4px; }
+    .phase p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+    .callout {
+      background: var(--accent-soft);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 15px 16px;
+      color: var(--text);
+      margin-top: 14px;
+    }
+    .callout.ok {
+      background: var(--green-soft);
+      border-color: #bbf7d0;
+    }
+    .callout strong { color: var(--accent); }
+    .callout.ok strong { color: var(--green); }
+
+    .code-inline {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.84em;
+      background: var(--slate-soft);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 0;
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--slate);
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--faint);
+      font-size: 0.85rem;
+      padding-top: 4px;
+    }
+
+    .print-hint {
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .hero, section.card { box-shadow: none; break-inside: avoid; }
+      nav.toc, .print-hint { display: none; }
+      .wrap { padding: 12px 0 24px; gap: 16px; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="hero">
+      <div class="eyebrow">Uso interno · atualizado nov/2026</div>
+      <h1>ConferenciaNFs - Planejamento</h1>
+      <p>
+        Este arquivo é o rascunho do ecossistema.
+        <strong>Onde estamos agora:</strong> produção <strong>1.0.39</strong> —
+        sync VSM, pré-nota, divergência no mesmo app, preço e planilha da loja.
+        Objetivo intacto: núcleo Postgres, as três frentes neste programa, VSM só leitura.
+        O próximo passo são as classes de visão. Detalhe em <code>ConferenciaNFs-Documentacao.html</code>.
+      </p>
+      <div class="hero-meta">
+        <span class="chip ok">Etapas 0–4 no ar</span>
+        <span class="chip next">Próximo passo: classes de visão</span>
+        <span class="chip">VSM (MySQL) só leitura</span>
+        <span class="chip">Postgres guarda a conferência</span>
+      </div>
+    </header>
+
+    <p class="print-hint">
+      Para imprimir ou salvar em PDF: <strong>Ctrl+P</strong> no navegador.
+    </p>
+
+    <nav class="toc" aria-label="Seções">
+      <a href="#simples">Visão geral</a>
+      <a href="#problema">Situação atual</a>
+      <a href="#etapa0">Etapa 0</a>
+      <a href="#proximos">Próximo passo</a>
+      <a href="#roadmap">Ecossistema</a>
+    </nav>
+
+    <!-- ========== LINGUAGEM SIMPLES ========== -->
+    <section class="card" id="simples">
+      <h2>Visão geral</h2>
+      <p class="lead">
+        O app já busca as notas do dia no VSM e mostra os produtos de cada nota.
+        O CSV permanece como plano B. O próximo passo é cada classe ver só a sua parte.
+      </p>
+
+      <div class="compare" aria-label="Antes e depois">
+        <div class="side">
+          <h4>Ponto de partida</h4>
+          <p>VSM → exportar CSV → importar no app → conferir. O CSV segue como reserva.</p>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="side good">
+          <h4>Já em produção</h4>
+          <p>Abrir o dia no app → notas já aparecem → clicar na nota → ver itens, preço e pré-nota.</p>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:8px;">
+        <div class="plain-box">
+          <h3>O que não muda</h3>
+          <p>
+            Status coloridos, observações, devoluções e o trabalho da conferência
+            continuam no <strong>nosso sistema</strong>. Não alteramos o VSM.
+          </p>
+        </div>
+        <div class="plain-box">
+          <h3>Dois bancos, papéis claros</h3>
+          <p>
+            <strong>MySQL (VSM):</strong> só consultamos as notas.<br />
+            <strong>PostgreSQL (nosso):</strong> guardamos o que a conferência decide.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== PROBLEMA ========== -->
+    <section class="card" id="problema">
+      <h2>Situação atual</h2>
+      <p class="lead">
+        No VSM, o filtro do dia (ex.: 09/09 a 09/09) mostra as notas que
+        <strong>entraram no sistema naquele dia</strong> — cerca de 800 a 900 notas.
+        A data impressa na NF (emissão) costuma ser o dia anterior, mas também
+        podem entrar notas com emissão do mesmo dia ou mais antigas.
+      </p>
+      <ul>
+        <li>O critério correto do “dia de conferência” é a <strong>data de compra / entrada no VSM</strong>, não só a emissão.</li>
+        <li>O histórico do VSM vai até 2014 (~1,2 milhão de notas). <strong>Não vamos copiar tudo</strong> — só o dia em uso.</li>
+        <li>O CSV diário deixa de ser obrigatório; permanece como plano B se a rede/MySQL falhar.</li>
+      </ul>
+    </section>
+
+    <!-- ========== ETAPA 0 ========== -->
+    <section class="card" id="etapa0">
+      <h2>Etapa 0 — regras fechadas</h2>
+      <p class="lead">
+        Base acordada para o sync automático. Sem copiar o histórico inteiro do VSM:
+        só o dia em conferência.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Tema</th>
+            <th>Decisão</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Dia da nota</td><td>Data de entrada no VSM (compra), não só a emissão</td></tr>
+          <tr><td>Volume</td><td>Somente o dia em uso</td></tr>
+          <tr><td>Lojas</td><td>Mapa código ↔ apelido ↔ nome fantasia ↔ CNPJ</td></tr>
+          <tr><td>Status no VSM</td><td>Todas as letras do dia entram (F, D, A…)</td></tr>
+          <tr><td>Fornecedor</td><td>Nome reaproveitado pelo CNPJ já conhecido no nosso banco</td></tr>
+          <tr><td>Identificação da nota</td><td>Chave atual do app + código VSM e chave NFe</td></tr>
+          <tr><td>Atualização</td><td>Ao abrir o dia + botão + a cada 30 min</td></tr>
+          <tr><td>Nota sumiu no VSM</td><td>Não apagar no ConferenciaNFs</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ========== PRÓXIMOS ========== -->
+    <section class="card" id="proximos">
+      <h2>Próximo passo</h2>
+      <p class="lead">
+        As etapas 0 a 4 já estão em produção: sync, itens, pré-nota e divergência neste mesmo app.
+        O que vem agora é a classe da pessoa.
+      </p>
+
+      <div class="phase now">
+        <div class="when">Agora</div>
+        <h4>Classes no mesmo aplicativo</h4>
+        <p>
+          Cada pessoa do cadastro ganha uma classe. O menu deste PC segue Quem usa este PC.
+          A classe fica gravada no Postgres.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Conferência</strong> vê o menu inteiro, inclusive Configurar e Divergências.
+          Acompanha a lista. Ficar com a divergência e Devolver ficam ocultos e o comando é recusado.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Devolução</strong> vê Lojas, a conferência da loja, a fila de Devoluções,
+          Pesquisar nota e Pesquisar produto. Na nota continuam preço, legenda e pré-nota.
+          Divergências e Configurar ficam fora do menu.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Comprador</strong> vê Divergências, Pesquisar nota e Pesquisar produto.
+          A resposta da pendência é desta classe. O comprador vê o que foi enviado para ele.
+          A conferência continua vendo o de todos.
+        </p>
+      </div>
+
+      <div class="callout">
+        <strong>Resumo:</strong>
+        trocar Quem usa este PC troca a visão na hora. O login, para que a classe
+        não seja livre neste computador, é a etapa seguinte. O app separado dos compradores fica depois.
+      </div>
+    </section>
+
+    <!-- ========== ROADMAP ========== -->
+    <section class="card" id="roadmap">
+      <h2>Visão do ecossistema (lembrete)</h2>
+      <p class="lead">
+        Meta de longo prazo: um núcleo de dados nosso e três frentes —
+        Conferência, Compradores e Devolução — lendo o VSM só quando necessário.
+      </p>
+
+      <div class="phase done">
+        <div class="when">Etapa 0 · feita</div>
+        <h4>Regras de negócio e mapa de lojas</h4>
+        <p>Regras de negócio e mapa de lojas definidos.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">Etapas 1–2 · feitas</div>
+        <h4>Sync de notas + itens na tela</h4>
+        <p>CSV deixou de ser obrigatório. O detalhe da NF e a busca por produto/EAN estão no ar.</p>
+      </div>
+      <div class="phase done">
+        <div class="when">Etapas 3–4 · feitas neste app</div>
+        <h4>Pré-nota e divergência</h4>
+        <p>Devolução por produto e resposta do comprador em Divergências, no mesmo exe.</p>
+      </div>
+      <div class="phase now">
+        <div class="when">Próximo passo</div>
+        <h4>Classes de visão</h4>
+        <p>
+          Conferência vê tudo e acompanha a pendência sem responder.
+          Devolução vê conferência, fila e as pesquisas de nota e produto.
+          Comprador vê Divergências e as duas pesquisas, e responde.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="when">Depois</div>
+        <h4>Login, roteamento e app separado</h4>
+        <p>Login prende a classe à pessoa. Fabricante e o exe dos compradores ficam mais adiante.</p>
+      </div>
+      <div class="phase">
+        <div class="when">Etapas 8–10</div>
+        <h4>Fabricante, estoque oficial, automação avançada</h4>
+        <p>Parte depende de mais tabelas no VSM (ainda não liberadas).</p>
+      </div>
+
+      <div class="grid-3" style="margin-top:14px;">
+        <div class="plain-box">
+          <h3>Conferência</h3>
+          <p>Já existe — evolui com sync e itens.</p>
+        </div>
+        <div class="plain-box">
+          <h3>Compradores</h3>
+          <p>App novo — pendências Amarelo (depois).</p>
+        </div>
+        <div class="plain-box">
+          <h3>Devolução</h3>
+          <p>Evoluir o atual — pré-nota por produto (depois).</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Próximo alinhamento</h2>
+      <p class="lead" style="margin-bottom:10px;">
+        O foco passa às classes de visão no ConferenciaNFs.
+      </p>
+      <ul>
+        <li>Conferência vê o menu inteiro e não responde pendência na tela de Divergências.</li>
+        <li>Devolução vê conferência, fila, pesquisa de nota e pesquisa de produto.</li>
+        <li>Comprador vê Divergências e as duas pesquisas, e é quem responde.</li>
+        <li>A classe fica na pessoa. Quem usa este PC define a visão deste computador.</li>
+      </ul>
+      <div class="badge-row">
+        <span class="badge">Documento interno</span>
+        <span class="badge">ConferenciaNFs</span>
+        <span class="badge">Atualizado nov/2026</span>
+      </div>
+    </section>
+
+    <p class="footer">
+      ConferenciaNFs - Planejamento · Criado por Paulo Margutti · atualizado nov/2026
+    </p>
+  </div>
+</body>
+</html>

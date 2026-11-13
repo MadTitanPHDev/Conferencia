@@ -239,7 +239,7 @@
 <body>
   <main class="page">
     <header class="section" style="gap: 8px;">
-      <span class="pill info">ConferenciaNFs · Apresentação técnica · v1.0.20</span>
+      <span class="pill info">ConferenciaNFs · Apresentação técnica · v1.0.39</span>
       <h1>Conferência de Notas Fiscais</h1>
       <p class="muted">
         Aplicativo desktop WPF (.NET 8) para conferência diária de NFs por
@@ -344,6 +344,11 @@
             <td>Pesquisar nota</td>
             <td>PesquisarNotaWindow + ViewModel</td>
             <td>Busca por número; 1ª conferência da nota</td>
+          </tr>
+          <tr>
+            <td>Divergências</td>
+            <td>PendenciasCompraWindow + ViewModel</td>
+            <td>Pendência enviada a uma pessoa. O comprador responde Ficou ou Devolver</td>
           </tr>
         </tbody>
       </table>
@@ -505,7 +510,34 @@
           </p>
           <p class="muted small">
             Script <code>scripts\release.ps1</code> + GitHub Releases (Setup Velopack).
-            Settings em <code>%AppData%\ConferenciaNFs</code>. Produção atual: 1.0.20.
+            Settings em <code>%AppData%\ConferenciaNFs</code>. Produção atual: 1.0.39.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2>Próximo passo</h2>
+      <article class="card">
+        <div class="card-body">
+          <p>
+            Cada pessoa do cadastro ganha uma classe. O menu deste PC segue
+            <strong>Quem usa este PC</strong>. A classe fica no Postgres.
+          </p>
+          <p>
+            <strong>Conferência</strong> vê o menu inteiro e acompanha Divergências.
+            Ficar com a divergência e Devolver ficam ocultos e o comando é recusado.
+          </p>
+          <p>
+            <strong>Devolução</strong> vê Lojas, a conferência da loja, a fila,
+            Pesquisar nota e Pesquisar produto, com preço, legenda e pré-nota na nota.
+          </p>
+          <p>
+            <strong>Comprador</strong> vê Divergências, Pesquisar nota e Pesquisar produto,
+            e é quem responde. Vê o que foi enviado para ele. A conferência vê o de todos.
+          </p>
+          <p class="muted small">
+            Trocar a pessoa neste PC troca a visão. O login que prende a classe vem depois.
           </p>
         </div>
       </article>

@@ -4,14 +4,15 @@ App desktop (WPF, .NET 8) para a conferência diária de notas fiscais de entrad
 
 As notas vêm do **VSM (ERP)** em MySQL, somente leitura. Tudo o que a equipe decide — status, observação, fila de devolução — fica em um **PostgreSQL** compartilhado, acessado por várias máquinas ao mesmo tempo.
 
-Versão publicada: **1.0.35** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.35))
+Versão publicada: **1.0.39** ([release no GitHub](https://github.com/MadTitanPHDev/Conferencia/releases/tag/v1.0.39))
 
-**Onde estamos:** a conferência do dia a dia está em produção, com sync VSM por computador, status, envio de divergência ao comprador, fila de devoluções e comparação de preço. O núcleo continua o PostgreSQL, sem gravar no VSM. O app separado de compradores segue em espera: o comprador usa as telas de Divergências deste mesmo programa. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`), faixas de quantidade da tabela Teuto e o relatório em lote de diferença de preços.
+**Onde estamos:** a conferência do dia a dia está em produção. O app sincroniza o VSM no computador autorizado, classifica as notas, envia divergência a uma pessoa, mantém a fila de devoluções com pré-nota e compara preço com a tabela mais recente. A resposta do comprador fica na tela Divergências deste mesmo programa. O núcleo continua o PostgreSQL, sem gravar no VSM. **Adiado de propósito:** retry nas gravações quando o Postgres corta a conexão (`Exception while reading from stream`), faixas de quantidade da tabela Teuto, o relatório em lote de diferença de preços e o aplicativo separado dos compradores.
 
 ---
 
 ## Índice
 
+- [Próximo passo](#próximo-passo)
 - [Como funciona](#como-funciona)
 - [Instalação](#instalação)
 - [Configuração](#configuração)
@@ -26,6 +27,20 @@ Versão publicada: **1.0.35** ([release no GitHub](https://github.com/MadTitanPH
 - [Problemas conhecidos](#problemas-conhecidos)
 
 ---
+
+## Próximo passo
+
+Cada pessoa do cadastro passa a ter uma classe. O menu deste PC segue a pessoa escolhida em **Quem usa este PC**.
+
+| Classe | O que vê |
+|---|---|
+| **Conferência** | O menu inteiro, inclusive Configurar e Divergências. Acompanha as pendências. A resposta (**Ficar com a divergência** e **Devolver**) fica reservada ao comprador: os botões somem e o comando é recusado. |
+| **Devolução** | Lojas, a conferência da loja e a fila de Devoluções. Também Pesquisar nota e Pesquisar produto. Na nota continuam o preço, a legenda e a pré-nota. |
+| **Comprador** | Divergências, Pesquisar nota e Pesquisar produto. A resposta da pendência é desta classe. O comprador vê o que foi enviado para ele. A conferência continua vendo o de todos. |
+
+Divergências e Configurar ficam de fora do menu de Devolução. Lojas, Devoluções e Configurar ficam de fora do menu do Comprador.
+
+A classe fica gravada na pessoa, no Postgres. Trocar **Quem usa este PC** troca a visão na hora. Um login por pessoa, para que a escolha da classe não seja livre neste computador, fica para a etapa seguinte.
 
 ## Como funciona
 
@@ -218,7 +233,7 @@ Mouse: **duplo clique** copia o número ou abre os itens (conforme F12), **scrol
 | **Gerenciar lojas** | Ordem e nome de exibição dos cards. |
 | **Distribuidoras** | Prazo de devolução por CNPJ e se o prazo é rastreado. O nome exibido prefere o cadastro. |
 | **Importar distribuidoras** | Planilha com CNPJ e Fornecedor. Preenche nome vazio ou que seja só o CNPJ. Não cria CNPJ novo, não muda prazo e não troca um nome já preenchido. O CNPJ 16.619.378/0001-08 permanece Predileta. |
-| **Pessoas** | Cadastro de quem recebe divergência. A equipe da conferência (Paulo, Guilherme, Matheus, João Gabriel) é quem ouve o aviso de resolução. |
+| **Pessoas** | Cadastro de quem recebe divergência. A equipe da conferência (Paulo, Guilherme, Matheus, João Gabriel) é quem ouve o aviso de resolução. A classe desta pessoa é o próximo passo: ela define o que o menu deste PC mostra. |
 | **Motivos** | Cadastro de motivos de devolução. |
 | **Tabelas de preço** | Planilhas compartilhadas. Sem cabeçalho: EAN, nome, preço, preço com ST. Com cabeçalho, a coluna Loja também vale. |
 
@@ -336,13 +351,13 @@ O botão **Buscar preço**, no detalhe da nota, cruza o EAN com as tabelas impor
 3. Gere os pacotes:
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.35
+.\scripts\release.ps1 -Version 1.0.39
 ```
 
 4. O próprio script publica a release quando chamado com `-CreateGitHubRelease`. As notas saem de um arquivo temporário, para o PowerShell não quebrar o texto. Também dá para publicar à mão com os arquivos de `artifacts\Releases\`.
 
 ```powershell
-.\scripts\release.ps1 -Version 1.0.35 -CreateGitHubRelease
+.\scripts\release.ps1 -Version 1.0.39 -CreateGitHubRelease
 ```
 
 O script publica self-contained win-x64, empacota com Velopack e leva no pacote **apenas** o `app-settings.example.json`. Nem as suas configurações de desenvolvimento nem um `app-settings.json` padrão vão junto — é justamente isso que fazia a configuração do usuário ser zerada a cada atualização.

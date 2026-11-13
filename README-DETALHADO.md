@@ -7,9 +7,9 @@ e o objetivo de longo prazo do ConferenciaNFs.
 
 Estado de referência deste documento:
 
-- Data: 10/11/2026.
-- Versão publicada: 1.0.35.
-- No código, depois dessa release, a comparação de preço passou a usar a tabela mais recente, mostrar a diferença e ler loja e preço com ST quando a planilha traz essas colunas. Isso ainda não foi publicado no Velopack.
+- Data: 13/11/2026.
+- Versão publicada: 1.0.39.
+- Próximo passo de negócio: classes de visão no mesmo aplicativo (Conferência, Devolução e Comprador).
 - Aplicativo: WPF em .NET 8 para Windows.
 - Banco operacional: PostgreSQL compartilhado.
 - ERP VSM: MySQL em modo somente leitura.
@@ -35,8 +35,11 @@ em CSV por um fluxo compartilhado, rastreável e mais próximo do VSM. Atualment
 - consulta produtos por EAN, com filtros de loja, distribuidora e devolução do item;
 - compara custos com a tabela de preço mais recente;
 - importa nomes de distribuidora por CNPJ;
+- cruza notas devolvidas pelo comprador com a planilha da loja;
 - exporta conferências e devoluções;
 - atualiza as máquinas por Velopack, com o sync do VSM decidido em cada PC.
+
+O próximo passo é cada pessoa enxergar só a parte da sua classe, ainda neste aplicativo. Conferência vê o menu inteiro e acompanha Divergências sem responder. Devolução vê conferência, fila, pesquisa de nota e de produto. Comprador vê Divergências e as duas pesquisas, e é quem responde a pendência.
 
 O maior risco encontrado até agora não foi a leitura do VSM, mas a definição da
 identidade histórica de uma nota. Uma mesma compra pode reaparecer em outro
@@ -688,7 +691,10 @@ Limitações:
 - 1.0.33: nome da distribuidora, devolvidas pelo comprador e pendência que acompanha o status.
 - 1.0.34: amarelo automático seguinte vira laranja; status do VSM; pesquisa do item; comparação da nota com o pedido; andamento **Anexar nota**.
 - 1.0.35: importação de nomes de distribuidora. Nome vazio ou igual ao CNPJ é preenchido. Nome já preenchido permanece. Predileta não vira Cimed.
-- Depois da 1.0.35, ainda sem release: a comparação de preço usa a tabela mais recente, mostra a diferença e lê loja e preço com ST quando a planilha tem essas colunas.
+- 1.0.36: comparação com a tabela mais recente, diferença em reais e percentual, loja e preço com ST, Ctrl+Z na conferência, aviso de prazo para a Lais e legendas de perfumaria.
+- 1.0.37: legendas também na tela principal; nota devolvida pelo comprador fica verde se o número está na planilha da loja e amarela se falta.
+- 1.0.38: lojas 2 a 5 usam o número da aba da planilha (o da tela do VSM), não o código interno corrigido.
+- 1.0.39: envio da pendência na tela de preço e Buscar preço na pré-nota de devolução.
 
 ---
 
@@ -724,28 +730,29 @@ Limitações de dados:
 
 ## 8. Melhorias em espera
 
-### 8.1 Compradores
+### 8.1 Próximo passo — classes no mesmo aplicativo
 
-A primeira fatia já está neste aplicativo. Não há um app separado.
+A fatia do comprador já está neste aplicativo, na tela Divergências. O próximo passo é a mesma pessoa passar a ver só a parte da sua classe. A classe fica gravada em `Pessoas`, no Postgres. O menu deste PC segue **Quem usa este PC**.
 
-A conferência, no amarelo, pode:
+Conferência vê o menu inteiro, inclusive Configurar e Divergências. Acompanha a lista. **Ficar com a divergência** e **Devolver** ficam ocultos e o comando é recusado. Hoje Paulo, Guilherme, Matheus e João Gabriel abrem essa tela e conseguem responder.
 
-- só deixar a nota amarela, sem pendência;
-- enviar os itens a uma pessoa do cadastro, com motivo;
-- continuar vendo a nota na lista da conferência.
+Devolução vê Lojas, a conferência da loja, a fila de Devoluções, Pesquisar nota e Pesquisar produto. Na nota continuam preço, legenda e pré-nota. Divergências e Configurar ficam fora do menu.
 
-O comprador, em Divergências:
+Comprador vê Divergências, Pesquisar nota e Pesquisar produto. A resposta da pendência fica com essa classe. A lista continua como já está: o comprador vê o que foi enviado para ele; a conferência vê o de todos.
 
-- vê os itens que foram enviados;
-- responde. Ficou registra a absorção. Devolvida manda o item para a fila de devolução;
-- a equipe da conferência (Paulo, Guilherme, Matheus e João Gabriel) recebe aviso.
+Trocar **Quem usa este PC** troca a visão na hora. O login por pessoa, para que a escolha da classe não seja livre neste computador, é a etapa seguinte.
 
-Ainda falta o app próprio, o roteamento automático por fabricante e a identidade de login. A pessoa deste PC é uma preferência local, não um usuário autenticado.
+O que já funciona, e a classe vai preservar:
+
+- no amarelo, a conferência pode só deixar a nota amarela ou enviar os itens a uma pessoa, com motivo;
+- o comprador responde. Ficou registra a absorção. Devolvida manda o item para a fila de devolução;
+- a equipe da conferência recebe aviso quando a pendência é resolvida.
+
+O aplicativo separado dos compradores e o roteamento automático por fabricante continuam depois das classes.
 
 ### 8.2 Usuários e auditoria
 
-Antes de distribuir o fluxo a vários compradores, o sistema precisa de identidade
-individual:
+Depois das classes, o login individual prende a visão à pessoa que entrou. A trilha continua necessária:
 
 - usuário;
 - aplicação de origem;
@@ -820,23 +827,20 @@ próprio, preservando o VSM como fonte somente leitura.
              WPF atual       app novo       módulo/app
 ```
 
-A fatia do comprador que já existe mora dentro do ConferenciaNFs, na tela Divergências. O desenho acima continua valendo para o app separado, que ainda não foi criado.
+A fatia do comprador já mora dentro do ConferenciaNFs, na tela Divergências. O próximo passo são as três classes neste mesmo exe: Conferência vê tudo e acompanha a pendência sem respondê-la; Devolução vê conferência, fila e as pesquisas de nota e produto; Comprador vê Divergências e as duas pesquisas, e responde. O desenho de três aplicativos continua valendo para uma etapa posterior. O login, que impede escolher a classe de outra pessoa neste PC, vem logo depois das classes.
 
 Resultado esperado:
 
-- Conferência identifica e classifica.
-- Compradores decidem divergências por produto.
-- Devolução executa e acompanha o retorno.
+- Conferência identifica e classifica, e acompanha a divergência sem respondê-la na tela de pendência.
+- Compradores decidem divergências por produto, na parte do app que a classe deles enxerga.
+- Devolução executa e acompanha o retorno, com a conferência e as pesquisas de nota e produto.
 - Todos usam o mesmo histórico.
 - Nenhuma decisão depende de alterar o VSM.
 - Toda ação relevante é auditável.
 - Atualizações não perdem configuração nem dados.
 - Uma nota pode reaparecer sem apagar o que foi feito antes.
 
-O aplicativo atual não deve ser descartado. Ele é a primeira frente desse
-ecossistema. O caminho planejado é evoluir o PostgreSQL compartilhado, manter o
-ConferenciaNFs como aplicação da conferência e criar o app dos compradores sobre o
-mesmo núcleo.
+O aplicativo atual permanece. Ele já reúne as três frentes. O caminho imediato é a classe gravada na pessoa. O aplicativo separado dos compradores fica sobre o mesmo Postgres, depois que essa visão estiver no ar.
 
 ---
 
