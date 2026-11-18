@@ -498,24 +498,15 @@ public sealed partial class NotaFiscalRepository
                 tx);
         }
 
-        var dataConclusao = DataCompraParser.Formatar(DateTime.Today);
-        var linhas = await connection.ExecuteAsync("""
-            UPDATE Devolucoes
-            SET StatusDevolucao = @StatusDevolucao,
-                DataConclusao = @DataConclusao
+        var status = await connection.QuerySingleOrDefaultAsync<string>("""
+            SELECT StatusDevolucao
+            FROM Devolucoes
             WHERE Id = @Id
-              AND StatusDevolucao = @StatusPendente
             """,
-            new
-            {
-                Id = devolucaoId,
-                StatusDevolucao = StatusDevolucaoValues.Devolvida,
-                StatusPendente = StatusDevolucaoValues.Pendente,
-                DataConclusao = dataConclusao
-            },
+            new { Id = devolucaoId },
             tx);
 
-        if (linhas == 0)
+        if (!string.Equals(status, StatusDevolucaoValues.Pendente, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Esta devolucao ja foi concluida ou nao esta pendente.");
 
         await tx.CommitAsync(cancellationToken);

@@ -606,6 +606,16 @@ public sealed partial class NotaFiscalRepository
             {SqlJoinDistribuidoraPorCnpj}
             WHERE p.StatusPendencia = ANY(@Statuses)
               AND (@SomentePessoaId IS NULL OR p.PessoaId = @SomentePessoaId)
+              AND (
+                    @SomenteDevolvidas = FALSE
+                    OR n.StatusConferencia IN (@Vermelho, @Amarelo)
+                    OR (
+                        n.StatusConferencia = @Laranja
+                        AND EXISTS (
+                            SELECT 1 FROM Devolucoes d
+                            WHERE d.NotaFiscalId = n.Id)
+                    )
+                  )
             ORDER BY p.Id DESC
             """,
             new
@@ -615,7 +625,11 @@ public sealed partial class NotaFiscalRepository
                     : concluidas
                         ? new[] { StatusPendenciaCompraValues.Ficou, StatusPendenciaCompraValues.Devolvida }
                         : new[] { StatusPendenciaCompraValues.Aberta },
-                SomentePessoaId = somentePessoaId
+                SomentePessoaId = somentePessoaId,
+                SomenteDevolvidas = somenteDevolvidas,
+                Vermelho = StatusConferenciaValues.Vermelho,
+                Amarelo = StatusConferenciaValues.Amarelo,
+                Laranja = StatusConferenciaValues.Laranja
             },
             cancellationToken: cancellationToken))).AsList();
 

@@ -22,4 +22,24 @@ public class PendenciaAcompanhaStatusTests
     {
         Assert.False(PendenciaAcompanhaStatus.DeveEncerrarAbertas(StatusConferenciaValues.Amarelo));
     }
+
+    [Theory]
+    [InlineData(StatusConferenciaValues.Vermelho, false)]
+    [InlineData(StatusConferenciaValues.Amarelo, false)]
+    [InlineData(StatusConferenciaValues.Laranja, true)]
+    public void DevolvidaPeloComprador_AindaPedePrint(string status, bool temDevolucao)
+    {
+        Assert.True(PendenciaAcompanhaStatus.AindaAguardaPrint(status, temDevolucao));
+    }
+
+    [Theory]
+    [InlineData(StatusConferenciaValues.Verde, false)]
+    [InlineData(StatusConferenciaValues.Verde, true)]
+    [InlineData(StatusConferenciaValues.Laranja, false)]
+    [InlineData(StatusConferenciaValues.Azul, false)]
+    [InlineData(StatusConferenciaValues.Pendente, false)]
+    public void ConferenciaDesistiuDaDevolucao_NaoPedePrint(string status, bool temDevolucao)
+    {
+        Assert.False(PendenciaAcompanhaStatus.AindaAguardaPrint(status, temDevolucao));
+    }
 }

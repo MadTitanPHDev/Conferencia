@@ -55,7 +55,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
         AtualizarCommand = new AsyncRelayCommand(_ => CarregarAsync());
         AbrirItensCommand = new AsyncRelayCommand(_ => AbrirItensAsync(), _ => Selecionada is not null);
         MarcarDevolvidaCommand = new AsyncRelayCommand(
-            _ => AbrirItensAsync(marcarDevolvida: true),
+            _ => ConcluirAsync(StatusDevolucaoValues.Devolvida),
             _ => Selecionada?.PodeConcluir == true);
         MarcarPerdeuPrazoCommand = new AsyncRelayCommand(
             _ => ConcluirAsync(StatusDevolucaoValues.PerdeuPrazo),
@@ -330,9 +330,11 @@ public sealed class DevolucoesViewModel : ViewModelBase
             var vencidas = _todas.Count(d =>
                 d.StatusDevolucao == StatusDevolucaoValues.Pendente
                 && d.Urgencia == "Vencida");
+            var naPlanilha = await ContarPendentesNaPlanilhaAsync();
 
             Mensagem = $"{TextoPeriodoAtual} · {_todas.Count} na fila · {pendentes} pendente(s)"
-                       + (vencidas > 0 ? $" · {vencidas} vencida(s)" : string.Empty);
+                       + (vencidas > 0 ? $" · {vencidas} vencida(s)" : string.Empty)
+                       + (naPlanilha is int achadas ? $" · {achadas} pendente(s) já na planilha" : string.Empty);
         }
         catch (Exception ex)
         {
@@ -343,6 +345,24 @@ public sealed class DevolucoesViewModel : ViewModelBase
         finally
         {
             IsCarregando = false;
+        }
+    }
+
+    private async Task<int?> ContarPendentesNaPlanilhaAsync()
+    {
+        try
+        {
+            var planilha = await PlanilhaDevolucaoGoogle.LerNumerosDasPlanilhasAsync();
+            if (planilha is null)
+                return null;
+
+            return CruzamentoPlanilhaDevolucao.ContarPendentesNaPlanilha(
+                _todas.Select(d => (d.StatusDevolucao, d.NumNota, d.ApelidoLoja)),
+                planilha);
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -516,9 +536,9 @@ public sealed class DevolucoesViewModel : ViewModelBase
         }
     }
 
-    public Task AbrirItensDaSelecionadaAsync() => AbrirItensAsync(marcarDevolvida: false);
+    public Task AbrirItensDaSelecionadaAsync() => AbrirItensAsync();
 
-    private async Task AbrirItensAsync(bool marcarDevolvida = false)
+    private async Task AbrirItensAsync()
     {
         if (Selecionada is null)
             return;
@@ -539,14 +559,8 @@ public sealed class DevolucoesViewModel : ViewModelBase
 
             if (!temItens)
             {
-                if (marcarDevolvida && Selecionada.PodeConcluir)
-                {
-                    await ConcluirAsync(StatusDevolucaoValues.Devolvida);
-                    return;
-                }
-
                 MessageBox.Show(
-                    "Esta nota nao tem itens gravados (fluxo antigo). Use Marcar devolvida para concluir sem pre-nota.",
+                    "Esta nota nao tem itens gravados. A conclusao fica no botao Devolvida ao dist.",
                     "Devolucoes",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -566,7 +580,7 @@ public sealed class DevolucoesViewModel : ViewModelBase
 
             if (janela.ShowDialog() == true && janela.Confirmou)
             {
-                Mensagem = $"Nota {Selecionada.NumNota}: itens confirmados e marcada como devolvida.";
+                Mensagem = $"Nota {Selecionada.NumNota}: itens gravados. A devolucao continua pendente.";
                 await CarregarAsync();
             }
         }

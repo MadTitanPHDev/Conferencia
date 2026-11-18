@@ -178,6 +178,7 @@ public sealed partial class NotaFiscalRepository
         AplicarCorteFilaDevolucoesPorAcao(connection);
         AplicarLimpezaDevolucoesAnterioresAoCorte(connection);
         InicializarTabelaPrecos(connection);
+        InicializarTabelaCmed(connection);
         CorrigirNotasLojasVsm2a5(connection);
         AplicarRepinturaAmareloHerdadoExistente(connection);
     }

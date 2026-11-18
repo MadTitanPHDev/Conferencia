@@ -13,6 +13,7 @@ namespace ConferenciaNFs.Infrastructure;
 public static class PlanilhaDevolucaoGoogle
 {
     public const string PlanilhaId = "1ho0Fweiz9GW8yqrH3wyD2FVr46ExpvJcHBULNsjsNsU";
+    public const string PlanilhaIdSetOut = "1o_5bKchNmUU911tsPBRzwby6IDeNP08fmydL-fHBXY0";
 
     private static readonly HttpClient Http = new();
     private static string? _token;
@@ -49,7 +50,28 @@ public static class PlanilhaDevolucaoGoogle
         return null;
     }
 
+    public static Task<IReadOnlyDictionary<int, HashSet<string>>?> LerNumerosPorLojaAsync(
+        CancellationToken cancellationToken = default)
+        => LerNumerosPorLojaAsync(PlanilhaId, cancellationToken);
+
+    public static async Task<IReadOnlyDictionary<int, HashSet<string>>?> LerNumerosDasPlanilhasAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var novDez = await LerNumerosPorLojaAsync(PlanilhaId, cancellationToken);
+        var setOut = await LerNumerosPorLojaAsync(PlanilhaIdSetOut, cancellationToken);
+        if (novDez is null && setOut is null)
+            return null;
+
+        var fontes = new List<IReadOnlyDictionary<int, HashSet<string>>>();
+        if (novDez is not null)
+            fontes.Add(novDez);
+        if (setOut is not null)
+            fontes.Add(setOut);
+        return CruzamentoPlanilhaDevolucao.Unir(fontes);
+    }
+
     public static async Task<IReadOnlyDictionary<int, HashSet<string>>?> LerNumerosPorLojaAsync(
+        string planilhaId,
         CancellationToken cancellationToken = default)
     {
         var chave = EncontrarChave();
@@ -62,7 +84,7 @@ public static class PlanilhaDevolucaoGoogle
 
         using var metaPedido = new HttpRequestMessage(
             HttpMethod.Get,
-            $"https://sheets.googleapis.com/v4/spreadsheets/{PlanilhaId}?fields=sheets.properties.title");
+            $"https://sheets.googleapis.com/v4/spreadsheets/{planilhaId}?fields=sheets.properties.title");
         metaPedido.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var metaResposta = await Http.SendAsync(metaPedido, cancellationToken);
         if (!metaResposta.IsSuccessStatusCode)
@@ -80,7 +102,7 @@ public static class PlanilhaDevolucaoGoogle
             "ranges=" + Uri.EscapeDataString($"'{aba.Replace("'", "''")}'!A:A")));
         using var valoresPedido = new HttpRequestMessage(
             HttpMethod.Get,
-            $"https://sheets.googleapis.com/v4/spreadsheets/{PlanilhaId}/values:batchGet?{consulta}");
+            $"https://sheets.googleapis.com/v4/spreadsheets/{planilhaId}/values:batchGet?{consulta}");
         valoresPedido.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var valoresResposta = await Http.SendAsync(valoresPedido, cancellationToken);
         if (!valoresResposta.IsSuccessStatusCode)

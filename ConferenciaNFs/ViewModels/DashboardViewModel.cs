@@ -77,6 +77,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         VoltarHojeCommand = new RelayCommand(_ => VoltarHoje());
         PesquisarNotaCommand = new RelayCommand(PesquisarNota);
         PesquisarProdutoCommand = new RelayCommand(PesquisarProduto);
+        ConsultaCmedCommand = new RelayCommand(AbrirConsultaCmed);
         ExportarTodasCommand = new AsyncRelayCommand(_ => ExportarTodasAsync(), _ => PodeExportarTodas);
         RecalcularHerancaDiaCommand = new AsyncRelayCommand(
             _ => RecalcularHerancaDiaAsync(),
@@ -164,6 +165,18 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         IntervaloPronto
             ? $"{_totalPendencias} com pendências · {_totalNotasNovas} novas · {_totalNotas} notas"
             : string.Empty;
+
+    public int TotalNotasPeriodo => _totalNotas;
+
+    public int TotalComPendencia => _totalPendencias;
+
+    public int TotalNotasNovas => _totalNotasNovas;
+
+    public int TotalLojas => Lojas.Count;
+
+    public int LojasComAtencao => Lojas.Count(loja => loja.TemPendencias);
+
+    public bool TemLojasComAtencao => LojasComAtencao > 0;
 
     public bool IsCarregando
     {
@@ -331,6 +344,7 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
     public ICommand VoltarHojeCommand { get; }
     public ICommand PesquisarNotaCommand { get; }
     public ICommand PesquisarProdutoCommand { get; }
+    public ICommand ConsultaCmedCommand { get; }
     public ICommand ExportarTodasCommand { get; }
     public ICommand RecalcularHerancaDiaCommand { get; }
     public ICommand MigrarSqliteCommand { get; }
@@ -1027,6 +1041,12 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         _totalNotas = resumo.TotalNotas;
         OnPropertyChanged(nameof(TituloPagina));
         OnPropertyChanged(nameof(ResumoPagina));
+        OnPropertyChanged(nameof(TotalNotasPeriodo));
+        OnPropertyChanged(nameof(TotalComPendencia));
+        OnPropertyChanged(nameof(TotalNotasNovas));
+        OnPropertyChanged(nameof(TotalLojas));
+        OnPropertyChanged(nameof(LojasComAtencao));
+        OnPropertyChanged(nameof(TemLojasComAtencao));
     }
 
     private void AtualizarComandosDoDia()
@@ -1319,6 +1339,15 @@ public sealed class DashboardViewModel : ViewModelBase, IDisposable
         };
         _pagina = PaginaAtiva.Devolucoes;
         NotificarPagina();
+    }
+
+    private void AbrirConsultaCmed(object? parameter)
+    {
+        var janela = new ConsultaCmedWindow(_repository)
+        {
+            Owner = Application.Current.MainWindow
+        };
+        janela.ShowDialog();
     }
 
     private void PesquisarProduto(object? parameter)

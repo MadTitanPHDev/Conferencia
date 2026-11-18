@@ -135,4 +135,47 @@ public static partial class CruzamentoPlanilhaDevolucao
             ? NaPlanilha
             : ForaDaPlanilha;
     }
+
+    public static IReadOnlyDictionary<int, HashSet<string>> Unir(
+        IEnumerable<IReadOnlyDictionary<int, HashSet<string>>> planilhas)
+    {
+        var uniao = new Dictionary<int, HashSet<string>>();
+        foreach (var planilha in planilhas)
+        {
+            foreach (var (loja, numeros) in planilha)
+            {
+                if (!uniao.TryGetValue(loja, out var destino))
+                {
+                    destino = new HashSet<string>(StringComparer.Ordinal);
+                    uniao[loja] = destino;
+                }
+
+                destino.UnionWith(numeros);
+            }
+        }
+
+        return uniao;
+    }
+
+    public static int ContarPendentesNaPlanilha(
+        IEnumerable<(string Status, string NumNota, string ApelidoLoja)> notas,
+        IReadOnlyDictionary<int, HashSet<string>> planilha)
+    {
+        var total = 0;
+        foreach (var nota in notas)
+        {
+            if (!string.Equals(nota.Status, "Pendente", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var codigo = CodLojaPorApelido(nota.ApelidoLoja);
+            var numero = ChaveNumero(nota.NumNota);
+            if (codigo is null || numero.Length == 0)
+                continue;
+
+            if (planilha.TryGetValue(codigo.Value, out var numeros) && numeros.Contains(numero))
+                total++;
+        }
+
+        return total;
+    }
 }

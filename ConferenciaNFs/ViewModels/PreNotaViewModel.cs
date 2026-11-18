@@ -22,6 +22,7 @@ public sealed class PreNotaViewModel : ViewModelBase
     private string _motivoLote = string.Empty;
     private string _classeLote = string.Empty;
     private string _filtroTexto = string.Empty;
+    private string _observacaoDevolucao = string.Empty;
 
     public PreNotaViewModel(
         NotaFiscalRepository repository,
@@ -77,7 +78,7 @@ public sealed class PreNotaViewModel : ViewModelBase
         : $"Pré-nota · {_nota.NumNota} · {_nota.ApelidoLoja}";
 
     public string TextoBotaoConfirmar => _modo == PreNotaModo.ConfirmacaoFila
-        ? "Confirmar itens e marcar devolvida ao dist."
+        ? "Salvar itens"
         : "Confirmar e devolver";
 
     public string TextoCancelar => PodeEditar ? "Cancelar" : "Fechar";
@@ -166,6 +167,19 @@ public sealed class PreNotaViewModel : ViewModelBase
         private set => SetProperty(ref _mensagem, value);
     }
 
+    public string ObservacaoDevolucao
+    {
+        get => _observacaoDevolucao;
+        private set
+        {
+            if (!SetProperty(ref _observacaoDevolucao, value))
+                return;
+            OnPropertyChanged(nameof(TemObservacaoDevolucao));
+        }
+    }
+
+    public bool TemObservacaoDevolucao => !string.IsNullOrWhiteSpace(ObservacaoDevolucao);
+
     public Action? Fechar { get; set; }
 
     private async Task CarregarAsync()
@@ -173,6 +187,7 @@ public sealed class PreNotaViewModel : ViewModelBase
         try
         {
             IsCarregando = true;
+            await CarregarObservacaoDevolucaoAsync();
             var motivos = await _repository.ListarMotivosDevolucaoAsync(somenteAtivos: true);
             Motivos.Clear();
             foreach (var motivo in motivos)
@@ -235,7 +250,7 @@ public sealed class PreNotaViewModel : ViewModelBase
             }
 
             Mensagem = _modo == PreNotaModo.ConfirmacaoFila
-                ? "Confira de novo os produtos, quantidades, motivo e classe. Confirmar marca a nota como devolvida."
+                ? "Confira os produtos, quantidades, motivo e classe. Salvar mantem a devolucao pendente."
                 : Motivos.Count == 0
                     ? "Cadastre um motivo em Motivos de devolucao antes de confirmar."
                     : "Pesquise por nome ou código de barras, marque os produtos (ou use Selecionar todos) e a quantidade. Depois aplique motivo e classe aos marcados.";
@@ -364,6 +379,21 @@ public sealed class PreNotaViewModel : ViewModelBase
             linha.Motivo = MotivoLote;
             linha.Classe = ClasseLote;
         }
+    }
+
+    private async Task CarregarObservacaoDevolucaoAsync()
+    {
+        if (_devolucao is null)
+        {
+            ObservacaoDevolucao = string.Empty;
+            return;
+        }
+
+        var historico = await _repository.ObterObservacoesDevolucaoAsync(_devolucao.Id);
+        var texto = DevolucaoObservacaoHistorico.Juntar(historico);
+        if (string.IsNullOrWhiteSpace(texto))
+            texto = _devolucao.Observacao?.Trim() ?? string.Empty;
+        ObservacaoDevolucao = texto.Trim();
     }
 
     private async Task ConfirmarAsync()

@@ -67,4 +67,25 @@ public class CruzamentoPlanilhaDevolucaoTests
         Assert.Single(faltam);
         Assert.Equal("22222", faltam[0].NumNota);
     }
+
+    [Fact]
+    public void ContarPendentesNaPlanilha_ContaSoPendenteQueJaEstaNaAba()
+    {
+        var planilha = CruzamentoPlanilhaDevolucao.IndexarAbas(
+        [
+            ("RANCHARIA (5)", ["28682316"]),
+            ("PARAPUÃ (26)", ["936705"])
+        ]);
+
+        var total = CruzamentoPlanilhaDevolucao.ContarPendentesNaPlanilha(
+        [
+            ("Pendente", "28682316", "RANCHARIA"),
+            ("Pendente", "936705", "PARAPUÃ"),
+            ("Pendente", "11111", "RANCHARIA"),
+            ("Devolvida", "28682316", "RANCHARIA")
+        ],
+        planilha);
+
+        Assert.Equal(2, total);
+    }
 }

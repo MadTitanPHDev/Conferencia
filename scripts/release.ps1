@@ -114,9 +114,11 @@ if ($CreateGitHubRelease) {
     $notes = @"
 ## ConferenciaNFs $Version
 
-Na tela de itens da nota, da para marcar produtos, escolher comprador e motivo e enviar a pendencia. A nota fica amarela e continua na conferencia. O atalho 2 da grade continua igual.
+Devolvida ao dist. so existe na fila de Devolucoes. Na conferencia e nas divergencias, confirmar a pre-nota deixa a devolucao pendente.
 
-A pre-nota de devolucao ganhou Buscar preco. Cada item mostra a diferenca contra a tabela mais recente, sem mudar o motivo nem a quantidade da devolucao.
+A lista de prints deixa de pedir a nota que a conferencia depois tirou da devolucao. A observacao da devolucao aparece na pre-nota. As legendas OLS ficam em ordem alfabetica.
+
+A fila mostra quantas pendentes ja estao na planilha. Consulta CMED baixa a lista da ANVISA e informa fabricante, precos e se o medicamento e controlado.
 
 ### Configuracao (app-settings.json)
 

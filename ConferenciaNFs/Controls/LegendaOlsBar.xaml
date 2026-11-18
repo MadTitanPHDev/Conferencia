@@ -4,9 +4,9 @@
              xmlns:controls="clr-namespace:ConferenciaNFs.Controls"
              xmlns:infra="clr-namespace:ConferenciaNFs.Infrastructure">
     <WrapPanel HorizontalAlignment="Right">
-        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsPerfumaria}"/>
         <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.LojasPerfumaria}"/>
         <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsGenerico}"/>
+        <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsPerfumaria}"/>
         <controls:LegendaOlsChip Bloco="{x:Static infra:LegendasOls.OlsReferencia}"/>
     </WrapPanel>
 </UserControl>

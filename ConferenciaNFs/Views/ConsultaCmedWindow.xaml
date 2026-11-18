@@ -1,0 +1,249 @@
+<Window x:Class="ConferenciaNFs.Views.ConsultaCmedWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Consulta CMED"
+        Height="760"
+        Width="1180"
+        MinHeight="560"
+        MinWidth="800"
+        Icon="pack://application:,,,/Assets/app.ico"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Background}"
+        FontFamily="{StaticResource Font.Primary}"
+        FontSize="13">
+    <Window.Resources>
+        <Style x:Key="BotaoCmed" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Padding" Value="16,4"/>
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+        <Style x:Key="GradeCmed" TargetType="DataGrid" BasedOn="{StaticResource ModernDataGridStyle}">
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Brush.Border}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource Brush.Surface}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource Brush.Surface}"/>
+        </Style>
+        <Style x:Key="CelulaAliquotaStyle" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+                    <Setter Property="BorderBrush" Value="Transparent"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="LinhaAliquotaStyle" TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Selecionada}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14,10,14,8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="*" MinHeight="180"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right"
+                    Content="Atualizar base"
+                    Command="{Binding AtualizarCommand}"
+                    Style="{StaticResource BotaoCmed}"
+                    ToolTip="Confere a página da ANVISA e baixa a lista se a publicação mudou."/>
+            <TextBlock Text="Consulta CMED"
+                       Style="{StaticResource PageTitleStyle}"
+                       FontSize="22"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="preços oficiais de medicamentos — fonte ANVISA"
+                       Margin="12,8,12,0"
+                       Style="{StaticResource PageSubtitleStyle}"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.ColumnSpan="5"
+                       Text="Código de barras (EAN), registro ou nome do medicamento:"
+                       Foreground="{DynamicResource Brush.TextSecondary}"
+                       Margin="0,0,0,2"/>
+            <TextBox x:Name="CampoBusca"
+                     Grid.Row="1"
+                     Grid.ColumnSpan="5"
+                     Text="{Binding Termo, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource ModernTextBoxStyle}"
+                     FontSize="16"
+                     Padding="8,6"
+                     MinHeight="32"
+                     Margin="0,0,0,8"
+                     VerticalContentAlignment="Center"
+                     PreviewKeyDown="CampoBusca_PreviewKeyDown"/>
+            <WrapPanel Grid.Row="2" Grid.ColumnSpan="5">
+                <Button Content="Buscar"
+                        Command="{Binding BuscarCommand}"
+                        Style="{StaticResource BotaoCmed}"
+                        Margin="0,0,12,4"/>
+                <TextBlock Text="Alíquota ICMS:"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.TextSecondary}"
+                           Margin="0,0,6,4"/>
+                <ComboBox Width="110"
+                          MinHeight="32"
+                          ItemsSource="{Binding Aliquotas}"
+                          SelectedItem="{Binding Aliquota}"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          Margin="0,0,12,4"
+                          VerticalAlignment="Center"/>
+                <Button Content="Copiar EAN"
+                        Command="{Binding CopiarEanCommand}"
+                        Style="{StaticResource BotaoCmed}"
+                        Margin="0,0,0,4"/>
+            </WrapPanel>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource Brush.AccentSoft}"
+                Margin="0,10,0,6"
+                Padding="14,7">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding FaixaControle}"
+                           Foreground="{DynamicResource Brush.DifAlerta}"
+                           FontWeight="Bold"
+                           FontSize="14"
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0"/>
+                <StackPanel>
+                    <TextBlock Text="{Binding FaixaProduto}"
+                               Foreground="{DynamicResource Brush.TextPrimary}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding FaixaPrecos}"
+                               Foreground="{DynamicResource Brush.TextPrimary}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Margin="0,1,0,0"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding Resultados}"
+                  SelectedItem="{Binding Selecionado, Mode=TwoWay}"
+                  Style="{StaticResource GradeCmed}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="EAN" Binding="{Binding Ean}" Width="130"/>
+                <DataGridTextColumn Header="Produto" Binding="{Binding Nome}" Width="*"/>
+                <DataGridTextColumn Header="Apresentação" Binding="{Binding Apresentacao}" Width="1.4*"/>
+                <DataGridTextColumn Header="Laboratório" Binding="{Binding Laboratorio}" Width="*"/>
+                <DataGridTextColumn Header="PF" Binding="{Binding PfTexto}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="PMC" Binding="{Binding PmcTexto}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.15*"/>
+                <ColumnDefinition Width="1.2*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource SurfaceCardStyle}" Padding="12,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Detalhe}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="158"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Rotulo}" Foreground="{DynamicResource Brush.TextSecondary}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Valor}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Brush.TextPrimary}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Destaque}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.DifAlerta}"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <DockPanel Grid.Column="1" Margin="14,0,0,0">
+                <TextBlock DockPanel.Dock="Top"
+                           Text="Preços por alíquota de ICMS"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Brush.TextPrimary}"
+                           Margin="0,0,0,4"/>
+                <DataGrid x:Name="TabelaPrecos"
+                          ItemsSource="{Binding PrecosPorAliquota}"
+                          CellStyle="{StaticResource CelulaAliquotaStyle}"
+                          RowStyle="{StaticResource LinhaAliquotaStyle}"
+                          Style="{StaticResource GradeCmed}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Alíquota" Binding="{Binding Aliquota}" Width="110"/>
+                        <DataGridTextColumn Header="PF (distribuidora)" Binding="{Binding Pf}" Width="*"/>
+                        <DataGridTextColumn Header="PMC (consumidor)" Binding="{Binding Pmc}" Width="*"/>
+                        <DataGridTextColumn Header="PMVG (governo)" Binding="{Binding Pmvg}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="5"
+                   Margin="0,6,0,0"
+                   Foreground="{DynamicResource Brush.TextSecondary}"
+                   TextWrapping="Wrap"
+                   Text="{Binding Mensagem}"/>
+    </Grid>
+</Window>
